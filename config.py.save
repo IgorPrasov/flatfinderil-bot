@@ -1,0 +1,208 @@
+
+BOT_TOKEN = "8047585631:AAHAi62BxK0EFfJM3tfmrxz7VbQY1dkhmlc"
+
+PROPERTY_TYPES = {
+    "apartment": "🏢 Квартира",
+    "house": "🏠 Дом",
+    "villa": "🏡 Вилла",
+    "penthouse": "🌆 Пентхаус",
+    "studio": "🛋 Студия",
+    "duplex": "🏘 Дуплекс",
+}
+
+DISTRICTS = {
+    "tel_aviv": {"name": "Тель-Авив и центр", "cities": ["Тель-Авив","Рамат-Ган","Гиватаим","Бней-Брак","Бат-Ям","Холон","Ор-Иегуда"]},
+    "jerusalem": {"name": "Иерусалим", "cities": ["Иерусалим","Бейт-Шемеш","Маале-Адумим"]},
+    "haifa": {"name": "Хайфа и север", "cities": ["Хайфа","Кирьят-Ата","Кирьят-Бялик","Тиверия","Акко","Нагария","Хадера"]},
+    "sharon": {"name": "Sharon (Шарон)", "cities": ["Нетания","Кфар-Саба","Раанана","Герцлия","Ход-ха-Шарон","Эвен-Иегуда"]},
+    "center": {"name": "Центральный округ", "cities": ["Петах-Тиква","Ришон-ле-Цион","Реховот","Нес-Циона","Лод","Рамла","Модиин"]},
+    "south": {"name": "Юг", "cities": ["Ашдод","Ашкелон","Беэр-Шева","Эйлат","Нетивот","Сдерот"]},
+}
+
+INFRASTRUCTURE = {
+    "kindergarten": "🧒 Детский сад",
+    "school": "🏫 Школа",
+    "mall": "🛒 Торговый центр",
+    "park": "🌳 Парк",
+    "gym": "💪 Спортзал",
+    "hospital": "🏥 Больница",
+    "beach": "🏖 Пляж",
+    "transport": "🚌 Общественный транспорт",
+    "restaurant": "🍽 Рестораны",
+    "synagogue": "🕍 Синагога",
+}
+
+PRICE_RENT_MIN_OPTIONS = [
+    ("0", "от любой"), ("2000", "от 2 000 ₪"), ("3000", "от 3 000 ₪"),
+    ("5000", "от 5 000 ₪"), ("8000", "от 8 000 ₪"), ("12000", "от 12 000 ₪"),
+    ("20000", "от 20 000 ₪"),
+]
+PRICE_RENT_OPTIONS = [
+    ("0", "Любая"), ("2000", "до 2 000 ₪"), ("3000", "до 3 000 ₪"),
+    ("5000", "до 5 000 ₪"), ("8000", "до 8 000 ₪"), ("12000", "до 12 000 ₪"),
+    ("20000", "до 20 000 ₪"), ("999999999", "без лимита"),
+]
+PRICE_BUY_MIN_OPTIONS = [
+    ("0", "от любой"), ("500000", "от 500 тыс."), ("1000000", "от 1 млн"),
+    ("2000000", "от 2 млн"), ("3000000", "от 3 млн"), ("5000000", "от 5 млн"),
+    ("8000000", "от 8 млн"),
+]
+PRICE_BUY_OPTIONS = [
+    ("0", "Любая"), ("500000", "до 500 тыс."), ("1000000", "до 1 млн"),
+    ("2000000", "до 2 млн"), ("3000000", "до 3 млн"), ("5000000", "до 5 млн"),
+    ("8000000", "до 8 млн"), ("999999999", "без лимита"),
+]
+
+ROOMS_OPTIONS = ["1", "1.5", "2", "2.5", "3", "3.5", "4", "4.5", "5", "5+"]
+FLOOR_OPTIONS = ["Подвал", "1", "2", "3", "4", "5", "6–10", "11–20", "21+", "Пентхаус"]
+
+(
+    SEARCH_TYPE, SEARCH_PROPERTY_TYPE, SEARCH_DISTRICT, SEARCH_CITY,
+    SEARCH_ROOMS, SEARCH_ROOMS_MAX, SEARCH_PRICE_MIN, SEARCH_PRICE_MAX,
+    SEARCH_PARKING, SEARCH_POOL, SEARCH_INFRASTRUCTURE, SEARCH_CONFIRM,
+    ADD_TITLE, ADD_PROPERTY_TYPE, ADD_CITY, ADD_DISTRICT_AREA,
+    ADD_ROOMS, ADD_PRICE, ADD_PARKING, ADD_POOL, ADD_FLOOR,
+    ADD_INFRASTRUCTURE, ADD_DESCRIPTION, ADD_CONTACT, ADD_CONFIRM
+) = range(25)from datetime import datetime
+from typing import List, Dict, Optional
+
+SAMPLE_LISTINGS = [
+    {"id":1,"title":"Светлая квартира в центре Тель-Авива","property_type":"apartment","city":"Тель-Авив","district":"tel_aviv","neighborhood":"Florentin","rooms":"3","floor":"4","area_sqm":85,"price":8500,"deal_type":"rent","parking":1,"pool":False,"infrastructure":["school","transport","restaurant","gym"],"description":"Уютная квартира с ремонтом. 3 комнаты, 2 балкона.","contact":"@tlaviv_realty","photos":["🏢"],"date_added":"2025-01-10","active":True},
+    {"id":2,"title":"Вилла с бассейном в Герцлии","property_type":"villa","city":"Герцлия","district":"sharon","neighborhood":"Герцлия Питуах","rooms":"6","floor":"1","area_sqm":350,"price":4500000,"deal_type":"buy","parking":3,"pool":True,"infrastructure":["beach","gym","restaurant","mall"],"description":"Роскошная вилла с частным бассейном, садом 800 кв.м.","contact":"@luxury_israel","photos":["🏡"],"date_added":"2025-01-12","active":True},
+    {"id":3,"title":"Пентхаус с видом на море в Нетании","property_type":"penthouse","city":"Нетания","district":"sharon","neighborhood":"Центр","rooms":"5","floor":"Пентхаус","area_sqm":220,"price":2800000,"deal_type":"buy","parking":2,"pool":True,"infrastructure":["beach","transport","restaurant","park"],"description":"Пентхаус 220 кв.м с террасой 80 кв.м. Панорамный вид на море.","contact":"@netanya_premium","photos":["🌆"],"date_added":"2025-01-15","active":True},
+    {"id":4,"title":"Квартира 4 комнаты в Иерусалиме","property_type":"apartment","city":"Иерусалим","district":"jerusalem","neighborhood":"Рехавия","rooms":"4","floor":"3","area_sqm":110,"price":5500,"deal_type":"rent","parking":1,"pool":False,"infrastructure":["school","kindergarten","synagogue","park","transport"],"description":"Просторная квартира в тихом районе Рехавия.","contact":"@jerusalem_homes","photos":["🏠"],"date_added":"2025-01-08","active":True},
+    {"id":5,"title":"Студия в Хайфе","property_type":"studio","city":"Хайфа","district":"haifa","neighborhood":"Неве-Шаанан","rooms":"1","floor":"2","area_sqm":42,"price":2800,"deal_type":"rent","parking":0,"pool":False,"infrastructure":["transport","restaurant","gym"],"description":"Компактная студия с новым ремонтом.","contact":"@haifa_student","photos":["🛋"],"date_added":"2025-01-18","active":True},
+    {"id":6,"title":"Дом в Раанане с садом","property_type":"house","city":"Раанана","district":"sharon","neighborhood":"Северный","rooms":"5","floor":"1","area_sqm":200,"price":3200000,"deal_type":"buy","parking":2,"pool":False,"infrastructure":["school","kindergarten","park","mall","transport"],"description":"Частный дом с большим садом 400 кв.м.","contact":"@raanana_realty","photos":["🏠"],"date_added":"2025-01-05","active":True},
+    {"id":7,"title":"Квартира 2.5 комнаты в Ришон-ле-Ционе","property_type":"apartment","city":"Ришон-ле-Цион","district":"center","neighborhood":"Нахлат-Иегуда","rooms":"2.5","floor":"5","area_sqm":68,"price":1650000,"deal_type":"buy","parking":1,"pool":True,"infrastructure":["school","mall","transport","gym","park"],"description":"Новострой 2021 года. Общий бассейн на крыше.","contact":"@rishon_new","photos":["🏢"],"date_added":"2025-01-20","active":True},
+    {"id":8,"title":"Дуплекс 5 комнат в Модиине","property_type":"duplex","city":"Модиин","district":"center","neighborhood":"Анава","rooms":"5","floor":"1","area_sqm":160,"price":7500,"deal_type":"rent","parking":2,"pool":False,"infrastructure":["school","kindergarten","park","mall","transport","gym"],"description":"Просторный дуплекс в новом квартале. Сад 60 кв.м.","contact":"@modiin_family","photos":["🏘"],"date_added":"2025-01-14","active":True},
+    {"id":9,"title":"Квартира у моря в Тель-Авиве","property_type":"apartment","city":"Тель-Авив","district":"tel_aviv","neighborhood":"Яффо","rooms":"3.5","floor":"6","area_sqm":95,"price":12000,"deal_type":"rent","parking":1,"pool":True,"infrastructure":["beach","restaurant","gym","transport","park"],"description":"Роскошный вид на море. Новострой 2023.","contact":"@tlv_sea_view","photos":["🏢"],"date_added":"2025-01-22","active":True},
+    {"id":10,"title":"Вилла в Кесарии","property_type":"villa","city":"Кесария","district":"sharon","neighborhood":"Кесария","rooms":"7","floor":"1","area_sqm":450,"price":8500000,"deal_type":"buy","parking":4,"pool":True,"infrastructure":["beach","gym","restaurant"],"description":"Эксклюзивная вилла в закрытом поселке. 450 кв.м.","contact":"@caesarea_elite","photos":["🏡"],"date_added":"2025-01-25","active":True},
+]
+
+_listings = {l["id"]: l for l in SAMPLE_LISTINGS}
+_user_favorites = {}
+_user_listings = {}
+_next_id = len(SAMPLE_LISTINGS) + 1
+
+
+def search_listings(filters: Dict) -> List[Dict]:
+    results = []
+    for listing in _listings.values():
+        if not listing.get("active"):
+            continue
+        if filters.get("deal_type") and listing["deal_type"] != filters["deal_type"]:
+            continue
+        if filters.get("property_types") and listing["property_type"] not in filters["property_types"]:
+            continue
+        if filters.get("district") and listing["district"] != filters["district"]:
+            continue
+        if filters.get("city") and listing["city"] != filters["city"]:
+            continue
+        if filters.get("rooms_min"):
+            try:
+                if float(listing["rooms"].replace("+","")) < float(filters["rooms_min"].replace("+","")):
+                    continue
+            except (ValueError, AttributeError):
+                pass
+        if filters.get("rooms_max"):
+            try:
+                if float(listing["rooms"].replace("+","")) > float(filters["rooms_max"].replace("+","")):
+                    continue
+            except (ValueError, AttributeError):
+                pass
+        if filters.get("price_min") is not None and listing["price"] < filters["price_min"]:
+            continue
+        if filters.get("price_max") is not None and listing["price"] > filters["price_max"]:
+            continue
+        if filters.get("parking_min") is not None and listing["parking"] < filters["parking_min"]:
+            continue
+        if filters.get("pool") is True and not listing["pool"]:
+            continue
+        if filters.get("infrastructure"):
+            if not set(filters["infrastructure"]).issubset(set(listing.get("infrastructure", []))):
+                continue
+        results.append(listing)
+    return results
+
+
+def get_listing(listing_id: int) -> Optional[Dict]:
+    return _listings.get(listing_id)
+
+
+def add_listing(listing_data: Dict) -> int:
+    global _next_id
+    listing_data["id"] = _next_id
+    listing_data["date_added"] = datetime.now().strftime("%Y-%m-%d")
+    listing_data["active"] = True
+    _listings[_next_id] = listing_data
+    _next_id += 1
+    user_id = listing_data.get("user_id")
+    if user_id:
+        _user_listings.setdefault(user_id, []).append(listing_data["id"])
+    return listing_data["id"]
+
+
+def get_user_listings(user_id: int) -> List[Dict]:
+    return [_listings[i] for i in _user_listings.get(user_id, []) if i in _listings]
+
+
+def toggle_favorite(user_id: int, listing_id: int) -> bool:
+    favs = _user_favorites.setdefault(user_id, [])
+    if listing_id in favs:
+        favs.remove(listing_id)
+        return False
+    favs.append(listing_id)
+    return True
+
+
+def get_favorites(user_id: int) -> List[Dict]:
+    return [_listings[i] for i in _user_favorites.get(user_id, []) if i in _listings]
+
+
+def get_all_listings(limit: int = 10) -> List[Dict]:
+    return [l for l in _listings.values() if l.get("active")][:limit]nano i18n.py
+nano keyboards.py
+nano formatters.py
+nano handlers.py
+nano search_handler.py
+nano listing_handler.py
+
+import logging
+from telegram import Update
+from telegram.ext import (
+    Application, CommandHandler, CallbackQueryHandler,
+    MessageHandler, filters,
+)
+from config import BOT_TOKEN
+from handlers import start, handle_menu, my_listings, handle_unknown
+from search_handler import SearchHandler
+from listing_handler import ListingHandler
+
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+
+def main():
+    app = Application.builder().token(BOT_TOKEN).build()
+    search = SearchHandler()
+    listing = ListingHandler()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("search", search.start_search))
+    app.add_handler(CommandHandler("listings", my_listings))
+    app.add_handler(CommandHandler("add", listing.start_add))
+    app.add_handler(CommandHandler("help", handle_unknown))
+    app.add_handler(search.get_conversation_handler())
+    app.add_handler(listing.get_conversation_handler())
+    app.add_handler(CallbackQueryHandler(handle_menu))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unknown))
+    print("Bot started!")
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == "__main__":
+    main()
+nano config.py
+8047585631:AAHAi62BxK0EFfJM3tfmrxz7VbQY1dkhmlc
+pip3 install python-telegram-bot==20.7
+python3 bot.py
+

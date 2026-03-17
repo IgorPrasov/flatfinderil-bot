@@ -1,0 +1,187 @@
+from telethon import TelegramClient
+from telethon.tl.types import MessageMediaPhoto
+import asyncio
+import sys
+sys.path.insert(0, "/Users/user/flatfinderil_bot")
+import database as db
+from datetime import datetime
+
+API_ID = 35002061
+API_HASH = "e0868efd711084c61c6bdee94006815e"
+
+CHANNELS = [
+    "israel_rent",
+    "tlvapartments",
+    "israelrealestate",
+    "israel_apartments",
+    "nadlan_israel",
+    "RealEstateIsraelBot",
+]
+
+CITY_KEYWORDS = {
+    "тель-авив": "Тель-Авив", "tel aviv": "Тель-Авив", "תל אביב": "Тель-Авив",
+    "яффо": "Тель-Авив", "флорентин": "Тель-Авив",
+    "рамат-ган": "Рамат-Ган", "ramat gan": "Рамат-Ган",
+    "иерусалим": "Иерусалим", "jerusalem": "Иерусалим", "ירושלים": "Иерусалим",
+    "хайфа": "Хайфа", "haifa": "Хайфа", "חיפה": "Хайфа",
+    "нетания": "Нетания", "netanya": "Нетания", "נתניה": "Нетания",
+    "герцлия": "Герцлия", "herzliya": "Герцлия", "הרצליה": "Герцлия",
+    "реховот": "Реховот", "ришон": "Ришон-ле-Цион",
+    "петах": "Петах-Тиква", "модиин": "Модиин",
+    "ашдод": "Ашдод", "ашкелон": "Ашкелон",
+    "беэр-шева": "Беэр-Шева", "beer sheva": "Беэр-Шева", "באר שבע": "Беэр-Шева",
+    "эйлат": "Эйлат", "eilat": "Эйлат", "אילת": "Эйлат",
+    "ашкелон": "Ашкелон", "ashkelon": "Ашкелон", "אשקלון": "Ашкелон",
+    "ашдод": "Ашдод", "ashdod": "Ашдод", "אשדוד": "Ашдод",
+    "нетивот": "Нетивот", "netivot": "Нетивот", "נתיבות": "Нетивот",
+    "сдерот": "Сдерот", "sderot": "Сдерот", "שדרות": "Сдерот",
+    "холон": "Холон", "holon": "Холон", "חולון": "Холон",
+    "бат-ям": "Бат-Ям", "bat yam": "Бат-Ям", "בת ים": "Бат-Ям",
+    "кфар-саба": "Кфар-Саба", "kfar saba": "Кфар-Саба", "כפר סבא": "Кфар-Саба",
+    "раанана": "Раанана", "raanana": "Раанана", "רעננה": "Раанана",
+    "димона": "Димона", "dimona": "Димона", "דימונה": "Димона",
+    "арад": "Арад", "arad": "Арад", "ערד": "Арад",
+}
+
+DISTRICT_MAP = {
+    "Тель-Авив": "tel_aviv", "Рамат-Ган": "tel_aviv",
+    "Холон": "tel_aviv", "Бат-Ям": "tel_aviv",
+    "Иерусалим": "jerusalem",
+    "Хайфа": "haifa",
+    "Нетания": "sharon", "Герцлия": "sharon",
+    "Кфар-Саба": "sharon", "Раанана": "sharon",
+    "Петах-Тиква": "center", "Ришон-ле-Цион": "center",
+    "Реховот": "center", "Модиин": "center",
+    "Ашдод": "south", "Ашкелон": "south",
+    "Беэр-Шева": "south", "Эйлат": "south",
+}
+
+def detect_city(text):
+    text_lower = text.lower()
+    for keyword, city in CITY_KEYWORDS.items():
+        if keyword in text_lower:
+            return city
+    return "Тель-Авив"
+
+def extract_price(text):
+    import re
+    patterns = [
+        r'(\d[\d\s,]{2,6})\s*₪',
+        r'(\d[\d\s,]{2,6})\s*[Nn][Ii][Ss]',
+        r'(\d[\d\s,]{2,6})\s*шек',
+        r'(\d[\d\s,]{2,6})\s*שקל',
+        r'מחיר[:\s]+(\d[\d\s,]+)',
+        r'цена[:\s]+(\d[\d\s,]+)',
+        r'price[:\s]+(\d[\d\s,]+)',
+        r'(\d{3,6})\s*לחודש',
+        r'(\d{3,6})\s*в\s*мес',
+        r'(\d{3,6})\s*/\s*мес',
+        r'(\d{4,6})\s*в\s*month',
+        r'💰\s*(\d[\d\s,]+)',
+        r'(\d{4,6})(?=\s*₪)',
+    ]
+    found = []
+    for pattern in patterns:
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            try:
+                price_str = match.group(1).replace(" ","").replace(",","")
+                price = int(price_str)
+                if 1000 <= price <= 100000:
+                    found.append(price)
+            except:
+                pass
+    if found:
+        counts = {}
+        for p in found:
+            counts[p] = counts.get(p, 0) + 1
+        return max(counts, key=counts.get)
+    return 0
+
+def extract_rooms(text):
+    import re
+    patterns = [
+        r'(\d[.,]?\d?)\s*комн',
+        r'(\d[.,]?\d?)\s*חד',
+        r'(\d[.,]?\d?)\s*room',
+        r'(\d[.,]?\d?)-к',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text.lower())
+        if match:
+            try:
+                val = float(match.group(1).replace(",", "."))
+                if 1 <= val <= 10:
+                    return str(val).replace(".0", "")
+            except:
+                pass
+    return "3"
+
+def is_listing(text):
+    if len(text) < 50:
+        return False
+    rent_words = ["аренда","сдам","снять","להשכרה","שכירות","rent","for rent","מחיר","цена","₪"]
+    return any(w in text.lower() for w in rent_words)
+
+async def parse_channel(client, channel, limit=50):
+    added = 0
+    try:
+        async for message in client.iter_messages(channel, limit=limit):
+            if not message.text:
+                continue
+            text = message.text
+            if not is_listing(text):
+                continue
+            city = detect_city(text)
+            district = DISTRICT_MAP.get(city, "center")
+            price = extract_price(text)
+            rooms = extract_rooms(text)
+            title_raw = text[:70].replace("\n", " ").strip()
+            listing = {
+                "title": f"📱 {title_raw}...",
+                "description": text[:600],
+                "property_type": "apartment",
+                "city": city,
+                "district": district,
+                "neighborhood": "",
+                "rooms": rooms,
+                "floor": "1",
+                "area_sqm": 0,
+                "price": price,
+                "deal_type": "rent",
+                "parking": 0,
+                "pool": False,
+                "infrastructure": [],
+                "contact": f"@{channel}",
+                "photos": ["🏢"],
+                "source": "telegram",
+                "source_url": f"https://t.me/{channel}/{message.id}",
+            }
+            db.add_listing(listing)
+            added += 1
+    except Exception as e:
+        print(f"  Ошибка {channel}: {e}")
+    return added
+
+async def run_parser():
+    print("=" * 50)
+    print("Telegram Parser для FlatFinderIL")
+    print(f"Каналов: {len(CHANNELS)}")
+    print("=" * 50)
+    client = TelegramClient("flatfinderil_session", API_ID, API_HASH)
+    await client.start()
+    print("✅ Telegram подключён!")
+    while True:
+        print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Запуск парсинга...")
+        total = 0
+        for channel in CHANNELS:
+            print(f"  Канал: @{channel}")
+            n = await parse_channel(client, channel)
+            print(f"  ✅ +{n} объявлений")
+            total += n
+            await asyncio.sleep(3)
+        print(f"\nИтого: {total} объявлений")
+        print("Следующий запуск через 30 мин...")
+        await asyncio.sleep(1800)
+
+if __name__ == "__main__":
+    asyncio.run(run_parser())

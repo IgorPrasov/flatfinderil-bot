@@ -1,0 +1,263 @@
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from i18n import t, get_lang, get_property_type_name, get_district_name, get_infra_name, LANGUAGES
+from city_translations import get_city_name
+
+PTYPE_KEYS = ["apartment","house","villa","penthouse","studio","duplex"]
+DISTRICT_KEYS = ["tel_aviv","jerusalem","haifa","sharon","center","south"]
+INFRA_KEYS = ["kindergarten","school","mall","park","gym","hospital","beach","transport","restaurant","synagogue","public_pool"]
+ROOMS_OPTIONS = ["1","1.5","2","2.5","3","3.5","4","4.5","5","5+"]
+FLOOR_OPTIONS = ["Подвал","1","2","3","4","5","6-10","11-20","21+","Пентхаус"]
+DISTRICT_CITIES = {
+    "tel_aviv":["Тель-Авив","Рамат-Ган","Гиватаим","Бней-Брак","Бат-Ям","Холон","Ор-Иегуда"],
+    "jerusalem":["Иерусалим","Бейт-Шемеш","Маале-Адумим"],
+    "haifa":["Хайфа","Кирьят-Ата","Кирьят-Бялик","Тиверия","Акко","Нагария","Хадера"],
+    "sharon":["Нетания","Кфар-Саба","Раанана","Герцлия","Ход-ха-Шарон","Эвен-Иегуда","Рош-аин","Рамат-ха-Шарон"],
+    "center":["Петах-Тиква","Ришон-ле-Цион","Реховот","Нес-Циона","Лод","Рамла","Модиин"],
+    "south":["Ашдод","Ашкелон","Беэр-Шева","Эйлат","Нетивот","Сдерот"],
+}
+ALL_CITIES = ["Тель-Авив","Иерусалим","Хайфа","Ришон-ле-Цион","Петах-Тиква","Ашдод","Нетания","Беэр-Шева","Бней-Брак","Холон","Рамат-Ган","Реховот","Ашкелон","Бат-Ям","Кфар-Саба","Хадера","Эйлат","Герцлия","Раанана","Лод","Нес-Циона","Ор-Иегуда","Модиин"]
+
+def language_keyboard():
+    return InlineKeyboardMarkup([[InlineKeyboardButton(label,callback_data=f"setlang_{code}")] for code,label in LANGUAGES.items()])
+
+def main_menu_keyboard(ctx):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("btn_search",ctx),callback_data="search"),InlineKeyboardButton(t("btn_favorites",ctx),callback_data="favorites")],
+        [InlineKeyboardButton(t("btn_my_listings",ctx),callback_data="my_listings"),InlineKeyboardButton(t("btn_add_listing",ctx),callback_data="add_listing")],
+        [InlineKeyboardButton(t("btn_all_listings",ctx),callback_data="all_listings"),InlineKeyboardButton(t("btn_help",ctx),callback_data="help")],
+        [InlineKeyboardButton("★ " + t("sub_title", ctx)[:15] if False else {"ru":"★ Подписка","en":"★ Subscribe","he":"★ מנוי"}.get(get_lang(ctx),"★ Подписка"), callback_data="subscription")],
+        [InlineKeyboardButton(t("btn_language",ctx),callback_data="choose_lang")],
+    ])
+
+def back_to_menu_keyboard(ctx):
+    return InlineKeyboardMarkup([[InlineKeyboardButton(t("btn_back_menu",ctx),callback_data="back_to_menu")]])
+
+def deal_type_keyboard(ctx):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("btn_deal_buy",ctx),callback_data="deal_buy"),InlineKeyboardButton(t("btn_deal_rent",ctx),callback_data="deal_rent")],
+        [InlineKeyboardButton(t("btn_back_menu",ctx),callback_data="back_to_menu")],
+    ])
+
+def property_type_keyboard(ctx,selected=None):
+    if selected is None: selected=[]
+    lang=get_lang(ctx)
+    keyboard=[]
+    row=[]
+    for key in PTYPE_KEYS:
+        name=get_property_type_name(key,lang)
+        mark="✅ " if key in selected else ""
+        row.append(InlineKeyboardButton(f"{mark}{name}",callback_data=f"ptype_{key}"))
+        if len(row)==2: keyboard.append(row); row=[]
+    if row: keyboard.append(row)
+    keyboard.append([InlineKeyboardButton(t("btn_all_types",ctx),callback_data="ptype_all")])
+    keyboard.append([InlineKeyboardButton(t("btn_back",ctx),callback_data="back"),InlineKeyboardButton(t("btn_done",ctx),callback_data="ptype_next")])
+    return InlineKeyboardMarkup(keyboard)
+
+def district_keyboard(ctx):
+    lang=get_lang(ctx)
+    keyboard=[[InlineKeyboardButton(get_district_name(k,lang),callback_data=f"district_{k}")] for k in DISTRICT_KEYS]
+    keyboard.append([InlineKeyboardButton(t("btn_all_israel",ctx),callback_data="district_all")])
+    keyboard.append([InlineKeyboardButton(t("btn_back",ctx),callback_data="back")])
+    return InlineKeyboardMarkup(keyboard)
+
+def city_keyboard(ctx,district_key=None):
+    lang=get_lang(ctx)
+    cities=DISTRICT_CITIES.get(district_key,ALL_CITIES) if district_key else ALL_CITIES
+    keyboard=[]
+    row=[]
+    for city in cities:
+        display=get_city_name(city,lang)
+        row.append(InlineKeyboardButton(display,callback_data=f"city_{city}"))
+        if len(row)==2: keyboard.append(row); row=[]
+    if row: keyboard.append(row)
+    keyboard.append([InlineKeyboardButton(t("btn_any_city",ctx),callback_data="city_any")])
+    keyboard.append([InlineKeyboardButton(t("btn_back",ctx),callback_data="back")])
+    return InlineKeyboardMarkup(keyboard)
+
+def rooms_keyboard(ctx,label_from="rooms_min"):
+    keyboard=[]
+    row=[]
+    for r in ROOMS_OPTIONS:
+        row.append(InlineKeyboardButton(r,callback_data=f"{label_from}_{r}"))
+        if len(row)==5: keyboard.append(row); row=[]
+    if row: keyboard.append(row)
+    keyboard.append([InlineKeyboardButton(t("btn_any_rooms",ctx),callback_data=f"{label_from}_any")])
+    keyboard.append([InlineKeyboardButton(t("btn_back",ctx),callback_data="back")])
+    return InlineKeyboardMarkup(keyboard)
+
+def rooms_range_keyboard(ctx,selected_min=None):
+    keyboard=[]
+    row=[]
+    for r in ROOMS_OPTIONS:
+        mark="📌 " if r==selected_min else ""
+        row.append(InlineKeyboardButton(f"{mark}{r}",callback_data=f"rooms_max_{r}"))
+        if len(row)==5: keyboard.append(row); row=[]
+    if row: keyboard.append(row)
+    keyboard.append([InlineKeyboardButton(t("btn_no_limit",ctx),callback_data="rooms_max_any")])
+    keyboard.append([InlineKeyboardButton(t("btn_back",ctx),callback_data="back")])
+    return InlineKeyboardMarkup(keyboard)
+
+def price_keyboard(ctx,options,prefix):
+    keyboard=[]
+    row=[]
+    for value,label in options:
+        row.append(InlineKeyboardButton(label,callback_data=f"{prefix}_{value}"))
+        if len(row)==2: keyboard.append(row); row=[]
+    if row: keyboard.append(row)
+    keyboard.append([InlineKeyboardButton(t("btn_back",ctx),callback_data="back")])
+    return InlineKeyboardMarkup(keyboard)
+
+def parking_keyboard(ctx,prefix="park"):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("btn_no_parking",ctx),callback_data=f"{prefix}_0"),InlineKeyboardButton("1 🚗",callback_data=f"{prefix}_1")],
+        [InlineKeyboardButton("2 🚗🚗",callback_data=f"{prefix}_2"),InlineKeyboardButton("3+ 🚗",callback_data=f"{prefix}_3")],
+        [InlineKeyboardButton(t("btn_any_parking",ctx),callback_data=f"{prefix}_any")],
+        [InlineKeyboardButton(t("btn_back",ctx),callback_data="back")],
+    ])
+
+def pool_keyboard(ctx,prefix="pool"):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("btn_pool_yes",ctx),callback_data=f"{prefix}_yes"),InlineKeyboardButton(t("btn_pool_any",ctx),callback_data=f"{prefix}_any")],
+        [InlineKeyboardButton(t("btn_back",ctx),callback_data="back")],
+    ])
+
+def infrastructure_keyboard(ctx,selected=None):
+    if selected is None: selected=[]
+    lang=get_lang(ctx)
+    keyboard=[]
+    row=[]
+    for key in INFRA_KEYS:
+        name=get_infra_name(key,lang)
+        mark="✅ " if key in selected else ""
+        row.append(InlineKeyboardButton(f"{mark}{name}",callback_data=f"infra_{key}"))
+        if len(row)==2: keyboard.append(row); row=[]
+    if row: keyboard.append(row)
+    keyboard.append([InlineKeyboardButton(t("btn_skip",ctx),callback_data="infra_skip"),InlineKeyboardButton(t("btn_done",ctx),callback_data="infra_done")])
+    keyboard.append([InlineKeyboardButton(t("btn_back",ctx),callback_data="back")])
+    return InlineKeyboardMarkup(keyboard)
+
+def confirm_search_keyboard(ctx):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("btn_find",ctx),callback_data="confirm_search"),InlineKeyboardButton(t("btn_reset",ctx),callback_data="reset_search")],
+        [InlineKeyboardButton(t("btn_back_menu",ctx),callback_data="back_to_menu")],
+    ])
+
+def results_navigation_keyboard(ctx,current,total,listing_id):
+    nav_row=[]
+    if current>0: nav_row.append(InlineKeyboardButton(t("btn_prev",ctx),callback_data=f"result_prev_{current}"))
+    nav_row.append(InlineKeyboardButton(f"{current+1}/{total}",callback_data="noop"))
+    if current<total-1: nav_row.append(InlineKeyboardButton(t("btn_next",ctx),callback_data=f"result_next_{current}"))
+    return InlineKeyboardMarkup([
+        nav_row,
+        [InlineKeyboardButton(t("btn_to_fav",ctx),callback_data=f"fav_{listing_id}"),InlineKeyboardButton(t("btn_contact",ctx),callback_data=f"contact_{listing_id}")],
+        [InlineKeyboardButton(t("btn_new_search",ctx),callback_data="search")],
+        [InlineKeyboardButton(t("btn_back_menu",ctx),callback_data="back_to_menu")],
+    ])
+
+def floor_keyboard(ctx):
+    keyboard=[]
+    row=[]
+    for f in FLOOR_OPTIONS:
+        row.append(InlineKeyboardButton(f,callback_data=f"floor_{f}"))
+        if len(row)==3: keyboard.append(row); row=[]
+    if row: keyboard.append(row)
+    keyboard.append([InlineKeyboardButton(t("btn_cancel",ctx),callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(keyboard)
+
+def deal_type_add_keyboard(ctx):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("btn_deal_buy",ctx),callback_data="add_deal_buy"),InlineKeyboardButton(t("btn_deal_rent",ctx),callback_data="add_deal_rent")],
+        [InlineKeyboardButton(t("btn_cancel",ctx),callback_data="back_to_menu")],
+    ])
+
+def single_property_type_keyboard(ctx):
+    lang=get_lang(ctx)
+    keyboard=[]
+    row=[]
+    for key in PTYPE_KEYS:
+        name=get_property_type_name(key,lang)
+        row.append(InlineKeyboardButton(name,callback_data=f"add_ptype_{key}"))
+        if len(row)==2: keyboard.append(row); row=[]
+    if row: keyboard.append(row)
+    keyboard.append([InlineKeyboardButton(t("btn_cancel",ctx),callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(keyboard)
+
+def add_confirm_keyboard(ctx):
+    return InlineKeyboardMarkup([[InlineKeyboardButton(t("btn_publish",ctx),callback_data="confirm_add"),InlineKeyboardButton(t("btn_cancel",ctx),callback_data="cancel_add")]])
+
+def shelter_keyboard(ctx, prefix="shelter"):
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(t("btn_shelter_mamad", ctx), callback_data=f"{prefix}_mamad"),
+            InlineKeyboardButton(t("btn_shelter_miklat", ctx), callback_data=f"{prefix}_miklat"),
+        ],
+        [
+            InlineKeyboardButton(t("btn_shelter_none", ctx), callback_data=f"{prefix}_none"),
+            InlineKeyboardButton(t("btn_shelter_any", ctx), callback_data=f"{prefix}_any"),
+        ],
+        [InlineKeyboardButton(t("btn_back", ctx), callback_data="back")],
+    ])
+
+def district_multi_keyboard(ctx, selected=None):
+    if selected is None: selected = []
+    lang = get_lang(ctx)
+    keyboard = []
+    for k in DISTRICT_KEYS:
+        name = get_district_name(k, lang)
+        mark = "✅ " if k in selected else ""
+        keyboard.append([InlineKeyboardButton(f"{mark}{name}", callback_data=f"district_{k}")])
+    keyboard.append([
+        InlineKeyboardButton(t("btn_all_israel", ctx), callback_data="district_all"),
+        InlineKeyboardButton(t("btn_done", ctx), callback_data="dist_done"),
+    ])
+    keyboard.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="dist_back")])
+    return InlineKeyboardMarkup(keyboard)
+
+def city_multi_keyboard(ctx, selected=None, districts=None):
+    if selected is None: selected = []
+    if districts is None: districts = []
+    cities = []
+    if districts:
+        for d in districts:
+            for c in DISTRICT_CITIES.get(d, []):
+                if c not in cities:
+                    cities.append(c)
+    else:
+        cities = ALL_CITIES
+    keyboard = []
+    row = []
+    lang=get_lang(ctx)
+    for city in cities:
+        display=get_city_name(city,lang)
+        mark = "✅ " if city in selected else ""
+        row.append(InlineKeyboardButton(f"{mark}{display}", callback_data=f"city_{city}"))
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+    keyboard.append([
+        InlineKeyboardButton(t("btn_any_city", ctx), callback_data="city_any"),
+    ])
+    keyboard.append([
+        InlineKeyboardButton(t("btn_back", ctx), callback_data="cities_back"),
+        InlineKeyboardButton(t("btn_done", ctx), callback_data="cities_done"),
+    ])
+    return InlineKeyboardMarkup(keyboard)
+
+def subscription_keyboard(ctx):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("btn_sub_week", ctx),      callback_data="sub_week")],
+        [InlineKeyboardButton(t("btn_sub_two_weeks", ctx), callback_data="sub_two_weeks")],
+        [InlineKeyboardButton(t("btn_sub_month", ctx),     callback_data="sub_month")],
+        [InlineKeyboardButton(t("btn_back_menu", ctx),     callback_data="back_to_menu")],
+    ])
+
+def elevator_keyboard(ctx, prefix="elevator"):
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(t("btn_elevator_yes", ctx), callback_data=f"{prefix}_yes"),
+            InlineKeyboardButton(t("btn_elevator_any", ctx), callback_data=f"{prefix}_any"),
+        ],
+        [InlineKeyboardButton(t("btn_back", ctx), callback_data="back")],
+    ])

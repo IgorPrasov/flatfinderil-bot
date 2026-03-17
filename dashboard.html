@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlatFinderIL Analytics</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f0;color:#1a1a1a}
+.header{background:#fff;border-bottom:1px solid #e0e0da;padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{width:32px;height:32px;border-radius:50%;background:#2AABEE;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0}
+.nav{display:flex;gap:4px;margin-left:16px}
+.nav-btn{padding:4px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:none;background:transparent;color:#666;font-weight:400;transition:all .12s}
+.nav-btn.active{background:#2AABEE;color:#fff;font-weight:500}
+.status{font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid;cursor:pointer}
+.main{max-width:1100px;margin:0 auto;padding:20px 16px}
+.kpi-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.kpi{background:#fff;border:0.5px solid #e0e0da;border-radius:10px;padding:14px 16px;flex:1;min-width:140px}
+.kpi-val{font-size:24px;font-weight:500;line-height:1.2}
+.kpi-title{font-size:10px;color:#999;margin-bottom:5px}
+.kpi-sub{font-size:10px;color:#999;margin-top:3px}
+.grid2{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+.grid11{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card{background:#fff;border:0.5px solid #e0e0da;border-radius:10px;margin-bottom:16px;overflow:hidden}
+.card-title{padding:11px 16px;border-bottom:1px solid #f0f0ea;font-size:13px;font-weight:500}
+.card-body{padding:16px}
+.tab{display:none}
+.tab.active{display:block}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.bar-label{width:90px;font-size:11px;color:#666;text-align:right;flex-shrink:0}
+.bar-track{flex:1;height:6px;background:#f0f0ea;border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.bar-val{font-size:11px;color:#666;min-width:36px;text-align:right}
+.plan-row{display:flex;align-items:center;justify-content:space-between;padding:13px 0;border-bottom:1px solid #f0f0ea}
+.plan-row:last-child{border:none}
+.forecast-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.forecast-card{padding:14px;background:#f8f8f4;border-radius:8px;text-align:center}
+.lang-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-top:1px solid #f0f0ea}
+.channel-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.channel-card{padding:10px 12px;background:#f8f8f4;border-radius:8px;border-left:3px solid #4CAF8A}
+.total-row{margin-top:10px;padding:10px 14px;background:#f8f8f4;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+canvas{max-width:100%}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="logo">FF</div>
+    <div>
+      <div style="font-size:14px;font-weight:500">FlatFinderIL Analytics</div>
+      <div style="font-size:10px;color:#999" id="sub-title">@FlatFinderIL_bot</div>
+    </div>
+    <div class="nav">
+      <button class="nav-btn active" onclick="showTab('overview')">📊 Обзор</button>
+      <button class="nav-btn" onclick="showTab('users')">👥 Пользователи</button>
+      <button class="nav-btn" onclick="showTab('searches')">🔍 Поиски</button>
+      <button class="nav-btn" onclick="showTab('listings')">🏠 Объявления</button>
+      <button class="nav-btn" onclick="showTab('money')">💰 Доход</button>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="status" id="status-pill" style="color:#EF9F27;border-color:#EF9F27;background:#fff8e7">◎ Загрузка</span>
+    <button class="status" style="color:#2AABEE;border-color:#2AABEE;background:#f0f8ff" onclick="loadData()">↻ Обновить</button>
+    <span style="font-size:10px;color:#999" id="last-update">—</span>
+  </div>
+</div>
+
+<div class="main">
+  <!-- OVERVIEW -->
+  <div class="tab active" id="tab-overview">
+    <div class="kpi-row" id="kpi-overview"></div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Активность за неделю</div>
+        <div class="card-body"><canvas id="chart-activity" height="160"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Языки</div>
+        <div class="card-body">
+          <canvas id="chart-langs" height="120"></canvas>
+          <div id="langs-list" style="margin-top:8px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="grid11">
+      <div class="card">
+        <div class="card-title">Топ городов поиска</div>
+        <div class="card-body" id="cities-search"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Объявления по городам</div>
+        <div class="card-body" id="cities-listings"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- USERS -->
+  <div class="tab" id="tab-users">
+    <div class="kpi-row" id="kpi-users"></div>
+    <div class="card">
+      <div class="card-title">Прирост пользователей по дням</div>
+      <div class="card-body"><canvas id="chart-users" height="180"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Распределение по языкам</div>
+      <div class="card-body" id="langs-cards"></div>
+    </div>
+  </div>
+
+  <!-- SEARCHES -->
+  <div class="tab" id="tab-searches">
+    <div class="kpi-row" id="kpi-searches"></div>
+    <div class="grid11">
+      <div class="card">
+        <div class="card-title">Поиски по городам</div>
+        <div class="card-body" id="searches-cities"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Популярные фильтры</div>
+        <div class="card-body" id="filters-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTINGS -->
+  <div class="tab" id="tab-listings">
+    <div class="kpi-row" id="kpi-listings"></div>
+    <div class="grid11">
+      <div class="card">
+        <div class="card-title">По городам</div>
+        <div class="card-body"><canvas id="chart-listing-cities" height="160"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Источники Telegram</div>
+        <div class="card-body" id="sources-list"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Статус каналов</div>
+      <div class="card-body"><div class="channel-grid" id="channels-grid"></div></div>
+    </div>
+  </div>
+
+  <!-- MONEY -->
+  <div class="tab" id="tab-money">
+    <div class="kpi-row" id="kpi-money"></div>
+    <div class="card">
+      <div class="card-title">Тарифные планы</div>
+      <div class="card-body" id="plans-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Прогноз после окончания триала 15 апреля</div>
+      <div class="card-body"><div class="forecast-grid" id="forecast-grid"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TG="#2AABEE",GREEN="#4CAF8A",GOLD="#EF9F27",PURPLE="#7F77DD",RED="#E24B4A";
+const COLORS=[TG,GREEN,GOLD,PURPLE,RED,"#D85A30","#1D9E75"];
+
+const DEMO={
+  users:{total:6310,new_today:89,active_today:247,new_week:634,active_week:1840},
+  languages:[{name:"RU",value:68,count:4291},{name:"HE",value:22,count:1388},{name:"EN",value:10,count:631}],
+  searches_by_city:[{city:"Тель-Авив",count:1847},{city:"Хайфа",count:743},{city:"Иерусалим",count:612},{city:"Нетания",count:389},{city:"Бат-Ям",count:312}],
+  popular_filters:[{filter:"Аренда",count:4892,pct:100},{filter:"2–3 комнаты",count:3521,pct:72},{filter:"до 8000₪",count:2834,pct:58},{filter:"Парковка",count:2007,pct:41},{filter:"Мамад/Миклат",count:1663,pct:34},{filter:"Лифт",count:1370,pct:28}],
+  activity_week:[{day:"Пн",searches:587,users:334,new:67},{day:"Вт",searches:643,users:412,new:89},{day:"Ср",searches:578,users:367,new:71},{day:"Чт",searches:734,users:489,new:112},{day:"Пт",searches:912,users:634,new:134},{day:"Сб",searches:867,users:598,new:98},{day:"Вс",searches:698,users:443,new:63}],
+  subscription:{trial:6252,week:23,two_weeks:19,month:16,conversion:0.9},
+  listings:{total:506,telegram:506,manual:0,by_city:[{city:"Тель-Авив",count:396},{city:"Хайфа",count:66},{city:"Бат-Ям",count:44}],sources:[{name:"@israel_rent",count:198},{name:"@israel_apartments",count:132},{name:"@tlvapartments",count:110},{name:"@israelrealestate",count:66}]},
+  responses:{total:1247,favorites:389,contacts:312,avg_per_user:2.3},
+  income:{current:1712},
+  total_searches:19847,
+};
+
+let D=DEMO, charts={};
+
+function n(v){return Number(v).toLocaleString("ru-RU");}
+
+async function loadData(){
+  try{
+    const r=await fetch("http://localhost:8765/analytics",{signal:AbortSignal.timeout(3000)});
+    const j=await r.json();
+    D={...DEMO,...j,listings:{...DEMO.listings,...j.listings}};
+    setPill("live","● Live","#4CAF8A","#eafaf1");
+  }catch{
+    D=DEMO;
+    setPill("demo","◎ Демо","#EF9F27","#fff8e7");
+  }
+  document.getElementById("last-update").textContent=new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
+  document.getElementById("sub-title").textContent=`@FlatFinderIL_bot · ${D.listings.total} объявлений`;
+  render();
+}
+
+function setPill(s,t,c,bg){
+  const p=document.getElementById("status-pill");
+  p.textContent=t;p.style.color=c;p.style.borderColor=c;p.style.background=bg;
+}
+
+function kpi(icon,title,value,sub,color){
+  return `<div class="kpi" style="border-top:3px solid ${color}">
+    <div class="kpi-title">${icon} ${title}</div>
+    <div class="kpi-val" style="color:${color}">${value}</div>
+    ${sub?`<div class="kpi-sub">${sub}</div>`:""}
+  </div>`;
+}
+
+function barH(items,vk,nk,color){
+  if(!items||!items.length)return`<div style="text-align:center;padding:24px;color:#999;font-size:12px">Данные накапливаются...</div>`;
+  const max=Math.max(...items.map(x=>x[vk]));
+  return items.map(x=>`
+    <div class="bar-row">
+      <div class="bar-label">${x[nk]}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(x[vk]/max*100)}%;background:${color}"></div></div>
+      <div class="bar-val">${n(x[vk])}</div>
+    </div>`).join("");
+}
+
+function makeChart(id,type,labels,datasets,opts={}){
+  const canvas=document.getElementById(id);
+  if(!canvas)return;
+  if(charts[id])charts[id].destroy();
+  const base={responsive:true,plugins:{legend:{display:!!opts.legend,labels:{font:{size:11},boxWidth:12}},tooltip:{bodyFont:{size:11},titleFont:{size:11}}},scales:{x:{grid:{display:false},ticks:{font:{size:10},color:"#999"}},y:{grid:{color:"#f0f0ea"},ticks:{font:{size:10},color:"#999"}}}};
+  if(type==="pie"||type==="doughnut")delete base.scales;
+  charts[id]=new Chart(canvas,{type,data:{labels,datasets},options:{...base,...opts}});
+}
+
+function render(){
+  const totalSubs=(D.subscription.week||0)+(D.subscription.two_weeks||0)+(D.subscription.month||0);
+  const income=D.income?.current||0;
+
+  // KPIs
+  document.getElementById("kpi-overview").innerHTML=
+    kpi("🏠","Объявлений",n(D.listings.total),`${D.listings.telegram} из Telegram`,TG)+
+    kpi("👥","Пользователей",n(D.users.total),`+${D.users.new_today} сегодня`,GREEN)+
+    kpi("🔍","Поисков",n(D.total_searches),"всего",GOLD)+
+    kpi("★","Подписчики",n(totalSubs),`конверсия ${D.subscription.conversion}%`,PURPLE)+
+    kpi("💰","Доход/мес",`${income} ₪`,"актуально",GREEN);
+
+  document.getElementById("kpi-users").innerHTML=
+    kpi("👥","Всего",n(D.users.total),"",TG)+
+    kpi("🆕","Новых сегодня",D.users.new_today,"",GREEN)+
+    kpi("⚡","Активны сегодня",D.users.active_today,"",GOLD)+
+    kpi("📅","За неделю",n(D.users.active_week),"",PURPLE);
+
+  document.getElementById("kpi-searches").innerHTML=
+    kpi("🔍","Поисков",n(D.total_searches),"",TG)+
+    kpi("🏙","Городов",D.searches_by_city.length,"в поисках",GREEN)+
+    kpi("📋","Топ фильтр",D.popular_filters[0]?.filter||"—","",GOLD);
+
+  document.getElementById("kpi-listings").innerHTML=
+    kpi("📋","Всего",n(D.listings.total),"",TG)+
+    kpi("📱","Из Telegram",n(D.listings.telegram),"каждые 30 мин",GREEN)+
+    kpi("📡","Каналов",D.listings.sources.length,"активных",PURPLE);
+
+  document.getElementById("kpi-money").innerHTML=
+    kpi("💰","Доход сейчас",`${income} ₪/мес`,"",GREEN)+
+    kpi("★","Подписчиков",n(totalSubs),"",PURPLE)+
+    kpi("%","Конверсия",`${D.subscription.conversion}%`,"цель: 5%",TG)+
+    kpi("🎁","На триале",n(D.users.total-totalSubs),"до 15 апреля",GOLD);
+
+  // Activity chart
+  makeChart("chart-activity","line",D.activity_week.map(x=>x.day),[
+    {label:"Поиски",data:D.activity_week.map(x=>x.searches),borderColor:TG,backgroundColor:TG+"25",fill:true,tension:0.4,borderWidth:2,pointRadius:0},
+    {label:"Пользователи",data:D.activity_week.map(x=>x.users),borderColor:GREEN,backgroundColor:GREEN+"25",fill:true,tension:0.4,borderWidth:2,pointRadius:0},
+  ],{legend:true});
+
+  // Lang chart
+  makeChart("chart-langs","doughnut",D.languages.map(x=>x.name),[
+    {data:D.languages.map(x=>x.value),backgroundColor:COLORS,borderWidth:0}
+  ],{cutout:"60%"});
+
+  const flags={"RU":"🇷🇺","HE":"🇮🇱","EN":"🇬🇧"};
+  document.getElementById("langs-list").innerHTML=D.languages.map((l,i)=>`
+    <div class="lang-row">
+      <div style="width:8px;height:8px;border-radius:2px;background:${COLORS[i]};flex-shrink:0"></div>
+      <span style="flex:1;font-size:12px">${flags[l.name]||""} ${l.name}</span>
+      <span style="font-size:11px;color:#999">${n(l.count)}</span>
+      <span style="font-size:11px;font-weight:500;color:${COLORS[i]};min-width:30px;text-align:right">${l.value}%</span>
+    </div>`).join("");
+
+  // Cities
+  document.getElementById("cities-search").innerHTML=barH(D.searches_by_city,"count","city",TG);
+  document.getElementById("cities-listings").innerHTML=barH(D.listings.by_city,"count","city",GOLD);
+
+  // Users chart
+  makeChart("chart-users","bar",D.activity_week.map(x=>x.day),[
+    {label:"Новые",data:D.activity_week.map(x=>x.new),backgroundColor:GREEN,borderRadius:4},
+    {label:"Активные",data:D.activity_week.map(x=>x.users),backgroundColor:TG,borderRadius:4},
+  ],{legend:true});
+
+  // Langs cards
+  document.getElementById("langs-cards").innerHTML=`<div style="display:flex;gap:12px">`+
+    D.languages.map((l,i)=>`
+      <div style="flex:1;padding:14px;border-radius:8px;background:#f8f8f4;text-align:center;border-top:3px solid ${COLORS[i]}">
+        <div style="font-size:24px;margin-bottom:4px">${flags[l.name]||""}</div>
+        <div style="font-size:22px;font-weight:500;color:${COLORS[i]}">${n(l.count)}</div>
+        <div style="font-size:11px;color:#999">${l.name} · ${l.value}%</div>
+      </div>`).join("")+`</div>`;
+
+  // Searches cities & filters
+  document.getElementById("searches-cities").innerHTML=D.searches_by_city.length?barH(D.searches_by_city,"count","city",TG):`<div style="text-align:center;padding:24px;color:#999">Данные появятся после первых поисков</div>`;
+  document.getElementById("filters-list").innerHTML=D.popular_filters.map((f,i)=>`
+    <div class="bar-row">
+      <div style="font-size:10px;color:#999;width:14px;text-align:right;flex-shrink:0">${i+1}</div>
+      <div style="width:120px;font-size:12px;flex-shrink:0">${f.filter}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${f.pct}%;background:${COLORS[i%COLORS.length]}"></div></div>
+      <div class="bar-val">${n(f.count)}</div>
+    </div>`).join("");
+
+  // Listing cities chart
+  makeChart("chart-listing-cities","bar",D.listings.by_city.map(x=>x.city),[
+    {data:D.listings.by_city.map(x=>x.count),backgroundColor:GOLD,borderRadius:6}
+  ],{});
+
+  // Sources
+  document.getElementById("sources-list").innerHTML=barH(D.listings.sources,"count","name",TG);
+
+  // Channels
+  document.getElementById("channels-grid").innerHTML=D.listings.sources.map(s=>`
+    <div class="channel-card">
+      <div style="font-size:10px;color:#4CAF8A;margin-bottom:3px">● активен</div>
+      <div style="font-size:11px;font-weight:500;font-family:monospace;margin-bottom:2px">${s.name}</div>
+      <div style="font-size:22px;font-weight:500;color:#2AABEE">${n(s.count)}</div>
+      <div style="font-size:10px;color:#999">объявлений</div>
+    </div>`).join("");
+
+  // Plans
+  const plans=[
+    {name:"1 неделя",price:19.90,count:D.subscription.week,color:TG},
+    {name:"2 недели ⭐ Хит",price:29.90,count:D.subscription.two_weeks,color:GOLD},
+    {name:"1 месяц",price:39.90,count:D.subscription.month,color:PURPLE},
+  ];
+  document.getElementById("plans-list").innerHTML=
+    plans.map((p,i)=>`
+      <div class="plan-row">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:10px;height:10px;border-radius:2px;background:${p.color}"></div>
+          <div><div style="font-size:13px;font-weight:500">${p.name}</div><div style="font-size:10px;color:#999">${p.price} ₪/чел</div></div>
+        </div>
+        <div style="text-align:center"><div style="font-size:22px;font-weight:500;color:${p.color}">${p.count}</div><div style="font-size:10px;color:#999">подписчиков</div></div>
+        <div style="text-align:right"><div style="font-size:15px;font-weight:500">${(p.price*p.count).toFixed(2)} ₪</div><div style="font-size:10px;color:#999">в месяц</div></div>
+      </div>`).join("")+
+    `<div class="total-row"><span style="font-size:13px;font-weight:500">Итого</span><span style="font-size:18px;font-weight:500;color:#4CAF8A">${income} ₪/мес</span></div>`;
+
+  // Forecast
+  const scenarios=[
+    {t:"Консервативно",s:"2% конверсия",pct:0.02,c:TG},
+    {t:"Реалистично",s:"5% конверсия",pct:0.05,c:GOLD},
+    {t:"Оптимистично",s:"10% конверсия",pct:0.1,c:GREEN},
+  ];
+  document.getElementById("forecast-grid").innerHTML=scenarios.map(s=>{
+    const val=Math.round(D.users.total*s.pct*29.9);
+    return`<div class="forecast-card" style="border-top:2px solid ${s.c}">
+      <div style="font-size:12px;font-weight:500;margin-bottom:2px">${s.t}</div>
+      <div style="font-size:10px;color:#999;margin-bottom:8px">${s.s}</div>
+      <div style="font-size:22px;font-weight:500;color:${s.c}">${n(val)} ₪</div>
+      <div style="font-size:10px;color:#999;margin-top:2px">в месяц</div>
+      <div style="font-size:11px;color:${s.c};margin-top:4px">${n(val*12)} ₪/год</div>
+    </div>`;
+  }).join("");
+}
+
+function showTab(name){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  event.target.classList.add("active");
+}
+
+loadData();
+setInterval(loadData,30000);
+</script>
+</body>
+</html>
