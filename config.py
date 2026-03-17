@@ -1,4 +1,5 @@
-BOT_TOKEN = "8047585631:AAH9OTvRuJWEMBieIyaZRBPEalOda6nLo0Q"
+import os
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8047585631:AAH9OTvRuJWEMBieIyaZRBPEalOda6nLo0Q")
 
 PROPERTY_TYPES = {
     "apartment": "🏢 Квартира",
