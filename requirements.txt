@@ -1,0 +1,5 @@
+python-telegram-bot==20.7
+telethon
+requests
+lxml_html_clean
+browser-cookie3
