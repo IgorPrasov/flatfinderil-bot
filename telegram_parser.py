@@ -167,7 +167,12 @@ async def run_parser():
     print("Telegram Parser для FlatFinderIL")
     print(f"Каналов: {len(CHANNELS)}")
     print("=" * 50)
-    client = TelegramClient("flatfinderil_session", API_ID, API_HASH)
+    session = os.environ.get("SESSION_STRING")
+    if session:
+        from telethon.sessions import StringSession
+        client = TelegramClient(StringSession(session), API_ID, API_HASH)
+    else:
+        client = TelegramClient("flatfinderil_session", API_ID, API_HASH)
     await client.start()
     print("✅ Telegram подключён!")
     while True:
