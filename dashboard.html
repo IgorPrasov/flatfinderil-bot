@@ -180,7 +180,7 @@ function n(v){return Number(v).toLocaleString("ru-RU");}
 
 async function loadData(){
   try{
-    const r=await fetch("http://localhost:8765/analytics",{signal:AbortSignal.timeout(3000)});
+    const r=await fetch("https://flatfinderil-bot-production.up.railway.app/analytics",{signal:AbortSignal.timeout(3000)});
     const j=await r.json();
     D={...DEMO,...j,listings:{...DEMO.listings,...j.listings}};
     setPill("live","● Live","#4CAF8A","#eafaf1");
