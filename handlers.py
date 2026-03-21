@@ -9,6 +9,7 @@ from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
 from subscription import has_access, activate_subscription, get_status_text, is_trial_active, PLANS
 from analytics import track_user, track_subscription
+from display_utils import display_listing
 import database as db
 from datetime import datetime
 
@@ -107,12 +108,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             context.user_data["results"] = favorites
-            listing = favorites[0]
-            await query.edit_message_text(
-                format_listing_card(listing, context, 0, len(favorites)),
-                reply_markup=results_navigation_keyboard(context, 0, len(favorites), listing["id"]),
-                parse_mode="HTML"
-            )
+            await display_listing(query, context, favorites[0], 0, len(favorites))
 
     elif data == "all_listings":
         listings = db.get_all_listings()
@@ -124,12 +120,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
         context.user_data["results"] = listings
-        listing = listings[0]
-        await query.edit_message_text(
-            format_listing_card(listing, context, 0, len(listings)),
-            reply_markup=results_navigation_keyboard(context, 0, len(listings), listing["id"]),
-            parse_mode="HTML"
-        )
+        await display_listing(query, context, listings[0], 0, len(listings))
 
     elif data.startswith("result_next_") or data.startswith("result_prev_"):
         results = context.user_data.get("results", [])
@@ -141,12 +132,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         current = int(data.split("_")[-1])
         new_index = min(current+1, len(results)-1) if "next" in data else max(current-1, 0)
-        listing = results[new_index]
-        await query.edit_message_text(
-            format_listing_card(listing, context, new_index, len(results)),
-            reply_markup=results_navigation_keyboard(context, new_index, len(results), listing["id"]),
-            parse_mode="HTML"
-        )
+        await display_listing(query, context, results[new_index], new_index, len(results))
 
     elif data.startswith("fav_"):
         listing_id = int(data.split("_")[1])
@@ -170,12 +156,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             context.user_data["results"] = listings
-            listing = listings[0]
-            await query.edit_message_text(
-                format_listing_card(listing, context, 0, len(listings)),
-                reply_markup=results_navigation_keyboard(context, 0, len(listings), listing["id"]),
-                parse_mode="HTML"
-            )
+            await display_listing(query, context, listings[0], 0, len(listings))
 
     elif data == "add_listing":
         await query.answer(t("add_use_cmd", context))

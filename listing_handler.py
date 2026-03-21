@@ -13,8 +13,8 @@ import database as db
     ADD_DEAL_TYPE, ADD_PROPERTY_TYPE, ADD_DISTRICT, ADD_CITY,
     ADD_ROOMS, ADD_FLOOR, ADD_AREA, ADD_PRICE,
     ADD_PARKING, ADD_POOL, ADD_SHELTER, ADD_ELEVATOR,
-    ADD_INFRASTRUCTURE, ADD_DESCRIPTION, ADD_NAME, ADD_PHONE, ADD_CONTACT, ADD_CONFIRM
-) = range(18)
+    ADD_INFRASTRUCTURE, ADD_DESCRIPTION, ADD_NAME, ADD_PHONE, ADD_CONTACT, ADD_PHOTOS, ADD_CONFIRM
+) = range(19)
 
 PROPERTY_TYPES = {
     "apartment": {"ru": "🏢 Квартира", "en": "🏢 Apartment", "he": "🏢 דירה"},
@@ -159,6 +159,15 @@ def _infra_keyboard(ctx, selected=None):
     ])
     return InlineKeyboardMarkup(buttons)
 
+def _photos_keyboard(ctx, count):
+    lang = get_lang(ctx)
+    if count:
+        label = {"ru": f"✅ Готово ({count} фото)", "en": f"✅ Done ({count} photos)", "he": f"✅ סיום ({count} תמונות)"}[lang]
+    else:
+        label = {"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}[lang]
+    return InlineKeyboardMarkup([[InlineKeyboardButton(label, callback_data="add_photos_done")]])
+
+
 def _confirm_keyboard(ctx):
     lang = get_lang(ctx)
     publish = {"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם"}[lang]
@@ -245,6 +254,10 @@ class ListingHandler:
                 ADD_CONTACT: [
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_contact),
+                ],
+                ADD_PHOTOS: [
+                    MessageHandler(filters.PHOTO, self.handle_photo_message),
+                    CallbackQueryHandler(self.handle_photos_done, pattern="^add_photos_done$"),
                 ],
                 ADD_CONFIRM: [
                     CallbackQueryHandler(self.handle_confirm, pattern="^add_confirm_"),
@@ -668,24 +681,56 @@ class ListingHandler:
     async def handle_contact(self, update, context):
         contact = update.message.text.strip()
         context.user_data["add_listing"]["contact"] = contact
+        context.user_data["add_listing"]["photos"] = []
+        context.user_data["add_state"] = ADD_PHOTOS
+
+        text = _step_text(context,
+            "📸 Фотографии\n\nОтправьте фотографии объекта (до 10 штук).\nКогда закончите — нажмите кнопку ниже.",
+            "📸 Photos\n\nSend photos of the property (up to 10).\nWhen done, press the button below.",
+            "📸 תמונות\n\nשלח תמונות של הנכס (עד 10).\nכשתסיים, לחץ על הכפתור למטה."
+        )
+        await update.message.reply_text(text, reply_markup=_photos_keyboard(context, 0))
+        return ADD_PHOTOS
+
+    async def handle_photo_message(self, update, context):
+        photos = context.user_data["add_listing"].get("photos", [])
+        if len(photos) < 10 and update.message.photo:
+            file_id = update.message.photo[-1].file_id
+            photos.append(file_id)
+            context.user_data["add_listing"]["photos"] = photos
+        count = len(photos)
+        text = _step_text(context,
+            f"📸 Получено {count} фото. Отправьте ещё или нажмите Готово.",
+            f"📸 {count} photo(s) received. Send more or press Done.",
+            f"📸 התקבלו {count} תמונות. שלח עוד או לחץ סיום."
+        )
+        await update.message.reply_text(text, reply_markup=_photos_keyboard(context, count))
+        return ADD_PHOTOS
+
+    async def handle_photos_done(self, update, context):
+        query = update.callback_query
+        await query.answer()
         context.user_data["add_state"] = ADD_CONFIRM
         d = context.user_data["add_listing"]
         lang = get_lang(context)
 
-        # Summary
         deal_label = {"ru": "Аренда" if d.get("deal_type")=="rent" else "Продажа",
                       "en": "Rent" if d.get("deal_type")=="rent" else "Sale",
                       "he": "השכרה" if d.get("deal_type")=="rent" else "מכירה"}[lang]
         ptype_label = PROPERTY_TYPES.get(d.get("property_type","apartment"), {}).get(lang, "")
-        city_label = d.get("city", "")
+        photo_count = len(d.get("photos", []))
+        photo_info = {"ru": f"{photo_count} фото" if photo_count else "нет фото",
+                      "en": f"{photo_count} photo(s)" if photo_count else "no photos",
+                      "he": f"{photo_count} תמונות" if photo_count else "אין תמונות"}[lang]
 
         summary_title = _step_text(context, "📋 Проверьте объявление:", "📋 Review your listing:", "📋 בדוק את המודעה:")
         owner_name = d.get("owner_name", "")
         owner_phone = d.get("owner_phone", "")
+        contact = d.get("contact", "")
         summary = f"""{summary_title}
 
 {'Тип' if lang=='ru' else 'Type' if lang=='en' else 'סוג'}: {deal_label} · {ptype_label}
-{'Город' if lang=='ru' else 'City' if lang=='en' else 'עיר'}: {city_label}
+{'Город' if lang=='ru' else 'City' if lang=='en' else 'עיר'}: {d.get('city','')}
 {'Комнат' if lang=='ru' else 'Rooms' if lang=='en' else 'חדרים'}: {d.get('rooms','')}
 {'Этаж' if lang=='ru' else 'Floor' if lang=='en' else 'קומה'}: {d.get('floor','')}
 {'Площадь' if lang=='ru' else 'Area' if lang=='en' else 'שטח'}: {d.get('area_sqm','')} м²
@@ -693,11 +738,12 @@ class ListingHandler:
 {'Парковка' if lang=='ru' else 'Parking' if lang=='en' else 'חניה'}: {'✅' if d.get('parking') else '❌'}
 {'Бассейн' if lang=='ru' else 'Pool' if lang=='en' else 'בריכה'}: {'✅' if d.get('pool') else '❌'}
 {'Лифт' if lang=='ru' else 'Elevator' if lang=='en' else 'מעלית'}: {'✅' if d.get('elevator')=='yes' else '❌'}
+{'Фото' if lang=='ru' else 'Photos' if lang=='en' else 'תמונות'}: {photo_info}
 {'Имя' if lang=='ru' else 'Name' if lang=='en' else 'שם'}: {owner_name}
 {'Телефон' if lang=='ru' else 'Phone' if lang=='en' else 'טלפון'}: {owner_phone}
 {'Контакт' if lang=='ru' else 'Contact' if lang=='en' else 'קשר'}: {contact}"""
 
-        await update.message.reply_text(summary, reply_markup=_confirm_keyboard(context), parse_mode="HTML")
+        await query.message.reply_text(summary, reply_markup=_confirm_keyboard(context), parse_mode="HTML")
         return ADD_CONFIRM
 
     async def handle_confirm(self, update, context):
@@ -713,7 +759,8 @@ class ListingHandler:
         d["user_id"] = update.effective_user.id
         d["source"] = "user"
         d["title"] = f"{'Аренда' if d.get('deal_type')=='rent' else 'Продажа'}: {d.get('rooms','')} комн., {d.get('city','')}"
-        d["photos"] = ["🏠"]
+        if not d.get("photos"):
+            d["photos"] = ["🏠"]
         d["neighborhood"] = ""
 
         listing_id = db.add_listing(d)

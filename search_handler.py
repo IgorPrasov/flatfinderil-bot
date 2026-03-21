@@ -18,6 +18,7 @@ from keyboards import (
 )
 from formatters import format_search_summary, format_listing_card
 from i18n import t, get_lang, get_district_name
+from display_utils import display_listing
 import database as db
 from analytics import track_search, track_user
 
@@ -509,9 +510,8 @@ class SearchHandler:
             await query.edit_message_text(t("no_results", context), reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
             return SEARCH_CONFIRM
         context.user_data["results"] = results
-        listing = results[0]
-        text = format_listing_card(listing, context, 0, len(results))
-        await query.edit_message_text(t("found_n", context, n=len(results)) + text, reply_markup=results_navigation_keyboard(context, 0, len(results), listing["id"]), parse_mode="HTML")
+        await query.edit_message_text(t("found_n", context, n=len(results)), parse_mode="HTML")
+        await display_listing(query, context, results[0], 0, len(results))
         return ConversationHandler.END
 
     async def reset_search(self, update, context):
@@ -551,6 +551,7 @@ from keyboards import (
 )
 from formatters import format_search_summary, format_listing_card
 from i18n import t, get_lang, get_district_name
+from display_utils import display_listing
 import database as db
 from analytics import track_search, track_user
 
@@ -1042,9 +1043,8 @@ class SearchHandler:
             await query.edit_message_text(t("no_results", context), reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
             return SEARCH_CONFIRM
         context.user_data["results"] = results
-        listing = results[0]
-        text = format_listing_card(listing, context, 0, len(results))
-        await query.edit_message_text(t("found_n", context, n=len(results)) + text, reply_markup=results_navigation_keyboard(context, 0, len(results), listing["id"]), parse_mode="HTML")
+        await query.edit_message_text(t("found_n", context, n=len(results)), parse_mode="HTML")
+        await display_listing(query, context, results[0], 0, len(results))
         return ConversationHandler.END
 
     async def reset_search(self, update, context):
