@@ -3,3 +3,4 @@ telethon==1.36.0
 requests==2.31.0
 lxml_html_clean==0.4.0
 browser-cookie3==0.19.1
+deep-translator==1.11.4

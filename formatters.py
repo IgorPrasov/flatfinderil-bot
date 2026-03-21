@@ -1,4 +1,5 @@
 from i18n import get_lang, get_property_type_name, get_district_name, get_infra_name, t
+from translator import translate_listing_fields
 
 def _price_str(price: int, deal_type: str, lang: str) -> str:
     if deal_type == "rent":
@@ -12,6 +13,7 @@ def _price_str(price: int, deal_type: str, lang: str) -> str:
 
 def format_listing_card(listing: dict, ctx=None, index: int = None, total: int = None) -> str:
     lang = get_lang(ctx) if ctx else "ru"
+    listing = translate_listing_fields(listing, lang)
     prop_type = get_property_type_name(listing["property_type"], lang)
     deal_emoji = "🔑" if listing["deal_type"] == "rent" else "🏷"
     deal_label = {"ru":"Аренда","en":"Rent","he":"שכירות"}.get(lang) if listing["deal_type"]=="rent" else {"ru":"Продажа","en":"Sale","he":"מכירה"}.get(lang)
