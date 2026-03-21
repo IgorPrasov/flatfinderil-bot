@@ -103,6 +103,8 @@ def format_search_summary(filters: dict, ctx) -> str:
         lines.append(_tr("sum_elevator", val={"ru":"Есть","en":"Yes","he":"יש"}.get(lang,"Yes")))
     if filters.get("infrastructure"):
         lines.append(_tr("sum_infra", val=", ".join([get_infra_name(k,lang) for k in filters["infrastructure"]])))
+    if filters.get("with_photos"):
+        lines.append(_tr("sum_with_photos"))
     if len(lines)==1: lines.append(_tr("sum_all"))
     return "\n".join(lines)
 

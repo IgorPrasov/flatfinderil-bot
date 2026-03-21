@@ -92,6 +92,10 @@ def search_listings(filters: Dict) -> List[Dict]:
         # infrastructure
         if filters.get("infrastructure") and len(filters["infrastructure"]) > 0:
             if not set(filters["infrastructure"]).issubset(set(listing.get("infrastructure",[]))): continue
+        # with photos only
+        if filters.get("with_photos"):
+            has_real = any(len(p) > 20 for p in listing.get("photos", []))
+            if not has_real: continue
         results.append(listing)
     return results
 

@@ -121,6 +121,17 @@ def pool_keyboard(ctx,prefix="pool"):
         [InlineKeyboardButton(t("btn_back",ctx),callback_data="back")],
     ])
 
+def with_photos_keyboard(ctx):
+    lang = get_lang(ctx)
+    yes = {"ru": "📸 Только с фото", "en": "📸 With photos only", "he": "📸 עם תמונות בלבד"}.get(lang)
+    any_ = {"ru": "🔄 Не важно", "en": "🔄 Any", "he": "🔄 לא משנה"}.get(lang)
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(yes, callback_data="photos_yes"),
+         InlineKeyboardButton(any_, callback_data="photos_any")],
+        [InlineKeyboardButton(t("btn_back", ctx), callback_data="back")],
+    ])
+
+
 def infrastructure_keyboard(ctx,selected=None):
     if selected is None: selected=[]
     lang=get_lang(ctx)

@@ -3,7 +3,7 @@ from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, Call
 from config import (
     SEARCH_TYPE, SEARCH_PROPERTY_TYPE, SEARCH_DISTRICT, SEARCH_CITY,
     SEARCH_ROOMS, SEARCH_ROOMS_MAX, SEARCH_PRICE_MIN, SEARCH_PRICE_MAX,
-    SEARCH_PARKING, SEARCH_POOL, SEARCH_SHELTER, SEARCH_ELEVATOR, SEARCH_INFRASTRUCTURE, SEARCH_CONFIRM,
+    SEARCH_PARKING, SEARCH_POOL, SEARCH_SHELTER, SEARCH_ELEVATOR, SEARCH_INFRASTRUCTURE, SEARCH_WITH_PHOTOS, SEARCH_CONFIRM,
     PRICE_RENT_MIN_OPTIONS_RU, PRICE_RENT_MIN_OPTIONS_EN, PRICE_RENT_MIN_OPTIONS_HE,
     PRICE_RENT_OPTIONS_RU, PRICE_RENT_OPTIONS_EN, PRICE_RENT_OPTIONS_HE,
     PRICE_BUY_MIN_OPTIONS_RU, PRICE_BUY_MIN_OPTIONS_EN, PRICE_BUY_MIN_OPTIONS_HE,
@@ -14,7 +14,7 @@ from keyboards import (
     rooms_keyboard, rooms_range_keyboard, parking_keyboard, pool_keyboard,
     infrastructure_keyboard, confirm_search_keyboard, results_navigation_keyboard,
     price_keyboard, back_to_menu_keyboard, shelter_keyboard,
-    city_multi_keyboard, district_multi_keyboard, elevator_keyboard,
+    city_multi_keyboard, district_multi_keyboard, elevator_keyboard, with_photos_keyboard,
 )
 from formatters import format_search_summary, format_listing_card
 from i18n import t, get_lang, get_district_name
@@ -120,6 +120,10 @@ class SearchHandler:
                     CallbackQueryHandler(self.handle_back, pattern="^back$"),
                     CallbackQueryHandler(self.handle_infrastructure, pattern="^infra_"),
                 ],
+                SEARCH_WITH_PHOTOS: [
+                    CallbackQueryHandler(self.handle_back, pattern="^back$"),
+                    CallbackQueryHandler(self.handle_with_photos, pattern="^photos_"),
+                ],
                 SEARCH_CONFIRM: [
                     CallbackQueryHandler(self.do_search, pattern="^confirm_search$"),
                     CallbackQueryHandler(self.reset_search, pattern="^reset_search$"),
@@ -201,10 +205,14 @@ class SearchHandler:
             await query.edit_message_text(t("step_elevator", context), reply_markup=elevator_keyboard(context, "elevator"), parse_mode="HTML")
             context.user_data["current_state"] = SEARCH_ELEVATOR
             return SEARCH_ELEVATOR
-        elif state == SEARCH_CONFIRM:
+        elif state == SEARCH_WITH_PHOTOS:
             await query.edit_message_text(t("step_infra", context), reply_markup=infrastructure_keyboard(context), parse_mode="HTML")
             context.user_data["current_state"] = SEARCH_INFRASTRUCTURE
             return SEARCH_INFRASTRUCTURE
+        elif state == SEARCH_CONFIRM:
+            await query.edit_message_text(t("step_with_photos", context), reply_markup=with_photos_keyboard(context), parse_mode="HTML")
+            context.user_data["current_state"] = SEARCH_WITH_PHOTOS
+            return SEARCH_WITH_PHOTOS
         else:
             await query.edit_message_text(t("step_deal", context), reply_markup=deal_type_keyboard(context), parse_mode="HTML")
             context.user_data["current_state"] = SEARCH_TYPE
@@ -472,14 +480,13 @@ class SearchHandler:
         if data in ("skip", "done"):
             f["infrastructure"] = selected if selected else None
             context.user_data["search_filters"] = f
-            context.user_data["current_state"] = SEARCH_CONFIRM
+            context.user_data["current_state"] = SEARCH_WITH_PHOTOS
             lang = get_lang(context)
             from i18n import get_infra_name
             infra_str = ", ".join([get_infra_name(k, lang) for k in selected]) if selected else t("btn_skip", context)
             await query.edit_message_text("✅ " + _confirmed(context, "Инфраструктура", "Infrastructure", "תשתיות", infra_str), parse_mode="HTML")
-            summary = format_search_summary(f, context)
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=summary + t("step_confirm", context), reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
-            return SEARCH_CONFIRM
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=t("step_with_photos", context), reply_markup=with_photos_keyboard(context), parse_mode="HTML")
+            return SEARCH_WITH_PHOTOS
         if data in selected: selected.remove(data)
         else: selected.append(data)
         f["infrastructure"] = selected
@@ -487,6 +494,20 @@ class SearchHandler:
         context.user_data["current_state"] = SEARCH_INFRASTRUCTURE
         await query.edit_message_text(t("infra_selected", context, n=len(selected)), reply_markup=infrastructure_keyboard(context, selected), parse_mode="HTML")
         return SEARCH_INFRASTRUCTURE
+
+
+    async def handle_with_photos(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        f = context.user_data.get("search_filters", {})
+        f["with_photos"] = (query.data == "photos_yes")
+        context.user_data["search_filters"] = f
+        context.user_data["current_state"] = SEARCH_CONFIRM
+        label = t("sum_with_photos", context) if f["with_photos"] else t("btn_pool_any", context)
+        await query.edit_message_text("✅ " + _confirmed(context, "Фото", "Photos", "תמונות", label), parse_mode="HTML")
+        summary = format_search_summary(f, context)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=summary + t("step_confirm", context), reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
+        return SEARCH_CONFIRM
 
     async def do_search(self, update, context):
         query = update.callback_query
@@ -536,7 +557,7 @@ from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, Call
 from config import (
     SEARCH_TYPE, SEARCH_PROPERTY_TYPE, SEARCH_DISTRICT, SEARCH_CITY,
     SEARCH_ROOMS, SEARCH_ROOMS_MAX, SEARCH_PRICE_MIN, SEARCH_PRICE_MAX,
-    SEARCH_PARKING, SEARCH_POOL, SEARCH_SHELTER, SEARCH_ELEVATOR, SEARCH_INFRASTRUCTURE, SEARCH_CONFIRM,
+    SEARCH_PARKING, SEARCH_POOL, SEARCH_SHELTER, SEARCH_ELEVATOR, SEARCH_INFRASTRUCTURE, SEARCH_WITH_PHOTOS, SEARCH_CONFIRM,
     PRICE_RENT_MIN_OPTIONS_RU, PRICE_RENT_MIN_OPTIONS_EN, PRICE_RENT_MIN_OPTIONS_HE,
     PRICE_RENT_OPTIONS_RU, PRICE_RENT_OPTIONS_EN, PRICE_RENT_OPTIONS_HE,
     PRICE_BUY_MIN_OPTIONS_RU, PRICE_BUY_MIN_OPTIONS_EN, PRICE_BUY_MIN_OPTIONS_HE,
@@ -547,7 +568,7 @@ from keyboards import (
     rooms_keyboard, rooms_range_keyboard, parking_keyboard, pool_keyboard,
     infrastructure_keyboard, confirm_search_keyboard, results_navigation_keyboard,
     price_keyboard, back_to_menu_keyboard, shelter_keyboard,
-    city_multi_keyboard, district_multi_keyboard, elevator_keyboard,
+    city_multi_keyboard, district_multi_keyboard, elevator_keyboard, with_photos_keyboard,
 )
 from formatters import format_search_summary, format_listing_card
 from i18n import t, get_lang, get_district_name
@@ -653,6 +674,10 @@ class SearchHandler:
                     CallbackQueryHandler(self.handle_back, pattern="^back$"),
                     CallbackQueryHandler(self.handle_infrastructure, pattern="^infra_"),
                 ],
+                SEARCH_WITH_PHOTOS: [
+                    CallbackQueryHandler(self.handle_back, pattern="^back$"),
+                    CallbackQueryHandler(self.handle_with_photos, pattern="^photos_"),
+                ],
                 SEARCH_CONFIRM: [
                     CallbackQueryHandler(self.do_search, pattern="^confirm_search$"),
                     CallbackQueryHandler(self.reset_search, pattern="^reset_search$"),
@@ -734,10 +759,14 @@ class SearchHandler:
             await query.edit_message_text(t("step_elevator", context), reply_markup=elevator_keyboard(context, "elevator"), parse_mode="HTML")
             context.user_data["current_state"] = SEARCH_ELEVATOR
             return SEARCH_ELEVATOR
-        elif state == SEARCH_CONFIRM:
+        elif state == SEARCH_WITH_PHOTOS:
             await query.edit_message_text(t("step_infra", context), reply_markup=infrastructure_keyboard(context), parse_mode="HTML")
             context.user_data["current_state"] = SEARCH_INFRASTRUCTURE
             return SEARCH_INFRASTRUCTURE
+        elif state == SEARCH_CONFIRM:
+            await query.edit_message_text(t("step_with_photos", context), reply_markup=with_photos_keyboard(context), parse_mode="HTML")
+            context.user_data["current_state"] = SEARCH_WITH_PHOTOS
+            return SEARCH_WITH_PHOTOS
         else:
             await query.edit_message_text(t("step_deal", context), reply_markup=deal_type_keyboard(context), parse_mode="HTML")
             context.user_data["current_state"] = SEARCH_TYPE
@@ -1005,14 +1034,13 @@ class SearchHandler:
         if data in ("skip", "done"):
             f["infrastructure"] = selected if selected else None
             context.user_data["search_filters"] = f
-            context.user_data["current_state"] = SEARCH_CONFIRM
+            context.user_data["current_state"] = SEARCH_WITH_PHOTOS
             lang = get_lang(context)
             from i18n import get_infra_name
             infra_str = ", ".join([get_infra_name(k, lang) for k in selected]) if selected else t("btn_skip", context)
             await query.edit_message_text("✅ " + _confirmed(context, "Инфраструктура", "Infrastructure", "תשתיות", infra_str), parse_mode="HTML")
-            summary = format_search_summary(f, context)
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=summary + t("step_confirm", context), reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
-            return SEARCH_CONFIRM
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=t("step_with_photos", context), reply_markup=with_photos_keyboard(context), parse_mode="HTML")
+            return SEARCH_WITH_PHOTOS
         if data in selected: selected.remove(data)
         else: selected.append(data)
         f["infrastructure"] = selected

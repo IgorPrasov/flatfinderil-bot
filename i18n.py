@@ -50,6 +50,8 @@ TRANSLATIONS = {
     "step_parking": {"ru":"Шаг 9/10: Количество парковочных мест:","en":"Step 9/10: Parking spaces:","he":"שלב 9/10: מקומות חניה:"},
     "step_pool": {"ru":"Шаг 10/10: Наличие бассейна:","en":"Step 10/10: Pool availability:","he":"שלב 10/10: זמינות בריכה:"},
     "step_infra": {"ru":"🏙 Инфраструктура района (необязательно):","en":"🏙 Neighborhood infrastructure (optional):","he":"🏙 תשתיות שכונה (לא חובה):"},
+    "step_with_photos": {"ru":"📸 Показывать только объявления с фотографиями?","en":"📸 Show only listings with photos?","he":"📸 להציג רק מודעות עם תמונות?"},
+    "sum_with_photos": {"ru":"• 📸 Только с фото","en":"• 📸 With photos only","he":"• 📸 עם תמונות בלבד"},
     "step_confirm": {"ru":"\n\nЗапустить поиск?","en":"\n\nStart search?","he":"\n\nהתחל חיפוש?"},
     "confirmed_deal": {"ru":"✅ Тип сделки: <b>{val}</b>","en":"✅ Deal type: <b>{val}</b>","he":"✅ סוג עסקה: <b>{val}</b>"},
     "confirmed_ptype": {"ru":"✅ Все типы жилья","en":"✅ All property types","he":"✅ כל סוגי הנכסים"},
