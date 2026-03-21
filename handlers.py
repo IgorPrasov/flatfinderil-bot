@@ -115,7 +115,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     elif data == "all_listings":
-        listings = db.get_all_listings(limit=20)
+        listings = db.get_all_listings()
         if not listings:
             await query.edit_message_text(
                 t("no_listings_yet", context),
