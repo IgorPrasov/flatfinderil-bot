@@ -22,6 +22,7 @@ CHANNELS = [
     "snyat_kvartiruy",
     "nagariyaapartments",
     "ashdod_rent",
+    "happy_home_ashkelon",
 ]
 
 CITY_KEYWORDS = {
