@@ -765,10 +765,19 @@ class ListingHandler:
 
         listing_id = db.add_listing(d)
 
+        # Bonus days for adding a listing
+        user_id_for_bonus = update.effective_user.id
+        db.add_bonus_days(user_id_for_bonus, 3)
+        bonus_msg = _step_text(context,
+            "🎁 Бонус! +3 дня к подписке за добавление объявления",
+            "🎁 Bonus! +3 days subscription for adding a listing",
+            "🎁 בונוס! +3 ימי מנוי על הוספת מודעה"
+        )
+
         text = _step_text(context,
-            f"✅ Объявление опубликовано!\n\nID: #{listing_id}\nПользователи уже могут его найти через поиск.",
-            f"✅ Listing published!\n\nID: #{listing_id}\nUsers can already find it through search.",
-            f"✅ המודעה פורסמה!\n\nID: #{listing_id}\nמשתמשים כבר יכולים למצוא אותה דרך החיפוש."
+            f"✅ Объявление опубликовано!\n\nID: #{listing_id}\nПользователи уже могут его найти через поиск.\n\n{bonus_msg}",
+            f"✅ Listing published!\n\nID: #{listing_id}\nUsers can already find it through search.\n\n{bonus_msg}",
+            f"✅ המודעה פורסמה!\n\nID: #{listing_id}\nמשתמשים כבר יכולים למצוא אותה דרך החיפוש.\n\n{bonus_msg}"
         )
         await query.edit_message_text(text)
         return ConversationHandler.END

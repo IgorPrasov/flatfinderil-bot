@@ -197,3 +197,57 @@ TRANSLATIONS["btn_elevator_yes"] = {"ru":"🛗 Есть лифт","en":"🛗 Wit
 TRANSLATIONS["btn_elevator_any"] = {"ru":"🔄 Неважно","en":"🔄 Any","he":"🔄 לא משנה"}
 TRANSLATIONS["confirmed_elevator"] = {"ru":"✅ Лифт: {val}","en":"✅ Elevator: {val}","he":"✅ מעלית: {val}"}
 TRANSLATIONS["sum_elevator"] = {"ru":"• 🛗 Лифт: {val}","en":"• 🛗 Elevator: {val}","he":"• 🛗 מעלית: {val}"}
+
+# ── Feature: Search subscriptions ──────────────────────────────────────────
+TRANSLATIONS["btn_subscribe_search"] = {"ru":"🔔 Подписаться на поиск","en":"🔔 Subscribe to search","he":"🔔 הירשם לחיפוש"}
+TRANSLATIONS["btn_my_subscriptions"] = {"ru":"🔕 Мои подписки","en":"🔕 My subscriptions","he":"🔕 המנויים שלי"}
+TRANSLATIONS["sub_search_added"] = {"ru":"🔔 Подписка оформлена! Уведомим при появлении новых объявлений.","en":"🔔 Subscribed! We'll notify you when new listings appear.","he":"🔔 נרשמת! נודיע לך כשיופיעו מודעות חדשות."}
+TRANSLATIONS["my_subscriptions_title"] = {"ru":"🔔 <b>Мои подписки на поиск</b>\n\n","en":"🔔 <b>My search subscriptions</b>\n\n","he":"🔔 <b>המנויים שלי לחיפוש</b>\n\n"}
+TRANSLATIONS["no_subscriptions"] = {"ru":"У вас нет активных подписок на поиск.","en":"You have no active search subscriptions.","he":"אין לך מנויי חיפוש פעילים."}
+TRANSLATIONS["sub_item"] = {"ru":"📋 Подписка #{n}","en":"📋 Subscription #{n}","he":"📋 מנוי #{n}"}
+TRANSLATIONS["btn_unsub"] = {"ru":"❌ Отписаться #{n}","en":"❌ Unsubscribe #{n}","he":"❌ בטל מנוי #{n}"}
+TRANSLATIONS["sub_removed"] = {"ru":"✅ Подписка отменена.","en":"✅ Subscription cancelled.","he":"✅ המנוי בוטל."}
+TRANSLATIONS["sub_notify_new"] = {"ru":"🔔 <b>Новые объявления по вашей подписке!</b>\n\n{count} новых результата(ов).\n\nИспользуйте /search для просмотра.","en":"🔔 <b>New listings matching your subscription!</b>\n\n{count} new result(s).\n\nUse /search to view them.","he":"🔔 <b>מודעות חדשות לפי המנוי שלך!</b>\n\n{count} תוצאות חדשות.\n\nהשתמש ב-/search לצפייה."}
+
+# ── Feature: Price drop alert ──────────────────────────────────────────────
+TRANSLATIONS["price_drop_alert"] = {"ru":"📉 <b>Цена снижена!</b>\n\n{title}\nБыло: {old} ₪ → Стало: {new} ₪","en":"📉 <b>Price dropped!</b>\n\n{title}\nWas: {old} ₪ → Now: {new} ₪","he":"📉 <b>המחיר ירד!</b>\n\n{title}\nהיה: {old} ₪ → עכשיו: {new} ₪"}
+
+# ── Feature: Google Maps ───────────────────────────────────────────────────
+TRANSLATIONS["btn_map"] = {"ru":"📍 На карте","en":"📍 On map","he":"📍 במפה"}
+
+# ── Feature: View counter ──────────────────────────────────────────────────
+TRANSLATIONS["views_label"] = {"ru":"👁 Просмотров: {n}","en":"👁 Views: {n}","he":"👁 צפיות: {n}"}
+
+# ── Feature: Request viewing ───────────────────────────────────────────────
+TRANSLATIONS["btn_request_view"] = {"ru":"👁 Запросить просмотр","en":"👁 Request viewing","he":"👁 בקש צפייה"}
+TRANSLATIONS["view_request_sent"] = {"ru":"✅ Запрос отправлен владельцу!","en":"✅ Request sent to owner!","he":"✅ הבקשה נשלחה לבעלים!"}
+TRANSLATIONS["view_request_contact"] = {"ru":"Для просмотра свяжитесь: {contact}","en":"To view, contact: {contact}","he":"לצפייה, צור קשר: {contact}"}
+TRANSLATIONS["view_request_owner_msg"] = {"ru":"🔔 Запрос на просмотр вашего объявления «{title}» от @{username}","en":"🔔 Viewing request for your listing «{title}» from @{username}","he":"🔔 בקשת צפייה למודעה שלך «{title}» מאת @{username}"}
+TRANSLATIONS["view_request_no_owner"] = {"ru":"Объявление от внешнего источника. Контакт: {contact}","en":"Listing from external source. Contact: {contact}","he":"מודעה ממקור חיצוני. קשר: {contact}"}
+
+# ── Feature: Reviews ───────────────────────────────────────────────────────
+TRANSLATIONS["btn_leave_review"] = {"ru":"⭐ Оставить отзыв","en":"⭐ Leave review","he":"⭐ השאר ביקורת"}
+TRANSLATIONS["review_prompt"] = {"ru":"⭐ <b>Оцените объявление</b>\n\nВыберите рейтинг:","en":"⭐ <b>Rate this listing</b>\n\nChoose a rating:","he":"⭐ <b>דרג את המודעה</b>\n\nבחר דירוג:"}
+TRANSLATIONS["review_comment_prompt"] = {"ru":"Напишите комментарий (или отправьте /skip чтобы пропустить):","en":"Write a comment (or send /skip to skip):","he":"כתוב תגובה (או שלח /skip לדילוג):"}
+TRANSLATIONS["review_saved"] = {"ru":"✅ Отзыв сохранён! Спасибо.","en":"✅ Review saved! Thank you.","he":"✅ הביקורת נשמרה! תודה."}
+TRANSLATIONS["review_already"] = {"ru":"Вы уже оставляли отзыв на это объявление.","en":"You already reviewed this listing.","he":"כבר הוספת ביקורת למודעה זו."}
+TRANSLATIONS["reviews_label"] = {"ru":"⭐ {avg} ({count} отзывов)","en":"⭐ {avg} ({count} reviews)","he":"⭐ {avg} ({count} ביקורות)"}
+TRANSLATIONS["no_reviews"] = {"ru":"⭐ Нет отзывов","en":"⭐ No reviews","he":"⭐ אין ביקורות"}
+
+# ── Feature: Price fairness ───────────────────────────────────────────────
+TRANSLATIONS["price_below_market"] = {"ru":"📊 Ниже рынка на {pct}%","en":"📊 {pct}% below market","he":"📊 {pct}% מתחת לשוק"}
+TRANSLATIONS["price_above_market"] = {"ru":"📊 Выше рынка на {pct}%","en":"📊 {pct}% above market","he":"📊 {pct}% מעל השוק"}
+TRANSLATIONS["price_fair"] = {"ru":"📊 Цена соответствует рынку","en":"📊 Price matches market","he":"📊 המחיר תואם לשוק"}
+
+# ── Feature: Agent cabinet ────────────────────────────────────────────────
+TRANSLATIONS["btn_cabinet"] = {"ru":"👨‍💼 Кабинет агента","en":"👨‍💼 Agent cabinet","he":"👨‍💼 לוח סוכן"}
+TRANSLATIONS["cabinet_title"] = {"ru":"👨‍💼 <b>Кабинет агента</b>\n\n","en":"👨‍💼 <b>Agent Cabinet</b>\n\n","he":"👨‍💼 <b>לוח סוכן</b>\n\n"}
+TRANSLATIONS["cabinet_stats"] = {"ru":"📊 <b>Статистика:</b>\n📋 Объявлений: {count}\n👁 Просмотров всего: {views}\n📞 Запросов всего: {requests}\n\n","en":"📊 <b>Stats:</b>\n📋 Listings: {count}\n👁 Total views: {views}\n📞 Total requests: {requests}\n\n","he":"📊 <b>סטטיסטיקה:</b>\n📋 מודעות: {count}\n👁 צפיות סה\"כ: {views}\n📞 בקשות סה\"כ: {requests}\n\n"}
+TRANSLATIONS["cabinet_listing_row"] = {"ru":"• <b>{title}</b>\n  👁 {views}  📞 {requests}  ⭐ {rating}\n","en":"• <b>{title}</b>\n  👁 {views}  📞 {requests}  ⭐ {rating}\n","he":"• <b>{title}</b>\n  👁 {views}  📞 {requests}  ⭐ {rating}\n"}
+TRANSLATIONS["cabinet_no_listings"] = {"ru":"У вас нет объявлений. Используйте /add","en":"You have no listings. Use /add","he":"אין לך מודעות. השתמש ב /add"}
+
+# ── Feature: Referral ─────────────────────────────────────────────────────
+TRANSLATIONS["refer_title"] = {"ru":"🎁 <b>Реферальная программа</b>\n\n","en":"🎁 <b>Referral Program</b>\n\n","he":"🎁 <b>תוכנית הפניות</b>\n\n"}
+TRANSLATIONS["refer_text"] = {"ru":"Пригласите друга по вашей ссылке:\n<code>{link}</code>\n\nЗа каждого приглашённого — +7 дней подписки!\nПриглашено: {count} чел.","en":"Invite a friend with your link:\n<code>{link}</code>\n\nFor each referral — +7 days subscription!\nReferred: {count} people.","he":"הזמן חבר עם הקישור שלך:\n<code>{link}</code>\n\nעל כל הפניה — +7 ימי מנוי!\nהוזמנו: {count} אנשים."}
+TRANSLATIONS["refer_bonus_listing"] = {"ru":"🎁 <b>Бонус!</b> +3 дня к подписке за добавление объявления","en":"🎁 <b>Bonus!</b> +3 days subscription for adding a listing","he":"🎁 <b>בונוס!</b> +3 ימי מנוי על הוספת מודעה"}
+TRANSLATIONS["refer_bonus_referral"] = {"ru":"🎁 <b>Бонус!</b> +7 дней к подписке — к вам пришёл новый пользователь по вашей ссылке!","en":"🎁 <b>Bonus!</b> +7 days subscription — a new user joined via your referral link!","he":"🎁 <b>בונוס!</b> +7 ימי מנוי — משתמש חדש הצטרף דרך הקישור שלך!"}

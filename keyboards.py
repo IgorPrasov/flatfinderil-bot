@@ -21,12 +21,15 @@ def language_keyboard():
     return InlineKeyboardMarkup([[InlineKeyboardButton(label,callback_data=f"setlang_{code}")] for code,label in LANGUAGES.items()])
 
 def main_menu_keyboard(ctx):
+    lang = get_lang(ctx)
+    sub_label = {"ru": "★ Подписка", "en": "★ Subscribe", "he": "★ מנוי"}.get(lang, "★ Подписка")
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(t("btn_search",ctx),callback_data="search"),InlineKeyboardButton(t("btn_favorites",ctx),callback_data="favorites")],
-        [InlineKeyboardButton(t("btn_my_listings",ctx),callback_data="my_listings"),InlineKeyboardButton(t("btn_add_listing",ctx),callback_data="add_listing")],
-        [InlineKeyboardButton(t("btn_all_listings",ctx),callback_data="all_listings"),InlineKeyboardButton(t("btn_help",ctx),callback_data="help")],
-        [InlineKeyboardButton("★ " + t("sub_title", ctx)[:15] if False else {"ru":"★ Подписка","en":"★ Subscribe","he":"★ מנוי"}.get(get_lang(ctx),"★ Подписка"), callback_data="subscription")],
-        [InlineKeyboardButton(t("btn_language",ctx),callback_data="choose_lang")],
+        [InlineKeyboardButton(t("btn_search", ctx), callback_data="search"), InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites")],
+        [InlineKeyboardButton(t("btn_my_listings", ctx), callback_data="my_listings"), InlineKeyboardButton(t("btn_add_listing", ctx), callback_data="add_listing")],
+        [InlineKeyboardButton(t("btn_all_listings", ctx), callback_data="all_listings"), InlineKeyboardButton(t("btn_help", ctx), callback_data="help")],
+        [InlineKeyboardButton(sub_label, callback_data="subscription"), InlineKeyboardButton(t("btn_my_subscriptions", ctx), callback_data="my_subscriptions")],
+        [InlineKeyboardButton(t("btn_cabinet", ctx), callback_data="cabinet")],
+        [InlineKeyboardButton(t("btn_language", ctx), callback_data="choose_lang")],
     ])
 
 def back_to_menu_keyboard(ctx):
@@ -153,16 +156,45 @@ def confirm_search_keyboard(ctx):
         [InlineKeyboardButton(t("btn_back_menu",ctx),callback_data="back_to_menu")],
     ])
 
-def results_navigation_keyboard(ctx,current,total,listing_id):
-    nav_row=[]
-    if current>0: nav_row.append(InlineKeyboardButton(t("btn_prev",ctx),callback_data=f"result_prev_{current}"))
-    nav_row.append(InlineKeyboardButton(f"{current+1}/{total}",callback_data="noop"))
-    if current<total-1: nav_row.append(InlineKeyboardButton(t("btn_next",ctx),callback_data=f"result_next_{current}"))
+def results_navigation_keyboard(ctx, current, total, listing_id, listing=None):
+    nav_row = []
+    if current > 0:
+        nav_row.append(InlineKeyboardButton(t("btn_prev", ctx), callback_data=f"result_prev_{current}"))
+    nav_row.append(InlineKeyboardButton(f"{current+1}/{total}", callback_data="noop"))
+    if current < total - 1:
+        nav_row.append(InlineKeyboardButton(t("btn_next", ctx), callback_data=f"result_next_{current}"))
+
+    # Google Maps URL button
+    map_url = None
+    if listing:
+        neighborhood = listing.get("neighborhood", "")
+        city = listing.get("city", "")
+        query_parts = [p for p in [neighborhood, city, "Israel"] if p]
+        map_query = ", ".join(query_parts)
+        import urllib.parse
+        map_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(map_query)}"
+
+    action_row = [
+        InlineKeyboardButton(t("btn_to_fav", ctx), callback_data=f"fav_{listing_id}"),
+        InlineKeyboardButton(t("btn_contact", ctx), callback_data=f"contact_{listing_id}"),
+    ]
+    if map_url:
+        action_row.append(InlineKeyboardButton(t("btn_map", ctx), url=map_url))
+
+    extra_row = [
+        InlineKeyboardButton(t("btn_request_view", ctx), callback_data=f"reqview_{listing_id}"),
+        InlineKeyboardButton(t("btn_leave_review", ctx), callback_data=f"review_{listing_id}"),
+    ]
+    sub_row = [
+        InlineKeyboardButton(t("btn_subscribe_search", ctx), callback_data="subscribe_search"),
+    ]
     return InlineKeyboardMarkup([
         nav_row,
-        [InlineKeyboardButton(t("btn_to_fav",ctx),callback_data=f"fav_{listing_id}"),InlineKeyboardButton(t("btn_contact",ctx),callback_data=f"contact_{listing_id}")],
-        [InlineKeyboardButton(t("btn_new_search",ctx),callback_data="search")],
-        [InlineKeyboardButton(t("btn_back_menu",ctx),callback_data="back_to_menu")],
+        action_row,
+        extra_row,
+        sub_row,
+        [InlineKeyboardButton(t("btn_new_search", ctx), callback_data="search")],
+        [InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")],
     ])
 
 def floor_keyboard(ctx):
@@ -263,6 +295,29 @@ def subscription_keyboard(ctx):
         [InlineKeyboardButton(t("btn_sub_month", ctx),     callback_data="sub_month")],
         [InlineKeyboardButton(t("btn_back_menu", ctx),     callback_data="back_to_menu")],
     ])
+
+def review_rating_keyboard(listing_id):
+    """5-star rating keyboard for reviews."""
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("⭐", callback_data=f"rate_{listing_id}_1"),
+        InlineKeyboardButton("⭐⭐", callback_data=f"rate_{listing_id}_2"),
+        InlineKeyboardButton("⭐⭐⭐", callback_data=f"rate_{listing_id}_3"),
+        InlineKeyboardButton("⭐⭐⭐⭐", callback_data=f"rate_{listing_id}_4"),
+        InlineKeyboardButton("⭐⭐⭐⭐⭐", callback_data=f"rate_{listing_id}_5"),
+    ], [
+        InlineKeyboardButton("« Назад / Back / חזרה", callback_data="back_to_menu"),
+    ]])
+
+def my_subscriptions_keyboard(ctx, subscriptions):
+    """Shows list of subscriptions with unsubscribe buttons."""
+    keyboard = []
+    for i, sub in enumerate(subscriptions):
+        label = f"📋 #{i+1}"
+        keyboard.append([InlineKeyboardButton(label, callback_data="noop")])
+        unsub_label = {"ru": f"❌ Отписаться #{i+1}", "en": f"❌ Unsubscribe #{i+1}", "he": f"❌ בטל מנוי #{i+1}"}.get(get_lang(ctx), f"❌ Unsubscribe #{i+1}")
+        keyboard.append([InlineKeyboardButton(unsub_label, callback_data=f"unsub_{i}")])
+    keyboard.append([InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(keyboard)
 
 def elevator_keyboard(ctx, prefix="elevator"):
     return InlineKeyboardMarkup([

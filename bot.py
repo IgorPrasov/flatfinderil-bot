@@ -6,7 +6,7 @@ from telegram.ext import (
     MessageHandler, filters,
 )
 from config import BOT_TOKEN
-from handlers import start, handle_menu, my_listings, handle_unknown
+from handlers import start, handle_menu, my_listings, handle_unknown, agent_cabinet, refer_command
 from search_handler import SearchHandler
 from listing_handler import ListingHandler
 
@@ -22,10 +22,17 @@ def main():
     app.add_handler(CommandHandler("listings", my_listings))
     app.add_handler(CommandHandler("add", listing.start_add))
     app.add_handler(CommandHandler("help", handle_unknown))
+    app.add_handler(CommandHandler("cabinet", agent_cabinet))
+    app.add_handler(CommandHandler("refer", refer_command))
     app.add_handler(search.get_conversation_handler())
     app.add_handler(listing.get_conversation_handler())
     app.add_handler(CallbackQueryHandler(handle_menu))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unknown))
+
+    # Start background notification tasks
+    from notifications import start_background_tasks
+    start_background_tasks(app)
+
     logger.info("Bot started!")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 

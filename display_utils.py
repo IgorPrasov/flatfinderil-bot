@@ -1,6 +1,7 @@
 from telegram import InputMediaPhoto
 from formatters import format_listing_card
 from keyboards import results_navigation_keyboard
+import database as db
 
 
 def get_real_photos(listing):
@@ -9,9 +10,21 @@ def get_real_photos(listing):
 
 
 async def display_listing(query, context, listing, index, total):
-    """Display a listing card. Shows photo(s) if available, otherwise plain text."""
+    """Display a listing card. Shows photo(s) if available, otherwise plain text.
+    Also increments the view counter for the listing.
+    """
+    # Increment view counter
+    try:
+        db.increment_views(listing["id"])
+        # Refresh listing data so the card shows updated count
+        fresh = db.get_listing(listing["id"])
+        if fresh:
+            listing = fresh
+    except Exception:
+        pass
+
     card_text = format_listing_card(listing, context, index, total)
-    keyboard = results_navigation_keyboard(context, index, total, listing["id"])
+    keyboard = results_navigation_keyboard(context, index, total, listing["id"], listing=listing)
     real_photos = get_real_photos(listing)
 
     chat_id = query.message.chat_id

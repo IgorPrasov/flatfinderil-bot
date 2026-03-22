@@ -1,5 +1,6 @@
 from i18n import get_lang, get_property_type_name, get_district_name, get_infra_name, t
 from translator import translate_listing_fields
+import database as db
 
 def _price_str(price: int, deal_type: str, lang: str) -> str:
     if deal_type == "rent":
@@ -49,10 +50,50 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
     floor_label = {"ru":"Этаж","en":"Floor","he":"קומה"}.get(lang)
     area_label = {"ru":"Площадь","en":"Area","he":"שטח"}.get(lang)
     added_label = {"ru":"Добавлено","en":"Added","he":"נוסף"}.get(lang)
+
+    # Views counter
+    views = listing.get("views", 0)
+    views_label = {"ru": f"Просмотров: {views}", "en": f"Views: {views}", "he": f"צפיות: {views}"}.get(lang, f"Views: {views}")
+    views_str = f"\n👁 <i>{views_label}</i>"
+
+    # Reviews / rating
+    avg_rating, review_count = db.get_average_rating(listing.get("id", 0))
+    if avg_rating is not None:
+        reviews_word = {"ru": "отзывов", "en": "reviews", "he": "ביקורות"}.get(lang, "reviews")
+        rating_str = f"\n⭐ <b>{avg_rating}</b> ({review_count} {reviews_word})"
+    else:
+        no_reviews = {"ru": "Нет отзывов", "en": "No reviews", "he": "אין ביקורות"}.get(lang, "No reviews")
+        rating_str = f"\n⭐ {no_reviews}"
+
+    # Price fairness
+    price_fairness_str = ""
+    try:
+        listing_price = listing.get("price", 0)
+        if listing_price > 0:
+            similar = db.get_similar_listings(listing)
+            if len(similar) >= 3:
+                prices = [sl.get("price", 0) for sl in similar if sl.get("price", 0) > 0]
+                if len(prices) >= 3:
+                    avg_market = sum(prices) / len(prices)
+                    pct_diff = ((listing_price - avg_market) / avg_market) * 100
+                    if pct_diff < -10:
+                        below_pct = round(abs(pct_diff))
+                        fairness_text = {"ru": f"Ниже рынка на {below_pct}%", "en": f"{below_pct}% below market", "he": f"{below_pct}% מתחת לשוק"}.get(lang, f"{below_pct}% below market")
+                        price_fairness_str = f"\n📊 {fairness_text}"
+                    elif pct_diff > 10:
+                        above_pct = round(pct_diff)
+                        fairness_text = {"ru": f"Выше рынка на {above_pct}%", "en": f"{above_pct}% above market", "he": f"{above_pct}% מעל השוק"}.get(lang, f"{above_pct}% above market")
+                        price_fairness_str = f"\n📊 {fairness_text}"
+                    else:
+                        fairness_text = {"ru": "Цена соответствует рынку", "en": "Price matches market", "he": "המחיר תואם לשוק"}.get(lang, "Price matches market")
+                        price_fairness_str = f"\n📊 {fairness_text}"
+    except Exception:
+        pass
+
     return (
         f"{header}{photo} <b>{listing['title']}</b>\n\n"
         f"{deal_emoji} <b>{deal_label}</b>  |  {prop_type}\n"
-        f"💰 <b>{price_str}</b>\n\n"
+        f"💰 <b>{price_str}</b>{price_fairness_str}\n\n"
         f"📍 <b>{city_label}:</b> {listing['city']}{f' ({district_name})' if district_name else ''}\n"
         f"🏘 <b>{hood_label}:</b> {listing.get('neighborhood','—')}\n"
         f"🚪 <b>{rooms_label}:</b> {listing['rooms']}  |  🏗 <b>{floor_label}:</b> {listing['floor']}\n"
@@ -60,6 +101,7 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
         f"{pool_str}\n{park_str}{infra_str}\n\n"
         f"📝 {listing['description']}\n\n"
         f"📅 <i>{added_label}: {listing.get('date_added','—')}</i>"
+        f"{rating_str}{views_str}"
     )
 
 def format_search_summary(filters: dict, ctx) -> str:
