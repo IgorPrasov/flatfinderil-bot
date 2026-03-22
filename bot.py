@@ -30,32 +30,47 @@ def main():
 
 
 import threading
+import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json as json_module
 
-class AnalyticsHandler(BaseHTTPRequestHandler):
+DASHBOARD_FILE = os.path.join(os.path.dirname(__file__), "dashboard.html")
+
+class WebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        try:
-            from analytics import get_analytics
-            data = get_analytics()
-        except Exception as e:
-            data = {"error": str(e)}
-        body = json_module.dumps(data, ensure_ascii=False).encode()
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(body)
+        if self.path == "/analytics":
+            try:
+                from analytics import get_analytics
+                data = get_analytics()
+            except Exception as e:
+                data = {"error": str(e)}
+            body = json_module.dumps(data, ensure_ascii=False).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+        else:
+            try:
+                with open(DASHBOARD_FILE, "rb") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(content)
+            except Exception as e:
+                self.send_response(500)
+                self.end_headers()
     def log_message(self, *args): pass
 
-def start_analytics_server():
-    import os
-    port = int(os.environ.get("ANALYTICS_PORT", 8080))
-    server = HTTPServer(("0.0.0.0", port), AnalyticsHandler)
+def start_web_server():
+    port = int(os.environ.get("PORT", 3000))
+    server = HTTPServer(("0.0.0.0", port), WebHandler)
+    logger.info(f"Web server on port {port}")
     server.serve_forever()
 
-analytics_thread = threading.Thread(target=start_analytics_server, daemon=True)
-analytics_thread.start()
+web_thread = threading.Thread(target=start_web_server, daemon=True)
+web_thread.start()
 
 if __name__ == "__main__":
     main()
