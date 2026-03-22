@@ -1,8 +1,7 @@
 from telethon import TelegramClient
 from telethon.tl.types import MessageMediaPhoto
 import asyncio
-import sys
-sys.path.insert(0, "/Users/user/flatfinderil_bot")
+import os
 import database as db
 from datetime import datetime
 
@@ -16,6 +15,13 @@ CHANNELS = [
     "israel_apartments",
     "nadlan_israel",
     "RealEstateIsraelBot",
+    "izrailnedvizimosti",
+    "rentapartmentbatyam",
+    "isra_home_arenda",
+    "Sublet_Israel",
+    "snyat_kvartiruy",
+    "nagariyaapartments",
+    "ashdod_rent",
 ]
 
 CITY_KEYWORDS = {
@@ -41,6 +47,8 @@ CITY_KEYWORDS = {
     "раанана": "Раанана", "raanana": "Раанана", "רעננה": "Раанана",
     "димона": "Димона", "dimona": "Димона", "דימונה": "Димона",
     "арад": "Арад", "arad": "Арад", "ערד": "Арад",
+    "нагария": "Нагария", "nahariya": "Нагария", "נהריה": "Нагария",
+    "субаренда": "Тель-Авив", "sublet": "Тель-Авив",
 }
 
 DISTRICT_MAP = {
@@ -52,6 +60,7 @@ DISTRICT_MAP = {
     "Кфар-Саба": "sharon", "Раанана": "sharon",
     "Петах-Тиква": "center", "Ришон-ле-Цион": "center",
     "Реховот": "center", "Модиин": "center",
+    "Нагария": "north",
     "Ашдод": "south", "Ашкелон": "south",
     "Беэр-Шева": "south", "Эйлат": "south",
 }

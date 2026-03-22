@@ -72,5 +72,15 @@ def start_web_server():
 web_thread = threading.Thread(target=start_web_server, daemon=True)
 web_thread.start()
 
+def start_telegram_parser():
+    try:
+        from telegram_parser import run_parser
+        asyncio.run(run_parser())
+    except Exception as e:
+        logger.error(f"Telegram parser error: {e}")
+
+parser_thread = threading.Thread(target=start_telegram_parser, daemon=True)
+parser_thread.start()
+
 if __name__ == "__main__":
     main()
