@@ -116,6 +116,61 @@ def get_analytics():
         sub_plans.get("two_weeks", 0) * 29.90 +
         sub_plans.get("month", 0) * 39.90, 2
     )
+    # ── New feature stats from DB ─────────────────────────────────────────
+    db_data = db._load()
+
+    # Views & view requests
+    total_views = sum(l.get("views", 0) for l in listings)
+    total_view_requests = sum(l.get("view_requests", 0) for l in listings)
+    top_by_views = sorted(
+        [l for l in listings if l.get("views", 0) > 0],
+        key=lambda x: x.get("views", 0), reverse=True
+    )[:8]
+
+    # Reviews
+    reviews_db = db_data.get("reviews", {})
+    all_reviews = [r for rv in reviews_db.values() for r in rv]
+    total_reviews = len(all_reviews)
+    avg_rating = round(sum(r.get("rating", 0) for r in all_reviews) / total_reviews, 2) if total_reviews else 0
+    top_by_rating = []
+    for lid, revs in reviews_db.items():
+        if revs:
+            listing = db_data["listings"].get(str(lid))
+            if listing:
+                avg = round(sum(r.get("rating", 0) for r in revs) / len(revs), 1)
+                top_by_rating.append({"title": listing.get("title", "")[:28], "rating": avg, "count": len(revs)})
+    top_by_rating.sort(key=lambda x: x["rating"], reverse=True)
+
+    # Search subscriptions
+    search_subs_db = db_data.get("subscriptions", {})
+    total_search_subs = sum(len(v) for v in search_subs_db.values())
+    # cities in subscriptions
+    sub_city_counter = Counter()
+    for uid, subs_list in search_subs_db.items():
+        for s in subs_list:
+            for c in (s.get("filters", {}).get("cities") or []):
+                if c: sub_city_counter[c] += 1
+
+    # Favorites
+    fav_db = db_data.get("favorites", {})
+    total_favorites = sum(len(v) for v in fav_db.values())
+    fav_listing_counter = Counter(str(lid) for v in fav_db.values() for lid in v)
+    top_favorites = []
+    for lid, cnt in fav_listing_counter.most_common(5):
+        listing = db_data["listings"].get(str(lid))
+        if listing:
+            top_favorites.append({"title": listing.get("title", "")[:28], "count": cnt})
+
+    # Referrals & bonuses
+    referrals_db = db_data.get("referrals", {})
+    total_referrals = sum(len(v) for v in referrals_db.values())
+    bonus_db = db_data.get("referral_bonuses", {})
+    total_bonus_days = sum(v for v in bonus_db.values())
+
+    # Favorites prices (price drops)
+    fav_prices = db_data.get("favorites_prices", {})
+    total_price_tracked = len(fav_prices)
+
     return {
         "users": {
             "total": total_users, "new_today": new_today,
@@ -150,4 +205,19 @@ def get_analytics():
             "history": [],
         },
         "total_searches": len(searches),
+        "engagement": {
+            "total_views": total_views,
+            "total_view_requests": total_view_requests,
+            "total_favorites": total_favorites,
+            "total_reviews": total_reviews,
+            "avg_rating": avg_rating,
+            "total_search_subs": total_search_subs,
+            "total_referrals": total_referrals,
+            "total_bonus_days": total_bonus_days,
+            "total_price_tracked": total_price_tracked,
+            "top_by_views": [{"title": l.get("title","")[:28], "views": l.get("views",0), "city": l.get("city","")} for l in top_by_views],
+            "top_by_rating": top_by_rating[:6],
+            "top_favorites": top_favorites,
+            "sub_cities": [{"city": c, "count": n} for c, n in sub_city_counter.most_common(6)],
+        },
     }

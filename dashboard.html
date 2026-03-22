@@ -80,6 +80,7 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('users')">👥 Пользователи</button>
     <button class="nav-btn" onclick="showTab('searches')">🔍 Поиски</button>
     <button class="nav-btn" onclick="showTab('listings')">🏠 Объявления</button>
+    <button class="nav-btn" onclick="showTab('engage')">💬 Вовлечённость</button>
     <button class="nav-btn" onclick="showTab('money')">💰 Доход</button>
   </div>
 </div>
@@ -160,6 +161,35 @@ canvas{max-width:100%}
     </div>
   </div>
 
+  <!-- ENGAGEMENT -->
+  <div class="tab" id="tab-engage">
+    <div class="kpi-row" id="kpi-engage"></div>
+    <div class="grid11">
+      <div class="card">
+        <div class="card-title">👁 Топ объявлений по просмотрам</div>
+        <div class="card-body" id="top-views"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">❤️ Топ объявлений в избранном</div>
+        <div class="card-body" id="top-favorites"></div>
+      </div>
+    </div>
+    <div class="grid11">
+      <div class="card">
+        <div class="card-title">⭐ Топ объявлений по рейтингу</div>
+        <div class="card-body" id="top-ratings"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔔 Города в подписках на поиск</div>
+        <div class="card-body" id="sub-cities"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 Сводка по новым функциям</div>
+      <div class="card-body"><div id="features-summary" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px"></div></div>
+    </div>
+  </div>
+
   <!-- MONEY -->
   <div class="tab" id="tab-money">
     <div class="kpi-row" id="kpi-money"></div>
@@ -189,6 +219,42 @@ const DEMO={
   responses:{total:1247,favorites:389,contacts:312,avg_per_user:2.3},
   income:{current:1712},
   total_searches:19847,
+  engagement:{
+    total_views:8340,
+    total_view_requests:412,
+    total_favorites:1247,
+    total_reviews:183,
+    avg_rating:4.3,
+    total_search_subs:94,
+    total_referrals:37,
+    total_bonus_days:289,
+    total_price_tracked:389,
+    top_by_views:[
+      {title:"Светлая квартира в центре ТА",views:312,city:"Тель-Авив"},
+      {title:"Пентхаус с видом на море",views:287,city:"Нетания"},
+      {title:"Вилла с бассейном в Герцлии",views:241,city:"Герцлия"},
+      {title:"Дуплекс 5 комнат в Модиине",views:198,city:"Модиин"},
+      {title:"Квартира у моря в Тель-Авиве",views:176,city:"Тель-Авив"},
+      {title:"Студия в Хайфе",views:134,city:"Хайфа"},
+    ],
+    top_by_rating:[
+      {title:"Вилла с бассейном в Герцлии",rating:4.9,count:24},
+      {title:"Пентхаус с видом на море",rating:4.7,count:17},
+      {title:"Квартира 4 комнаты Иерусалим",rating:4.5,count:12},
+      {title:"Дуплекс 5 комнат в Модиине",rating:4.3,count:9},
+    ],
+    top_favorites:[
+      {title:"Светлая квартира в центре ТА",count:87},
+      {title:"Пентхаус с видом на море",count:64},
+      {title:"Вилла с бассейном в Герцлии",count:51},
+      {title:"Квартира у моря в Тель-Авиве",count:43},
+    ],
+    sub_cities:[
+      {city:"Тель-Авив",count:41},{city:"Хайфа",count:18},
+      {city:"Нетания",count:12},{city:"Бат-Ям",count:10},
+      {city:"Иерусалим",count:8},{city:"Ашдод",count:5},
+    ],
+  },
 };
 
 let D=DEMO, charts={};
@@ -248,11 +314,13 @@ function render(){
   const income=D.income?.current||0;
 
   // KPIs
+  const E0 = D.engagement || {};
   document.getElementById("kpi-overview").innerHTML=
     kpi("🏠","Объявлений",n(D.listings.total),`${D.listings.telegram} из Telegram`,TG)+
     kpi("👥","Пользователей",n(D.users.total),`+${D.users.new_today} сегодня`,GREEN)+
     kpi("🔍","Поисков",n(D.total_searches),"всего",GOLD)+
-    kpi("★","Подписчики",n(totalSubs),`конверсия ${D.subscription.conversion}%`,PURPLE)+
+    kpi("👁","Просмотров",n(E0.total_views||0),"объявлений",TG)+
+    kpi("🔔","Подписок",n(E0.total_search_subs||0),"на поиск",PURPLE)+
     kpi("💰","Доход/мес",`${income} ₪`,"актуально",GREEN);
 
   document.getElementById("kpi-users").innerHTML=
@@ -341,6 +409,87 @@ function render(){
       <div style="font-size:11px;font-weight:500;font-family:monospace;margin-bottom:2px">${s.name}</div>
       <div style="font-size:22px;font-weight:500;color:#2AABEE">${n(s.count)}</div>
       <div style="font-size:10px;color:#999">объявлений</div>
+    </div>`).join("");
+
+  // ── Engagement tab ────────────────────────────────────────────────────
+  const E = D.engagement || {};
+  document.getElementById("kpi-engage").innerHTML =
+    kpi("👁","Просмотров",n(E.total_views||0),"всего по объявлениям",TG)+
+    kpi("📞","Запросов просмотра",n(E.total_view_requests||0),"отправлено владельцам",GREEN)+
+    kpi("❤️","В избранном",n(E.total_favorites||0),"сохранений",RED)+
+    kpi("⭐","Отзывов",n(E.total_reviews||0),`ср. рейтинг ${E.avg_rating||0}`,GOLD)+
+    kpi("🔔","Подписок на поиск",n(E.total_search_subs||0),"активных",PURPLE)+
+    kpi("🎁","Рефералов",n(E.total_referrals||0),`бонус ${n(E.total_bonus_days||0)} дней`,GREEN);
+
+  // Top by views
+  const tvEl = document.getElementById("top-views");
+  if (E.top_by_views && E.top_by_views.length) {
+    const maxV = Math.max(...E.top_by_views.map(x=>x.views));
+    tvEl.innerHTML = E.top_by_views.map((x,i) => `
+      <div class="bar-row">
+        <div style="width:22px;font-size:10px;color:#999;text-align:right;flex-shrink:0">${i+1}</div>
+        <div style="width:170px;font-size:11px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.title}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(x.views/maxV*100)}%;background:${TG}"></div></div>
+        <div class="bar-val">${n(x.views)}</div>
+      </div>`).join("");
+  } else {
+    tvEl.innerHTML = `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Данные накапливаются...</div>`;
+  }
+
+  // Top favorites
+  const tfEl = document.getElementById("top-favorites");
+  if (E.top_favorites && E.top_favorites.length) {
+    const maxF = Math.max(...E.top_favorites.map(x=>x.count));
+    tfEl.innerHTML = E.top_favorites.map((x,i) => `
+      <div class="bar-row">
+        <div style="width:22px;font-size:10px;color:#999;text-align:right;flex-shrink:0">${i+1}</div>
+        <div style="width:170px;font-size:11px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.title}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(x.count/maxF*100)}%;background:${RED}"></div></div>
+        <div class="bar-val">${n(x.count)}</div>
+      </div>`).join("");
+  } else {
+    tfEl.innerHTML = `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Данные накапливаются...</div>`;
+  }
+
+  // Top by rating
+  const trEl = document.getElementById("top-ratings");
+  if (E.top_by_rating && E.top_by_rating.length) {
+    trEl.innerHTML = E.top_by_rating.map((x,i) => {
+      const stars = "★".repeat(Math.round(x.rating)) + "☆".repeat(5-Math.round(x.rating));
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f0ea">
+        <div style="width:22px;font-size:10px;color:#999;text-align:right;flex-shrink:0">${i+1}</div>
+        <div style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${x.title}</div>
+        <div style="font-size:13px;color:${GOLD};letter-spacing:-1px">${stars}</div>
+        <div style="font-size:13px;font-weight:500;color:${GOLD};min-width:28px">${x.rating}</div>
+        <div style="font-size:10px;color:#999;min-width:40px">${x.count} отз.</div>
+      </div>`;
+    }).join("");
+  } else {
+    trEl.innerHTML = `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Отзывов пока нет</div>`;
+  }
+
+  // Sub cities
+  document.getElementById("sub-cities").innerHTML = (E.sub_cities && E.sub_cities.length)
+    ? barH(E.sub_cities, "count", "city", PURPLE)
+    : `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Подписок пока нет</div>`;
+
+  // Features summary cards
+  const featureCards = [
+    {icon:"👁",label:"Просмотры",val:n(E.total_views||0),sub:"показов объявлений",color:TG},
+    {icon:"📞",label:"Запросы просмотра",val:n(E.total_view_requests||0),sub:"к владельцам",color:GREEN},
+    {icon:"❤️",label:"Избранное",val:n(E.total_favorites||0),sub:"сохранений",color:RED},
+    {icon:"⭐",label:"Отзывы",val:n(E.total_reviews||0),sub:`ср. ${E.avg_rating||0} из 5`,color:GOLD},
+    {icon:"🔔",label:"Подписки поиск",val:n(E.total_search_subs||0),sub:"активных",color:PURPLE},
+    {icon:"📉",label:"Цен отслеживается",val:n(E.total_price_tracked||0),sub:"алерты о снижении",color:TG},
+    {icon:"🎁",label:"Рефералы",val:n(E.total_referrals||0),sub:"приглашено",color:GREEN},
+    {icon:"🏅",label:"Бонусные дни",val:n(E.total_bonus_days||0),sub:"выдано",color:GOLD},
+  ];
+  document.getElementById("features-summary").innerHTML = featureCards.map(f =>
+    `<div style="padding:12px 14px;background:#f8f8f4;border-radius:8px;border-left:3px solid ${f.color}">
+      <div style="font-size:18px;margin-bottom:4px">${f.icon}</div>
+      <div style="font-size:10px;color:#999;margin-bottom:2px">${f.label}</div>
+      <div style="font-size:20px;font-weight:500;color:${f.color}">${f.val}</div>
+      <div style="font-size:10px;color:#aaa;margin-top:2px">${f.sub}</div>
     </div>`).join("");
 
   // Plans
