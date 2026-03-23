@@ -286,8 +286,11 @@ def extract_parking(text):
 
 
 def extract_pool(text):
-    """Returns True if pool is mentioned."""
+    """Returns True if pool is mentioned (without negation context)."""
     t = text.lower()
+    # Check for negation: "без бассейна", "no pool", "אין בריכה" etc.
+    if re.search(r'без\s+бассейн|нет\s+бассейн|no\s+pool|without\s+pool|אין\s+בריכה', t):
+        return False
     return bool(re.search(r'бассейн|swimming\s*pool|pool|בריכה', t))
 
 
