@@ -55,11 +55,15 @@ def _deal_keyboard(ctx):
     buy = {"ru": "💰 Продажа", "en": "💰 Sale", "he": "💰 מכירה"}[lang]
     sublet = {"ru": "🔄 Сублет", "en": "🔄 Sublet", "he": "🔄 סאבלט"}[lang]
     commercial = {"ru": "🏢 Коммерческая", "en": "🏢 Commercial", "he": "🏢 מסחרי"}[lang]
+    back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    menu = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[lang]
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(rent, callback_data="add_deal_rent"),
          InlineKeyboardButton(buy, callback_data="add_deal_buy")],
         [InlineKeyboardButton(sublet, callback_data="add_deal_sublet"),
          InlineKeyboardButton(commercial, callback_data="add_deal_commercial")],
+        [InlineKeyboardButton(back, callback_data="back_to_menu"),
+         InlineKeyboardButton(menu, callback_data="back_to_menu")],
     ])
 
 def _ptype_keyboard(ctx):
@@ -197,21 +201,38 @@ def _photos_keyboard(ctx, count):
         label = {"ru": f"✅ Готово ({count} фото)", "en": f"✅ Done ({count} photos)", "he": f"✅ סיום ({count} תמונות)"}[lang]
     else:
         label = {"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}[lang]
-    return InlineKeyboardMarkup([[InlineKeyboardButton(label, callback_data="add_photos_done")]])
+    back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    menu = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[lang]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(label, callback_data="add_photos_done")],
+        [InlineKeyboardButton(back, callback_data="add_back"),
+         InlineKeyboardButton(menu, callback_data="back_to_menu")],
+    ])
 
 
 def _confirm_keyboard(ctx):
     lang = get_lang(ctx)
     publish = {"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם"}[lang]
     cancel = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}[lang]
+    menu = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[lang]
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(publish, callback_data="add_confirm_yes")],
         [InlineKeyboardButton(cancel, callback_data="add_confirm_no")],
+        [InlineKeyboardButton(menu, callback_data="back_to_menu")],
     ])
 
 def _step_text(ctx, ru, en, he):
     lang = get_lang(ctx)
     return {"ru": ru, "en": en, "he": he}.get(lang, ru)
+
+def _back_kb(ctx):
+    lang = get_lang(ctx)
+    back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    menu = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[lang]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(back, callback_data="add_back"),
+         InlineKeyboardButton(menu, callback_data="back_to_menu")],
+    ])
 
 
 class ListingHandler:
@@ -222,7 +243,10 @@ class ListingHandler:
                 CallbackQueryHandler(self.start_add, pattern="^add_listing$"),
             ],
             states={
-                ADD_DEAL_TYPE: [CallbackQueryHandler(self.handle_deal, pattern="^add_deal_")],
+                ADD_DEAL_TYPE: [
+                    CallbackQueryHandler(self.handle_deal, pattern="^add_deal_"),
+                    CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),
+                ],
                 ADD_PROPERTY_TYPE: [
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
                     CallbackQueryHandler(self.handle_ptype, pattern="^add_ptype_"),
@@ -290,6 +314,7 @@ class ListingHandler:
                 ADD_PHOTOS: [
                     MessageHandler(filters.PHOTO, self.handle_photo_message),
                     CallbackQueryHandler(self.handle_photos_done, pattern="^add_photos_done$"),
+                    CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
                 ],
                 ADD_CONFIRM: [
                     CallbackQueryHandler(self.handle_confirm, pattern="^add_confirm_"),
@@ -352,20 +377,12 @@ class ListingHandler:
             return ADD_ROOMS
         elif state == ADD_AREA:
             text = _step_text(context, "Шаг 6/14: Этаж", "Step 6/14: Floor", "שלב 6/14: קומה")
-            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-                {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-                callback_data="add_back"
-            )]])
-            await query.edit_message_text(text, reply_markup=back_kb, parse_mode="HTML")
+            await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_FLOOR
             return ADD_FLOOR
         elif state == ADD_PRICE:
             text = _step_text(context, "Шаг 7/14: Площадь (кв.м)", "Step 7/14: Area (sqm)", "שלב 7/14: שטח (מ\"ר)")
-            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-                {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-                callback_data="add_back"
-            )]])
-            await query.edit_message_text(text, reply_markup=back_kb, parse_mode="HTML")
+            await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_AREA
             return ADD_AREA
         elif state == ADD_PARKING:
@@ -375,11 +392,7 @@ class ListingHandler:
                 f"Step 8/14: Price ({'₪/mo' if deal=='rent' else '₪'})",
                 f"שלב 8/14: מחיר ({'₪/חודש' if deal=='rent' else '₪'})"
             )
-            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-                {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-                callback_data="add_back"
-            )]])
-            await query.edit_message_text(price_text, reply_markup=back_kb, parse_mode="HTML")
+            await query.edit_message_text(price_text, reply_markup=_back_kb(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_PRICE
             return ADD_PRICE
         elif state == ADD_POOL:
@@ -408,15 +421,38 @@ class ListingHandler:
             await query.edit_message_text(text, reply_markup=_infra_keyboard(context, selected), parse_mode="HTML")
             context.user_data["add_state"] = ADD_INFRASTRUCTURE
             return ADD_INFRASTRUCTURE
-        elif state == ADD_CONTACT:
+        elif state == ADD_NAME:
             text = _step_text(context, "Шаг 14/14: Описание", "Step 14/14: Description", "שלב 14/14: תיאור")
-            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-                {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-                callback_data="add_back"
-            )]])
-            await query.edit_message_text(text, reply_markup=back_kb, parse_mode="HTML")
+            await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_DESCRIPTION
             return ADD_DESCRIPTION
+        elif state == ADD_PHONE:
+            text = _step_text(context,
+                "Ваше имя\n\nВведите ваше имя:",
+                "Your name\n\nEnter your name:",
+                "השם שלך\n\nהזן את שמך:"
+            )
+            await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
+            context.user_data["add_state"] = ADD_NAME
+            return ADD_NAME
+        elif state == ADD_CONTACT:
+            text = _step_text(context,
+                "Номер телефона\n\nВведите ваш номер телефона:",
+                "Phone number\n\nEnter your phone number:",
+                "מספר טלפון\n\nהזן את מספר הטלפון שלך:"
+            )
+            await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
+            context.user_data["add_state"] = ADD_PHONE
+            return ADD_PHONE
+        elif state == ADD_PHOTOS:
+            text = _step_text(context,
+                "Контактная информация\n\nВведите ваш Telegram @username или дополнительный контакт:",
+                "Contact information\n\nEnter your Telegram @username or additional contact:",
+                "פרטי קשר\n\nהזן את ה-Telegram @username או פרטי קשר נוספים:"
+            )
+            await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
+            context.user_data["add_state"] = ADD_CONTACT
+            return ADD_CONTACT
         return ConversationHandler.END
 
     async def handle_deal(self, update, context):
@@ -488,10 +524,7 @@ class ListingHandler:
                 "Step 5/14: Floor\n\nEnter floor number (e.g.: 1)",
                 "שלב 5/14: קומה\n\nהזן מספר קומה (לדוגמה: 1)"
             )
-            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-                {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang], callback_data="add_back"
-            )]])
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=back_kb, parse_mode="HTML")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
             return ADD_FLOOR
         context.user_data["add_state"] = ADD_ROOMS
         text = _step_text(context, "Шаг 5/14: Количество комнат", "Step 5/14: Number of rooms", "שלב 5/14: מספר חדרים")
@@ -510,11 +543,7 @@ class ListingHandler:
             "Step 6/14: Floor\n\nEnter floor number (e.g.: 3)",
             "שלב 6/14: קומה\n\nהזן מספר קומה (לדוגמה: 3)"
         )
-        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-            {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-            callback_data="add_back"
-        )]])
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=back_kb, parse_mode="HTML")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ADD_FLOOR
 
     async def handle_floor(self, update, context):
@@ -527,11 +556,7 @@ class ListingHandler:
             "Step 7/14: Area\n\nEnter area in sqm (e.g.: 85)",
             "שלב 7/14: שטח\n\nהזן שטח במ\"ר (לדוגמה: 85)"
         )
-        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-            {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-            callback_data="add_back"
-        )]])
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=back_kb, parse_mode="HTML")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ADD_AREA
 
     async def handle_area(self, update, context):
@@ -548,11 +573,7 @@ class ListingHandler:
             f"Step 8/14: Price\n\nEnter price in shekels ({'per month' if deal=='rent' else 'total price'})",
             f"שלב 8/14: מחיר\n\nהזן מחיר בשקלים ({'לחודש' if deal=='rent' else 'מחיר מלא'})"
         )
-        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-            {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-            callback_data="add_back"
-        )]])
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=back_kb, parse_mode="HTML")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ADD_PRICE
 
     async def handle_price(self, update, context):
@@ -642,11 +663,7 @@ class ListingHandler:
                 "Step 14/14: Description\n\nWrite a description (apartment features, neighborhood, terms):",
                 "שלב 14/14: תיאור\n\nכתב תיאור (מאפייני הדירה, שכונה, תנאים):"
             )
-            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-                {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-                callback_data="add_back"
-            )]])
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=back_kb, parse_mode="HTML")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
             return ADD_DESCRIPTION
         if data in selected:
             selected.remove(data)
@@ -671,11 +688,7 @@ class ListingHandler:
             "Your name\n\nEnter your name (it will be visible to buyers/renters):",
             "השם שלך\n\nהזן את שמך (יהיה גלוי לקונים/שוכרים):"
         )
-        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-            {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-            callback_data="add_back"
-        )]])
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=back_kb, parse_mode="HTML")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ADD_NAME
 
     async def handle_name(self, update, context):
@@ -688,11 +701,7 @@ class ListingHandler:
             "Phone number\n\nEnter your phone number (e.g.: +972501234567):",
             "מספר טלפון\n\nהזן את מספר הטלפון שלך (לדוגמה: +972501234567):"
         )
-        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-            {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-            callback_data="add_back"
-        )]])
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=back_kb, parse_mode="HTML")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ADD_PHONE
 
     async def handle_phone(self, update, context):
@@ -729,11 +738,7 @@ class ListingHandler:
             "Contact information\n\nEnter your Telegram @username or additional contact:",
             "פרטי קשר\n\nהזן את ה-Telegram @username או פרטי קשר נוספים:"
         )
-        back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
-            {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)],
-            callback_data="add_back"
-        )]])
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=back_kb, parse_mode="HTML")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ADD_CONTACT
 
     async def handle_contact(self, update, context):
