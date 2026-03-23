@@ -25,6 +25,17 @@ PROPERTY_TYPES = {
     "duplex": {"ru": "🏘 Дуплекс", "en": "🏘 Duplex", "he": "🏘 דופלקס"},
 }
 
+COMMERCIAL_TYPES = {
+    "office": {"ru": "🏢 Офис", "en": "🏢 Office", "he": "🏢 משרד"},
+    "retail": {"ru": "🏪 Магазин/Ретейл", "en": "🏪 Shop/Retail", "he": "🏪 חנות/קמעונאות"},
+    "warehouse": {"ru": "🏭 Склад", "en": "🏭 Warehouse", "he": "🏭 מחסן"},
+    "coworking": {"ru": "💼 Коворкинг", "en": "💼 Coworking", "he": "💼 קוורקינג"},
+    "restaurant_space": {"ru": "🍽 Кафе/Ресторан", "en": "🍽 Cafe/Restaurant", "he": "🍽 קפה/מסעדה"},
+    "other_commercial": {"ru": "🏗 Другое", "en": "🏗 Other", "he": "🏗 אחר"},
+}
+
+COMMERCIAL_KEYS = list(COMMERCIAL_TYPES.keys())
+
 INFRA_KEYS_ADD = [
     "school", "kindergarten", "transport", "mall",
     "park", "gym", "beach", "restaurant", "synagogue"
@@ -42,10 +53,14 @@ def _deal_keyboard(ctx):
     lang = get_lang(ctx)
     rent = {"ru": "🔑 Аренда", "en": "🔑 Rent", "he": "🔑 השכרה"}[lang]
     buy = {"ru": "💰 Продажа", "en": "💰 Sale", "he": "💰 מכירה"}[lang]
-    return InlineKeyboardMarkup([[
-        InlineKeyboardButton(rent, callback_data="add_deal_rent"),
-        InlineKeyboardButton(buy, callback_data="add_deal_buy"),
-    ]])
+    sublet = {"ru": "🔄 Сублет", "en": "🔄 Sublet", "he": "🔄 סאבלט"}[lang]
+    commercial = {"ru": "🏢 Коммерческая", "en": "🏢 Commercial", "he": "🏢 מסחרי"}[lang]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(rent, callback_data="add_deal_rent"),
+         InlineKeyboardButton(buy, callback_data="add_deal_buy")],
+        [InlineKeyboardButton(sublet, callback_data="add_deal_sublet"),
+         InlineKeyboardButton(commercial, callback_data="add_deal_commercial")],
+    ])
 
 def _ptype_keyboard(ctx):
     lang = get_lang(ctx)
@@ -58,6 +73,23 @@ def _ptype_keyboard(ctx):
             row = []
     if row:
         buttons.append(row)
+    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
+    return InlineKeyboardMarkup(buttons)
+
+def _comm_type_keyboard(ctx):
+    lang = get_lang(ctx)
+    buttons = []
+    row = []
+    for key, names in COMMERCIAL_TYPES.items():
+        row.append(InlineKeyboardButton(names[lang], callback_data=f"add_ptype_{key}"))
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
 def _district_keyboard(ctx):
@@ -393,12 +425,21 @@ class ListingHandler:
         deal = query.data.replace("add_deal_", "")
         context.user_data["add_listing"]["deal_type"] = deal
         context.user_data["add_state"] = ADD_PROPERTY_TYPE
-        deal_label = _step_text(context, "Аренда" if deal=="rent" else "Продажа",
-                                "Rent" if deal=="rent" else "Sale",
-                                "השכרה" if deal=="rent" else "מכירה")
+        deal_labels = {
+            "rent": {"ru": "Аренда", "en": "Rent", "he": "השכרה"},
+            "buy": {"ru": "Продажа", "en": "Sale", "he": "מכירה"},
+            "sublet": {"ru": "Сублет", "en": "Sublet", "he": "סאבלט"},
+            "commercial": {"ru": "Коммерческая", "en": "Commercial", "he": "מסחרי"},
+        }
+        lang = get_lang(context)
+        deal_label = deal_labels.get(deal, deal_labels["rent"])[lang]
         await query.edit_message_text(_confirmed(context, "Тип сделки", "Deal type", "סוג עסקה", deal_label), parse_mode="HTML")
-        text = _step_text(context, "Шаг 2/14: Тип жилья", "Step 2/14: Property type", "שלב 2/14: סוג נכס")
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_ptype_keyboard(context), parse_mode="HTML")
+        if deal == "commercial":
+            text = _step_text(context, "Шаг 2/14: Тип помещения", "Step 2/14: Property type", "שלב 2/14: סוג נכס")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_comm_type_keyboard(context), parse_mode="HTML")
+        else:
+            text = _step_text(context, "Шаг 2/14: Тип жилья", "Step 2/14: Property type", "שלב 2/14: סוג נכס")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_ptype_keyboard(context), parse_mode="HTML")
         return ADD_PROPERTY_TYPE
 
     async def handle_ptype(self, update, context):
@@ -408,8 +449,10 @@ class ListingHandler:
         context.user_data["add_listing"]["property_type"] = ptype
         context.user_data["add_state"] = ADD_DISTRICT
         lang = get_lang(context)
-        ptype_label = PROPERTY_TYPES[ptype][lang]
-        await query.edit_message_text(_confirmed(context, "Тип жилья", "Property type", "סוג נכס", ptype_label), parse_mode="HTML")
+        all_types = {**PROPERTY_TYPES, **COMMERCIAL_TYPES}
+        ptype_label = all_types.get(ptype, {}).get(lang, ptype)
+        label_key = "Тип помещения" if ptype in COMMERCIAL_KEYS else "Тип жилья"
+        await query.edit_message_text(_confirmed(context, label_key, "Property type", "סוג נכס", ptype_label), parse_mode="HTML")
         text = _step_text(context, "Шаг 3/14: Округ", "Step 3/14: District", "שלב 3/14: מחוז")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_district_keyboard(context), parse_mode="HTML")
         return ADD_DISTRICT
@@ -432,10 +475,25 @@ class ListingHandler:
         await query.answer()
         city = query.data.replace("add_city_", "")
         context.user_data["add_listing"]["city"] = city
-        context.user_data["add_state"] = ADD_ROOMS
         lang = get_lang(context)
         city_label = get_city_name(city, lang)
         await query.edit_message_text(_confirmed(context, "Город", "City", "עיר", city_label), parse_mode="HTML")
+        # Skip rooms for commercial listings
+        ptype = context.user_data["add_listing"].get("property_type", "")
+        if ptype in COMMERCIAL_KEYS:
+            context.user_data["add_listing"]["rooms"] = "0"
+            context.user_data["add_state"] = ADD_FLOOR
+            text = _step_text(context,
+                "Шаг 5/14: Этаж\n\nВведите номер этажа (например: 1)",
+                "Step 5/14: Floor\n\nEnter floor number (e.g.: 1)",
+                "שלב 5/14: קומה\n\nהזן מספר קומה (לדוגמה: 1)"
+            )
+            back_kb = InlineKeyboardMarkup([[InlineKeyboardButton(
+                {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang], callback_data="add_back"
+            )]])
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=back_kb, parse_mode="HTML")
+            return ADD_FLOOR
+        context.user_data["add_state"] = ADD_ROOMS
         text = _step_text(context, "Шаг 5/14: Количество комнат", "Step 5/14: Number of rooms", "שלב 5/14: מספר חדרים")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_rooms_keyboard(context), parse_mode="HTML")
         return ADD_ROOMS
