@@ -218,6 +218,27 @@ def get_analytics():
     svc_by_region = Counter(REGION_NAMES.get(s.get("region",""), s.get("region","")) for s in svc_active)
     svc_recent = sorted(svc_active, key=lambda x: x.get("date_added",""), reverse=True)[:5]
 
+    # ── User-added listings ───────────────────────────────────────────────
+    user_listings_db = db_data.get("user_listings", {})
+    user_added = []
+    for uid, lid_list in user_listings_db.items():
+        for lid in lid_list:
+            listing = db_data["listings"].get(str(lid))
+            if listing and listing.get("active"):
+                user_added.append({
+                    "id": lid,
+                    "owner_name": listing.get("owner_name") or "—",
+                    "owner_phone": listing.get("owner_phone") or "—",
+                    "contact": listing.get("contact") or "—",
+                    "city": listing.get("city") or "—",
+                    "rooms": listing.get("rooms") or "—",
+                    "price": listing.get("price") or 0,
+                    "deal_type": listing.get("deal_type") or "—",
+                    "date_added": listing.get("date_added") or "—",
+                    "user_id": uid,
+                })
+    user_added.sort(key=lambda x: x["date_added"], reverse=True)
+
     return {
         "users": {
             "total": total_users, "new_today": new_today,
@@ -248,6 +269,7 @@ def get_analytics():
             "manual": listing_sources.get("manual", 0),
             "by_city": [{"city": c, "count": n} for c, n in listing_cities.most_common(5)],
             "sources": [{"name": s, "count": n} for s, n in source_details.most_common(5)],
+            "user_added": user_added,
         },
         "responses": {"total": 0, "favorites": 0, "contacts": 0, "avg_per_user": 0, "by_day": last_7},
         "income": {

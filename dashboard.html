@@ -162,6 +162,25 @@ canvas{max-width:100%}
       <div class="card-title">Статус каналов</div>
       <div class="card-body"><div class="channel-grid" id="channels-grid"></div></div>
     </div>
+    <div class="card">
+      <div class="card-title">👤 Объявления добавленные пользователями</div>
+      <div class="card-body">
+        <table style="width:100%;border-collapse:collapse;font-size:13px" id="user-added-table">
+          <thead><tr style="color:#aaa;border-bottom:1px solid #333">
+            <th style="padding:6px 8px;text-align:left">#</th>
+            <th style="padding:6px 8px;text-align:left">Имя</th>
+            <th style="padding:6px 8px;text-align:left">Телефон</th>
+            <th style="padding:6px 8px;text-align:left">Контакт</th>
+            <th style="padding:6px 8px;text-align:left">Город</th>
+            <th style="padding:6px 8px;text-align:left">Комн.</th>
+            <th style="padding:6px 8px;text-align:left">Цена</th>
+            <th style="padding:6px 8px;text-align:left">Тип</th>
+            <th style="padding:6px 8px;text-align:left">Дата</th>
+          </tr></thead>
+          <tbody id="user-added-body"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- COMMERCIAL -->
@@ -498,6 +517,23 @@ function render(){
       <div style="font-size:22px;font-weight:500;color:#2AABEE">${n(s.count)}</div>
       <div style="font-size:10px;color:#999">объявлений</div>
     </div>`).join("");
+
+  // User-added listings table
+  const ua = (D.listings.user_added || []);
+  const dealLabel = {rent:"Аренда",buy:"Покупка",sublet:"Субаренда",commercial:"Коммерч."};
+  document.getElementById("user-added-body").innerHTML = ua.length ? ua.map((r,i)=>`
+    <tr style="border-bottom:1px solid #222;${i%2?'background:#1a1a1a':''}">
+      <td style="padding:5px 8px;color:#666">${r.id}</td>
+      <td style="padding:5px 8px">${r.owner_name}</td>
+      <td style="padding:5px 8px;font-family:monospace;color:#2AABEE">${r.owner_phone}</td>
+      <td style="padding:5px 8px;font-family:monospace;color:#4CAF8A">${r.contact}</td>
+      <td style="padding:5px 8px">${r.city}</td>
+      <td style="padding:5px 8px;text-align:center">${r.rooms}</td>
+      <td style="padding:5px 8px;color:#FFD700">${r.price?n(r.price)+' ₪':'—'}</td>
+      <td style="padding:5px 8px;font-size:11px;color:#aaa">${dealLabel[r.deal_type]||r.deal_type}</td>
+      <td style="padding:5px 8px;font-size:11px;color:#666">${r.date_added}</td>
+    </tr>`).join("") :
+    `<tr><td colspan="9" style="padding:16px;text-align:center;color:#555">Нет объявлений от пользователей</td></tr>`;
 
   // ── Engagement tab ────────────────────────────────────────────────────
   const E = D.engagement || {};
