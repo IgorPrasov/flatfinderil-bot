@@ -164,14 +164,16 @@ def results_navigation_keyboard(ctx, current, total, listing_id, listing=None):
     if current < total - 1:
         nav_row.append(InlineKeyboardButton(t("btn_next", ctx), callback_data=f"result_next_{current}"))
 
-    # Google Maps URL button
+    # Google Maps URL button — always use English city name for correct map resolution
     map_url = None
     if listing:
-        neighborhood = listing.get("neighborhood", "")
-        city = listing.get("city", "")
-        query_parts = [p for p in [neighborhood, city, "Israel"] if p]
-        map_query = ", ".join(query_parts)
         import urllib.parse
+        city_ru = listing.get("city", "")
+        city_en = get_city_name(city_ru, "en")   # e.g. "Тель-Авив" → "Tel Aviv"
+        neighborhood = listing.get("neighborhood", "")
+        # Build query: neighborhood (if exists), English city, Israel
+        query_parts = [p for p in [neighborhood, city_en, "Israel"] if p]
+        map_query = ", ".join(query_parts)
         map_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(map_query)}"
 
     action_row = [
