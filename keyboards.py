@@ -29,15 +29,13 @@ def main_menu_keyboard(ctx):
     lang = get_lang(ctx)
     sub_label = {"ru": "★ Подписка", "en": "★ Subscribe", "he": "★ מנוי"}.get(lang, "★ Подписка")
     svc_label = {"ru": "🚚 Услуги", "en": "🚚 Services", "he": "🚚 שירותים"}.get(lang, "🚚 Услуги")
-    crm_label = {"ru": "👥 CRM", "en": "👥 CRM", "he": "👥 CRM"}.get(lang, "👥 CRM")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t("btn_search", ctx), callback_data="search"), InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites")],
         [InlineKeyboardButton(t("btn_commercial", ctx), callback_data="commercial"), InlineKeyboardButton(svc_label, callback_data="services")],
         [InlineKeyboardButton(t("btn_my_listings", ctx), callback_data="my_listings"), InlineKeyboardButton(t("btn_add_listing", ctx), callback_data="add_listing")],
         [InlineKeyboardButton(t("btn_all_listings", ctx), callback_data="all_listings"), InlineKeyboardButton(t("btn_help", ctx), callback_data="help")],
         [InlineKeyboardButton(sub_label, callback_data="subscription"), InlineKeyboardButton(t("btn_my_subscriptions", ctx), callback_data="my_subscriptions")],
-        [InlineKeyboardButton(crm_label, callback_data="crm"), InlineKeyboardButton(t("btn_cabinet", ctx), callback_data="cabinet")],
-        [InlineKeyboardButton(t("btn_language", ctx), callback_data="choose_lang")],
+        [InlineKeyboardButton(t("btn_cabinet", ctx), callback_data="cabinet"), InlineKeyboardButton(t("btn_language", ctx), callback_data="choose_lang")],
     ])
 
 def back_to_menu_keyboard(ctx):
