@@ -12,9 +12,14 @@ if _BUNDLED != DB_FILE and os.path.exists(_BUNDLED):
     _needs_seed = not os.path.exists(DB_FILE)
     if not _needs_seed:
         try:
+            with open(_BUNDLED, 'r', encoding='utf-8') as _f:
+                _bundled_data = json.load(_f)
+            _bundled_count = len(_bundled_data.get("listings", {}))
             with open(DB_FILE, 'r', encoding='utf-8') as _f:
                 _existing = json.load(_f)
-            _needs_seed = len(_existing.get("listings", {})) == 0
+            _existing_count = len(_existing.get("listings", {}))
+            # Seed if volume has significantly fewer listings than bundled file
+            _needs_seed = _existing_count < _bundled_count * 0.5
         except Exception:
             _needs_seed = True
     if _needs_seed:
