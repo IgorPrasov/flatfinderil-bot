@@ -187,8 +187,9 @@ class SearchHandler:
             return SEARCH_PARKING
         elif state == SEARCH_SHELTER:
             ptypes = f.get("property_types", [])
+            deal_type = f.get("deal_type", "rent")
             pool_types = ["house", "villa"]
-            show_pool = ptypes and all(p in pool_types for p in ptypes)
+            show_pool = deal_type == "rent" and ptypes and all(p in pool_types for p in ptypes)
             if show_pool:
                 await query.edit_message_text(t("step_pool", context), reply_markup=pool_keyboard(context, "pool"), parse_mode="HTML")
                 context.user_data["current_state"] = SEARCH_POOL
@@ -413,8 +414,9 @@ class SearchHandler:
         park_label = park_val if park_val != "any" else t("btn_any_parking", context)
         await query.edit_message_text("✅ " + _confirmed(context, "Парковка", "Parking", "חניה", park_label), parse_mode="HTML")
         ptypes = f.get("property_types", [])
+        deal_type = f.get("deal_type", "rent")
         pool_types = ["house", "villa"]
-        show_pool = ptypes and all(p in pool_types for p in ptypes)
+        show_pool = deal_type == "rent" and ptypes and all(p in pool_types for p in ptypes)
         if show_pool:
             context.user_data["current_state"] = SEARCH_POOL
             await context.bot.send_message(chat_id=update.effective_chat.id, text=t("step_pool", context), reply_markup=pool_keyboard(context, "pool"), parse_mode="HTML")

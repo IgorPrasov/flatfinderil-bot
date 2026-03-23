@@ -342,6 +342,31 @@ def get_bonus_days(user_id: int) -> int:
 
 # ── Price market comparison ───────────────────────────────────────────────────
 
+def delete_listing(listing_id: int, user_id: int) -> bool:
+    """Remove listing from DB and from user_listings index."""
+    data = _load()
+    lid = str(listing_id)
+    if lid not in data["listings"]:
+        return False
+    del data["listings"][lid]
+    uid = str(user_id)
+    if uid in data["user_listings"]:
+        data["user_listings"][uid] = [i for i in data["user_listings"][uid] if i != listing_id]
+    _save(data)
+    return True
+
+
+def update_listing(listing_id: int, fields: dict) -> bool:
+    """Update arbitrary fields of an existing listing."""
+    data = _load()
+    lid = str(listing_id)
+    if lid not in data["listings"]:
+        return False
+    data["listings"][lid].update(fields)
+    _save(data)
+    return True
+
+
 def get_similar_listings(listing: Dict) -> List[Dict]:
     """Returns active listings in same city + property_type + deal_type, excluding self."""
     data = _load()

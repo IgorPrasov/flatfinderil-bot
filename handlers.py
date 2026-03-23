@@ -4,6 +4,8 @@ from keyboards import (
     main_menu_keyboard, back_to_menu_keyboard,
     results_navigation_keyboard, language_keyboard,
     subscription_keyboard, review_rating_keyboard, my_subscriptions_keyboard,
+    cabinet_listings_keyboard, cabinet_listing_manage_keyboard,
+    edit_listing_keyboard, confirm_delete_keyboard,
 )
 from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
@@ -336,20 +338,141 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total_views = sum(l.get("views", 0) for l in listings)
         total_requests = sum(l.get("view_requests", 0) for l in listings)
         stats = t("cabinet_stats", context, count=len(listings), views=total_views, requests=total_requests)
-        rows = []
-        for l in listings:
-            avg_r, cnt = db.get_average_rating(l["id"])
-            rating_str = f"{avg_r} ({cnt})" if avg_r is not None else "—"
-            row = t("cabinet_listing_row", context,
-                    title=l.get("title", "")[:30],
-                    views=l.get("views", 0),
-                    requests=l.get("view_requests", 0),
-                    rating=rating_str)
-            rows.append(row)
-        text = title + stats + "\n".join(rows)
+        lang = get_lang(context)
+        select_hint = {"ru": "\n📋 <b>Выберите объявление для управления:</b>",
+                       "en": "\n📋 <b>Select a listing to manage:</b>",
+                       "he": "\n📋 <b>בחר מודעה לניהול:</b>"}.get(lang, "\n📋 Select a listing:")
         await query.edit_message_text(
-            text[:4000],
-            reply_markup=back_to_menu_keyboard(context),
+            (title + stats + select_hint)[:4000],
+            reply_markup=cabinet_listings_keyboard(context, listings),
+            parse_mode="HTML"
+        )
+
+    # ── Cabinet: single listing view ────────────────────────────────────────
+    elif data.startswith("cab_listing_"):
+        listing_id = int(data.replace("cab_listing_", ""))
+        listing = db.get_listing(listing_id)
+        if not listing:
+            await query.edit_message_text("❌ Объявление не найдено.", reply_markup=back_to_menu_keyboard(context))
+            return
+        lang = get_lang(context)
+        active = listing.get("active", True)
+        status = "🟢 Активно" if active else "🔴 Снято с публикации"
+        avg_r, cnt = db.get_average_rating(listing_id)
+        rating_str = f"⭐ {avg_r} ({cnt} отзывов)" if avg_r is not None else "⭐ —"
+        text = (
+            f"<b>{listing.get('title', '')}</b>\n\n"
+            f"💰 {listing.get('price', 0):,} ₪\n"
+            f"📍 {listing.get('city', '')} · {listing.get('neighborhood', '')}\n"
+            f"🛏 {listing.get('rooms', '')} комн. · {listing.get('area_sqm', '')} м²\n"
+            f"👁 {listing.get('views', 0)} просмотров · 📞 {listing.get('view_requests', 0)} запросов\n"
+            f"{rating_str}\n"
+            f"Статус: {status}"
+        )
+        await query.edit_message_text(
+            text,
+            reply_markup=cabinet_listing_manage_keyboard(context, listing_id, active),
+            parse_mode="HTML"
+        )
+
+    # ── Edit listing: choose field ──────────────────────────────────────────
+    elif data.startswith("edit_listing_"):
+        listing_id = int(data.replace("edit_listing_", ""))
+        lang = get_lang(context)
+        hint = {"ru": "✏️ Что редактируем?", "en": "✏️ What to edit?", "he": "✏️ מה לערוך?"}.get(lang, "✏️ Edit")
+        await query.edit_message_text(hint, reply_markup=edit_listing_keyboard(context, listing_id))
+
+    # ── Edit field: price ───────────────────────────────────────────────────
+    elif data.startswith("editfield_price_"):
+        listing_id = int(data.replace("editfield_price_", ""))
+        lang = get_lang(context)
+        context.user_data["editing_listing_id"] = listing_id
+        context.user_data["editing_field"] = "price"
+        prompt = {"ru": "💰 Введите новую цену (число, ₪):",
+                  "en": "💰 Enter new price (number, ₪):",
+                  "he": "💰 הזן מחיר חדש (מספר, ₪):"}.get(lang, "💰 New price:")
+        await query.edit_message_text(prompt)
+
+    # ── Edit field: description ─────────────────────────────────────────────
+    elif data.startswith("editfield_desc_"):
+        listing_id = int(data.replace("editfield_desc_", ""))
+        lang = get_lang(context)
+        context.user_data["editing_listing_id"] = listing_id
+        context.user_data["editing_field"] = "description"
+        prompt = {"ru": "📝 Введите новое описание:",
+                  "en": "📝 Enter new description:",
+                  "he": "📝 הזן תיאור חדש:"}.get(lang, "📝 New description:")
+        await query.edit_message_text(prompt)
+
+    # ── Toggle active ───────────────────────────────────────────────────────
+    elif data.startswith("toggle_active_"):
+        listing_id = int(data.replace("toggle_active_", ""))
+        listing = db.get_listing(listing_id)
+        if not listing:
+            await query.answer("Объявление не найдено", show_alert=True)
+            return
+        new_active = not listing.get("active", True)
+        db.update_listing(listing_id, {"active": new_active})
+        lang = get_lang(context)
+        msg = {"ru": "🟢 Объявление опубликовано!" if new_active else "🔴 Объявление снято с публикации.",
+               "en": "🟢 Listing activated!" if new_active else "🔴 Listing deactivated.",
+               "he": "🟢 המודעה פורסמה!" if new_active else "🔴 המודעה הוסרה."}.get(lang, "Done")
+        await query.answer(msg, show_alert=True)
+        # Refresh the listing view
+        listing["active"] = new_active
+        active = new_active
+        avg_r, cnt = db.get_average_rating(listing_id)
+        rating_str = f"⭐ {avg_r} ({cnt} отзывов)" if avg_r is not None else "⭐ —"
+        status = "🟢 Активно" if active else "🔴 Снято с публикации"
+        text = (
+            f"<b>{listing.get('title', '')}</b>\n\n"
+            f"💰 {listing.get('price', 0):,} ₪\n"
+            f"📍 {listing.get('city', '')} · {listing.get('neighborhood', '')}\n"
+            f"🛏 {listing.get('rooms', '')} комн. · {listing.get('area_sqm', '')} м²\n"
+            f"👁 {listing.get('views', 0)} просмотров · 📞 {listing.get('view_requests', 0)} запросов\n"
+            f"{rating_str}\n"
+            f"Статус: {status}"
+        )
+        await query.edit_message_text(text, reply_markup=cabinet_listing_manage_keyboard(context, listing_id, active), parse_mode="HTML")
+
+    # ── Confirm delete ──────────────────────────────────────────────────────
+    elif data.startswith("confirm_delete_"):
+        listing_id = int(data.replace("confirm_delete_", ""))
+        lang = get_lang(context)
+        warn = {"ru": f"⚠️ Вы уверены, что хотите <b>удалить</b> объявление #{listing_id}?\nЭто действие нельзя отменить.",
+                "en": f"⚠️ Are you sure you want to <b>delete</b> listing #{listing_id}?\nThis cannot be undone.",
+                "he": f"⚠️ האם אתה בטוח שאתה רוצה <b>למחוק</b> מודעה #{listing_id}?"}.get(lang, f"Delete #{listing_id}?")
+        await query.edit_message_text(warn, reply_markup=confirm_delete_keyboard(context, listing_id), parse_mode="HTML")
+
+    # ── Do delete ───────────────────────────────────────────────────────────
+    elif data.startswith("do_delete_"):
+        listing_id = int(data.replace("do_delete_", ""))
+        user_id = update.effective_user.id
+        ok = db.delete_listing(listing_id, user_id)
+        lang = get_lang(context)
+        if ok:
+            msg = {"ru": "✅ Объявление удалено.", "en": "✅ Listing deleted.", "he": "✅ המודעה נמחקה."}.get(lang, "✅ Deleted.")
+        else:
+            msg = {"ru": "❌ Объявление не найдено.", "en": "❌ Listing not found.", "he": "❌ לא נמצא."}.get(lang, "❌ Not found.")
+        # Return to cabinet
+        listings = db.get_user_listings(user_id)
+        title = t("cabinet_title", context)
+        if not listings:
+            await query.edit_message_text(
+                msg + "\n\n" + title + t("cabinet_no_listings", context),
+                reply_markup=back_to_menu_keyboard(context),
+                parse_mode="HTML"
+            )
+            return
+        total_views = sum(l.get("views", 0) for l in listings)
+        total_requests = sum(l.get("view_requests", 0) for l in listings)
+        stats = t("cabinet_stats", context, count=len(listings), views=total_views, requests=total_requests)
+        select_hint = {"ru": "\n📋 <b>Выберите объявление для управления:</b>",
+                       "en": "\n📋 <b>Select a listing to manage:</b>",
+                       "he": "\n📋 <b>בחר מודעה לניהול:</b>"}.get(lang, "\n📋 Select:")
+        await query.edit_message_text(
+            (msg + "\n\n" + title + stats + select_hint)[:4000],
+            reply_markup=cabinet_listings_keyboard(context, listings),
             parse_mode="HTML"
         )
 
@@ -384,25 +507,61 @@ async def agent_cabinet(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
         return
+    lang = get_lang(context)
     total_views = sum(l.get("views", 0) for l in listings)
     total_requests = sum(l.get("view_requests", 0) for l in listings)
     stats = t("cabinet_stats", context, count=len(listings), views=total_views, requests=total_requests)
-    rows = []
-    for l in listings:
-        avg_r, cnt = db.get_average_rating(l["id"])
-        rating_str = f"{avg_r} ({cnt})" if avg_r is not None else "—"
-        row = t("cabinet_listing_row", context,
-                title=l.get("title", "")[:30],
-                views=l.get("views", 0),
-                requests=l.get("view_requests", 0),
-                rating=rating_str)
-        rows.append(row)
-    text = title + stats + "\n".join(rows)
+    select_hint = {"ru": "\n📋 <b>Выберите объявление для управления:</b>",
+                   "en": "\n📋 <b>Select a listing to manage:</b>",
+                   "he": "\n📋 <b>בחר מודעה לניהול:</b>"}.get(lang, "\n📋 Select a listing:")
     await update.message.reply_text(
-        text[:4000],
-        reply_markup=back_to_menu_keyboard(context),
+        (title + stats + select_hint)[:4000],
+        reply_markup=cabinet_listings_keyboard(context, listings),
         parse_mode="HTML"
     )
+
+
+async def handle_edit_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handles text input when user is editing a listing field (price / description)."""
+    editing_id = context.user_data.get("editing_listing_id")
+    editing_field = context.user_data.get("editing_field")
+
+    if not editing_id or not editing_field:
+        await handle_unknown(update, context)
+        return
+
+    text = update.message.text.strip()
+    lang = get_lang(context)
+
+    if editing_field == "price":
+        try:
+            new_price = int(text.replace(",", "").replace("₪", "").replace(" ", ""))
+        except ValueError:
+            err = {"ru": "❌ Введите число (например: 5500)",
+                   "en": "❌ Enter a number (e.g. 5500)",
+                   "he": "❌ הזן מספר (לדוגמה: 5500)"}.get(lang, "❌ Number only")
+            await update.message.reply_text(err)
+            return
+        db.update_listing(editing_id, {"price": new_price})
+        ok = {"ru": f"✅ Цена обновлена: {new_price:,} ₪",
+              "en": f"✅ Price updated: {new_price:,} ₪",
+              "he": f"✅ המחיר עודכן: {new_price:,} ₪"}.get(lang, f"✅ {new_price:,} ₪")
+
+    elif editing_field == "description":
+        db.update_listing(editing_id, {"description": text})
+        ok = {"ru": "✅ Описание обновлено.",
+              "en": "✅ Description updated.",
+              "he": "✅ התיאור עודכן."}.get(lang, "✅ Done.")
+    else:
+        ok = "✅"
+
+    context.user_data.pop("editing_listing_id", None)
+    context.user_data.pop("editing_field", None)
+
+    back_label = {"ru": "« К кабинету", "en": "« Back to cabinet", "he": "« חזרה"}.get(lang, "« Back")
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton(back_label, callback_data=f"cab_listing_{editing_id}")]])
+    await update.message.reply_text(ok, reply_markup=kb, parse_mode="HTML")
 
 
 async def refer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

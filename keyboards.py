@@ -319,6 +319,64 @@ def my_subscriptions_keyboard(ctx, subscriptions):
     keyboard.append([InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")])
     return InlineKeyboardMarkup(keyboard)
 
+def cabinet_listings_keyboard(ctx, listings):
+    """List of user listings with manage buttons."""
+    lang = get_lang(ctx)
+    keyboard = []
+    for l in listings:
+        title = l.get("title", f"#{l['id']}")[:30]
+        active_mark = "🟢" if l.get("active", True) else "🔴"
+        keyboard.append([InlineKeyboardButton(
+            f"{active_mark} {title}",
+            callback_data=f"cab_listing_{l['id']}"
+        )])
+    keyboard.append([InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def cabinet_listing_manage_keyboard(ctx, listing_id, active=True):
+    """Edit / Delete / Toggle buttons for a single listing."""
+    lang = get_lang(ctx)
+    edit_label   = {"ru": "✏️ Редактировать", "en": "✏️ Edit",   "he": "✏️ ערוך"}.get(lang, "✏️ Edit")
+    delete_label = {"ru": "🗑️ Удалить",       "en": "🗑️ Delete", "he": "🗑️ מחק"}.get(lang, "🗑️ Delete")
+    toggle_label = (
+        {"ru": "🔴 Снять с публикации", "en": "🔴 Deactivate", "he": "🔴 כבה"}.get(lang, "🔴 Deactivate")
+        if active else
+        {"ru": "🟢 Опубликовать снова", "en": "🟢 Activate",   "he": "🟢 הפעל"}.get(lang, "🟢 Activate")
+    )
+    back_label   = {"ru": "« К списку",        "en": "« Back to list", "he": "« חזרה"}.get(lang, "« Back")
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(edit_label,   callback_data=f"edit_listing_{listing_id}"),
+         InlineKeyboardButton(delete_label, callback_data=f"confirm_delete_{listing_id}")],
+        [InlineKeyboardButton(toggle_label, callback_data=f"toggle_active_{listing_id}")],
+        [InlineKeyboardButton(back_label,   callback_data="cabinet")],
+    ])
+
+
+def edit_listing_keyboard(ctx, listing_id):
+    """What field to edit."""
+    lang = get_lang(ctx)
+    price_label = {"ru": "💰 Изменить цену",     "en": "💰 Change price",       "he": "💰 שנה מחיר"}.get(lang, "💰 Change price")
+    desc_label  = {"ru": "📝 Изменить описание", "en": "📝 Edit description",   "he": "📝 ערוך תיאור"}.get(lang, "📝 Edit")
+    back_label  = {"ru": "« Назад",              "en": "« Back",                "he": "« חזרה"}.get(lang, "« Back")
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(price_label, callback_data=f"editfield_price_{listing_id}")],
+        [InlineKeyboardButton(desc_label,  callback_data=f"editfield_desc_{listing_id}")],
+        [InlineKeyboardButton(back_label,  callback_data=f"cab_listing_{listing_id}")],
+    ])
+
+
+def confirm_delete_keyboard(ctx, listing_id):
+    """Yes/No for deleting a listing."""
+    lang = get_lang(ctx)
+    yes_label = {"ru": "✅ Да, удалить",  "en": "✅ Yes, delete", "he": "✅ כן, מחק"}.get(lang, "✅ Delete")
+    no_label  = {"ru": "❌ Нет, оставить","en": "❌ No, keep",    "he": "❌ לא"}.get(lang, "❌ No")
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(yes_label, callback_data=f"do_delete_{listing_id}"),
+        InlineKeyboardButton(no_label,  callback_data=f"cab_listing_{listing_id}"),
+    ]])
+
+
 def elevator_keyboard(ctx, prefix="elevator"):
     return InlineKeyboardMarkup([
         [
