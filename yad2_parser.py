@@ -52,33 +52,13 @@ PTYPE_MAP = {
 }
 
 def get_listings_rent(page=1):
-    url = "https://gw.yad2.co.il/feed-search-legacy/realestate/rent"
-    params = {
-        "propertyGroup": "apartments,houses",
-        "page": page,
-        "pageSize": 40,
-    }
-    try:
-        r = requests.get(url, headers=HEADERS, params=params, timeout=15)
-        if r.status_code == 200:
-            return r.json()
-    except Exception as e:
-        print(f"Ошибка запроса: {e}")
+    # NOTE: gw.yad2.co.il/feed-search-legacy/* returns 404 (endpoint removed).
+    # www.yad2.co.il/api/* returns ShieldSquare CAPTCHA challenge.
+    # Yad2 blocks automated access. This parser is currently non-functional.
+    print("⚠️  Yad2 API is blocked (CAPTCHA / endpoint removed). Skipping.")
     return None
 
 def get_listings_buy(page=1):
-    url = "https://gw.yad2.co.il/feed-search-legacy/realestate/forsale"
-    params = {
-        "propertyGroup": "apartments,houses",
-        "page": page,
-        "pageSize": 40,
-    }
-    try:
-        r = requests.get(url, headers=HEADERS, params=params, timeout=15)
-        if r.status_code == 200:
-            return r.json()
-    except Exception as e:
-        print(f"Ошибка запроса: {e}")
     return None
 
 def parse_listing(item, deal_type):

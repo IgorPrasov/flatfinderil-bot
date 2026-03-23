@@ -14,7 +14,6 @@ CHANNELS = [
     "tlvapartments",
     "israelrealestate",
     "israel_apartments",
-    "nadlan_israel",
     "izrailnedvizimosti",
     "isra_home_arenda",
     "nagariyaapartments",
@@ -22,7 +21,6 @@ CHANNELS = [
     "happy_home_ashkelon",
     # ── Новые найденные публичные ─────────────────────────────────────────
     "haifa_arenda",
-    "realestate_israel",
     "israel_home",
     # ── Приватные — убраны (требуют авторизации) ─────────────────────────
     # "rentapartmentbatyam",   # private
@@ -473,7 +471,7 @@ def extract_rooms(text):
         r'(\d[.,]?\d?)\s*комн',
         r'(\d[.,]?\d?)\s*חד',
         r'(\d[.,]?\d?)\s*room',
-        r'(\d[.,]?\d?)-к',
+        r'(\d[.,]?\d?)-к(?![а-яёА-ЯЁ])',
     ]
     for pattern in patterns:
         match = re.search(pattern, text.lower())
