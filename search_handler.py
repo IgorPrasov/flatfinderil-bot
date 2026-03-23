@@ -48,7 +48,7 @@ def _confirmed(context, ru, en, he, value):
 
 
 def _get_price_options(deal_type, lang, is_min):
-    if deal_type == "rent":
+    if deal_type in ("rent", "sublet"):
         opts = {
             "ru": PRICE_RENT_MIN_OPTIONS_RU if is_min else PRICE_RENT_OPTIONS_RU,
             "en": PRICE_RENT_MIN_OPTIONS_EN if is_min else PRICE_RENT_OPTIONS_EN,
@@ -189,7 +189,7 @@ class SearchHandler:
             ptypes = f.get("property_types", [])
             deal_type = f.get("deal_type", "rent")
             pool_types = ["house", "villa"]
-            show_pool = deal_type == "rent" and ptypes and all(p in pool_types for p in ptypes)
+            show_pool = deal_type in ("rent", "sublet") and ptypes and all(p in pool_types for p in ptypes)
             if show_pool:
                 await query.edit_message_text(t("step_pool", context), reply_markup=pool_keyboard(context, "pool"), parse_mode="HTML")
                 context.user_data["current_state"] = SEARCH_POOL
@@ -236,7 +236,12 @@ class SearchHandler:
         deal_type = query.data.replace("deal_", "")
         context.user_data["search_filters"]["deal_type"] = deal_type
         context.user_data["current_state"] = SEARCH_PROPERTY_TYPE
-        deal_text = t("deal_rent", context) if deal_type == "rent" else t("deal_buy", context)
+        if deal_type == "rent":
+            deal_text = t("deal_rent", context)
+        elif deal_type == "sublet":
+            deal_text = t("deal_sublet", context)
+        else:
+            deal_text = t("deal_buy", context)
         await query.edit_message_text("✅ " + _confirmed(context, "Тип сделки", "Deal type", "סוג עסקה", deal_text), parse_mode="HTML")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=t("step_ptype", context), reply_markup=property_type_keyboard(context), parse_mode="HTML")
         return SEARCH_PROPERTY_TYPE
@@ -604,7 +609,7 @@ def _confirmed(context, ru, en, he, value):
 
 
 def _get_price_options(deal_type, lang, is_min):
-    if deal_type == "rent":
+    if deal_type in ("rent", "sublet"):
         opts = {
             "ru": PRICE_RENT_MIN_OPTIONS_RU if is_min else PRICE_RENT_OPTIONS_RU,
             "en": PRICE_RENT_MIN_OPTIONS_EN if is_min else PRICE_RENT_OPTIONS_EN,

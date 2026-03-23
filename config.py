@@ -115,3 +115,14 @@ SHELTER_OPTIONS = {
     "none": "❌ Нет",
     "any": "🔄 Неважно",
 }
+
+COMMERCIAL_TYPES = {
+    "office": "🏢 Офис",
+    "retail": "🏪 Магазин/Ретейл",
+    "warehouse": "🏭 Склад",
+    "coworking": "💼 Коворкинг",
+    "restaurant_space": "🍽 Помещение под кафе/ресторан",
+    "other_commercial": "🏗 Другое",
+}
+
+COMMERCIAL_DEAL, COMMERCIAL_TYPE, COMMERCIAL_CITY, COMMERCIAL_PRICE_MIN, COMMERCIAL_PRICE_MAX, COMMERCIAL_CONFIRM = range(28, 34)

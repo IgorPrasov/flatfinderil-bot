@@ -46,8 +46,10 @@ TRANSLATIONS = {
     "btn_cancel": {"ru":"❌ Отмена","en":"❌ Cancel","he":"❌ ביטול"},
     "btn_deal_buy": {"ru":"🏠 Купить","en":"🏠 Buy","he":"🏠 קנייה"},
     "btn_deal_rent": {"ru":"🔑 Снять","en":"🔑 Rent","he":"🔑 שכירות"},
+    "btn_deal_sublet": {"ru":"🔄 Сублет/Субаренда","en":"🔄 Sublet","he":"🔄 סאבלט"},
     "deal_rent": {"ru":"Аренда 🔑","en":"Rent 🔑","he":"שכירות 🔑"},
     "deal_buy": {"ru":"Покупка 🏷","en":"Purchase 🏷","he":"קנייה 🏷"},
+    "deal_sublet": {"ru":"Сублет","en":"Sublet","he":"סאבלט"},
     "search_title": {"ru":"🔍 <b>Поиск недвижимости в Израиле</b>","en":"🔍 <b>Property search in Israel</b>","he":"🔍 <b>חיפוש נדל\"ן בישראל</b>"},
     "step_deal": {"ru":"Шаг 1/10: Выберите тип сделки:","en":"Step 1/10: Choose deal type:","he":"שלב 1/10: בחר סוג עסקה:"},
     "step_ptype": {"ru":"Шаг 2/10: Выберите тип жилья:","en":"Step 2/10: Choose property type:","he":"שלב 2/10: בחר סוג נכס:"},
@@ -252,6 +254,14 @@ TRANSLATIONS["sum_elevator"] = {"ru":"• 🛗 Лифт: {val}","en":"• 🛗 E
 TRANSLATIONS["btn_subscribe_search"] = {"ru":"🔔 Подписаться на поиск","en":"🔔 Subscribe to search","he":"🔔 הירשם לחיפוש"}
 TRANSLATIONS["btn_my_subscriptions"] = {"ru":"🔕 Мои подписки","en":"🔕 My subscriptions","he":"🔕 המנויים שלי"}
 TRANSLATIONS["sub_search_added"] = {"ru":"🔔 Подписка оформлена! Уведомим при появлении новых объявлений.","en":"🔔 Subscribed! We'll notify you when new listings appear.","he":"🔔 נרשמת! נודיע לך כשיופיעו מודעות חדשות."}
+
+# ── Commercial real estate ──────────────────────────────────────────────────
+TRANSLATIONS["btn_commercial"] = {"ru":"🏢 Коммерческая недвижимость","en":"🏢 Commercial","he":"🏢 נדל\"ן מסחרי"}
+TRANSLATIONS["commercial_welcome"] = {"ru":"🏢 <b>Коммерческая недвижимость</b>\n\nВыберите тип сделки:","en":"🏢 <b>Commercial Real Estate</b>\n\nSelect deal type:","he":"🏢 <b>נדל\"ן מסחרי</b>\n\nבחר סוג עסקה:"}
+TRANSLATIONS["commercial_step_type"] = {"ru":"🏗 Выберите тип помещения:","en":"🏗 Select property type:","he":"🏗 בחר סוג נכס:"}
+TRANSLATIONS["commercial_step_city"] = {"ru":"🏙 Выберите город:","en":"🏙 Select city:","he":"🏙 בחר עיר:"}
+TRANSLATIONS["commercial_step_price"] = {"ru":"💰 Укажите ценовой диапазон:","en":"💰 Set price range:","he":"💰 בחר טווח מחירים:"}
+TRANSLATIONS["commercial_no_results"] = {"ru":"😔 По вашему запросу ничего не найдено.\n\nПопробуйте изменить параметры.","en":"😔 No results found.\n\nTry different filters.","he":"😔 לא נמצאו תוצאות.\n\nנסה פרמטרים שונים."}
 TRANSLATIONS["my_subscriptions_title"] = {"ru":"🔔 <b>Мои подписки на поиск</b>\n\n","en":"🔔 <b>My search subscriptions</b>\n\n","he":"🔔 <b>המנויים שלי לחיפוש</b>\n\n"}
 TRANSLATIONS["no_subscriptions"] = {"ru":"У вас нет активных подписок на поиск.","en":"You have no active search subscriptions.","he":"אין לך מנויי חיפוש פעילים."}
 TRANSLATIONS["sub_item"] = {"ru":"📋 Подписка #{n}","en":"📋 Subscription #{n}","he":"📋 מנוי #{n}"}

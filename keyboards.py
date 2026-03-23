@@ -30,6 +30,7 @@ def main_menu_keyboard(ctx):
     sub_label = {"ru": "★ Подписка", "en": "★ Subscribe", "he": "★ מנוי"}.get(lang, "★ Подписка")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t("btn_search", ctx), callback_data="search"), InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites")],
+        [InlineKeyboardButton(t("btn_commercial", ctx), callback_data="commercial")],
         [InlineKeyboardButton(t("btn_my_listings", ctx), callback_data="my_listings"), InlineKeyboardButton(t("btn_add_listing", ctx), callback_data="add_listing")],
         [InlineKeyboardButton(t("btn_all_listings", ctx), callback_data="all_listings"), InlineKeyboardButton(t("btn_help", ctx), callback_data="help")],
         [InlineKeyboardButton(sub_label, callback_data="subscription"), InlineKeyboardButton(t("btn_my_subscriptions", ctx), callback_data="my_subscriptions")],
@@ -43,6 +44,7 @@ def back_to_menu_keyboard(ctx):
 def deal_type_keyboard(ctx):
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t("btn_deal_buy",ctx),callback_data="deal_buy"),InlineKeyboardButton(t("btn_deal_rent",ctx),callback_data="deal_rent")],
+        [InlineKeyboardButton(t("btn_deal_sublet",ctx),callback_data="deal_sublet")],
         [InlineKeyboardButton(t("btn_back_menu",ctx),callback_data="back_to_menu")],
     ])
 
@@ -452,3 +454,51 @@ def elevator_keyboard(ctx, prefix="elevator"):
         ],
         [InlineKeyboardButton(t("btn_back", ctx), callback_data="back")],
     ])
+
+
+def commercial_deal_keyboard(ctx):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("btn_deal_rent", ctx), callback_data="comm_deal_rent"),
+         InlineKeyboardButton(t("btn_deal_buy", ctx), callback_data="comm_deal_buy")],
+        [InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")],
+    ])
+
+
+def commercial_type_keyboard(ctx, selected=[]):
+    from config import COMMERCIAL_TYPES
+    rows = []
+    for key, label in COMMERCIAL_TYPES.items():
+        check = "✅ " if key in selected else ""
+        rows.append([InlineKeyboardButton(check + label, callback_data=f"comm_type_{key}")])
+    rows.append([
+        InlineKeyboardButton(t("btn_skip", ctx), callback_data="comm_type_all"),
+        InlineKeyboardButton(t("btn_back", ctx), callback_data="comm_back"),
+    ])
+    return InlineKeyboardMarkup(rows)
+
+
+def commercial_city_keyboard(ctx):
+    rows = []
+    for i in range(0, len(ALL_CITIES), 2):
+        row = [InlineKeyboardButton(ALL_CITIES[i], callback_data=f"comm_city_{ALL_CITIES[i]}")]
+        if i + 1 < len(ALL_CITIES):
+            row.append(InlineKeyboardButton(ALL_CITIES[i + 1], callback_data=f"comm_city_{ALL_CITIES[i + 1]}"))
+        rows.append(row)
+    rows.append([
+        InlineKeyboardButton("🌍 Весь Израиль", callback_data="comm_city_all"),
+        InlineKeyboardButton(t("btn_back", ctx), callback_data="comm_back"),
+    ])
+    return InlineKeyboardMarkup(rows)
+
+
+def commercial_price_keyboard(ctx, prefix, deal_type):
+    if deal_type == "rent":
+        options = [("0", "Любая"), ("3000", "от 3 000 ₪"), ("5000", "от 5 000 ₪"), ("10000", "от 10 000 ₪"), ("20000", "от 20 000 ₪"), ("50000", "от 50 000 ₪")]
+        options_max = [("0", "Любая"), ("5000", "до 5 000 ₪"), ("10000", "до 10 000 ₪"), ("20000", "до 20 000 ₪"), ("50000", "до 50 000 ₪"), ("999999999", "без лимита")]
+    else:
+        options = [("0", "Любая"), ("500000", "от 500 тыс."), ("1000000", "от 1 млн"), ("2000000", "от 2 млн"), ("5000000", "от 5 млн"), ("10000000", "от 10 млн")]
+        options_max = [("0", "Любая"), ("1000000", "до 1 млн"), ("2000000", "до 2 млн"), ("5000000", "до 5 млн"), ("10000000", "до 10 млн"), ("999999999", "без лимита")]
+    opts = options if prefix == "comm_pricemin" else options_max
+    rows = [[InlineKeyboardButton(label, callback_data=f"{prefix}_{val}")] for val, label in opts]
+    rows.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="comm_back")])
+    return InlineKeyboardMarkup(rows)
