@@ -405,13 +405,14 @@ def extract_neighborhood(text, city):
 def detect_city(text):
     """Detect city from text. Checks longer (more specific) keywords first.
     Uses word-boundary matching to avoid false positives (e.g. 'тира' in 'квартира').
+    Allows up to 3 trailing Russian chars to handle case endings (хаим→хаиме, авив→авиве).
     """
     import re
     text_lower = text.lower()
     # Sort by keyword length descending — longer/more specific first
     for keyword in sorted(CITY_KEYWORDS.keys(), key=len, reverse=True):
-        # Use word boundary: match keyword as whole word (not inside another word)
-        pattern = r'(?<![а-яёa-z\w])' + re.escape(keyword) + r'(?![а-яёa-z\w])'
+        # Match keyword + optional Russian case ending (up to 3 chars), with word boundaries
+        pattern = r'(?<![а-яёa-z\w])' + re.escape(keyword) + r'[а-яё]{0,3}(?![а-яёa-z\w])'
         if re.search(pattern, text_lower):
             return CITY_KEYWORDS[keyword]
     return None  # unknown city
