@@ -5,9 +5,9 @@ import database as db
 
 # States
 (
-    SVC_MENU, SVC_REGION, SVC_RESULTS,
-    ADD_SVC_TYPE, ADD_SVC_REGION, ADD_SVC_PRICE, ADD_SVC_DESC, ADD_SVC_NAME, ADD_SVC_PHONE, ADD_SVC_CONFIRM
-) = range(10, 20)
+    SVC_MENU, SVC_REGION, SVC_CITY, SVC_RESULTS,
+    ADD_SVC_TYPE, ADD_SVC_REGION, ADD_SVC_CITY, ADD_SVC_PRICE, ADD_SVC_DESC, ADD_SVC_NAME, ADD_SVC_PHONE, ADD_SVC_CONFIRM
+) = range(10, 22)
 
 SERVICE_TYPES = {
     "moving":   {"ru": "🚚 Перевозки",   "en": "🚚 Moving",   "he": "🚚 הובלות"},
@@ -19,6 +19,13 @@ REGIONS = {
     "north":  {"ru": "🌿 Север",  "en": "🌿 North",  "he": "🌿 צפון"},
     "center": {"ru": "🏙 Центр",  "en": "🏙 Center", "he": "🏙 מרכז"},
     "south":  {"ru": "☀️ Юг",     "en": "☀️ South",  "he": "☀️ דרום"},
+}
+
+# Cities per region
+REGION_CITIES = {
+    "north":  ["Хайфа","Кирьят-Ата","Кирьят-Бялик","Кирьят-Хаим","Кирьят-Ям","Кирьят-Моцкин","Акко","Нагария","Тиверия","Хадера","Кармиэль","Афула","Нацрат-Илит"],
+    "center": ["Тель-Авив","Иерусалим","Нетания","Рамат-Ган","Гиватаим","Бней-Брак","Бат-Ям","Холон","Ор-Иегуда","Петах-Тиква","Ришон-ле-Цион","Реховот","Нес-Циона","Лод","Рамла","Модиин","Кфар-Саба","Раанана","Герцлия","Ход-ха-Шарон","Рош-аин","Рамат-ха-Шарон"],
+    "south":  ["Ашдод","Ашкелон","Беэр-Шева","Эйлат","Нетивот","Сдерот"],
 }
 
 # Districts that belong to each region (for filtering)
@@ -86,6 +93,25 @@ def _add_region_kb(ctx):
     return InlineKeyboardMarkup(rows)
 
 
+def _city_kb(ctx, region, prefix):
+    lang = get_lang(ctx)
+    cities = REGION_CITIES.get(region, [])
+    rows = []
+    row = []
+    for city in cities:
+        row.append(InlineKeyboardButton(city, callback_data=f"{prefix}_{city}"))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    all_label = {"ru": "🌍 Весь район", "en": "🌍 All region", "he": "🌍 כל האזור"}[lang]
+    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    rows.append([InlineKeyboardButton(all_label, callback_data=f"{prefix}_all")])
+    rows.append([InlineKeyboardButton(back_label, callback_data="svc_back")])
+    return InlineKeyboardMarkup(rows)
+
+
 def _back_step_kb(ctx):
     lang = get_lang(ctx)
     back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
@@ -105,9 +131,11 @@ def _confirm_kb(ctx):
 def _format_service_card(s, lang):
     stype = SERVICE_TYPES.get(s.get("service_type", ""), {}).get(lang, s.get("service_type", ""))
     region_key = s.get("region", "")
-    region = REGIONS.get(region_key, {}).get(lang, region_key) if region_key != "all" else {
+    region = REGIONS.get(region_key, {}).get(lang, region_key) if region_key not in ("all", "") else {
         "ru": "Вся страна", "en": "All country", "he": "כל הארץ"
     }.get(lang, "All")
+    city = s.get("city", "")
+    location = city if city else region
     price = s.get("price", 0)
     price_str = f"{price:,} ₪".replace(",", " ") if price else {"ru": "Договорная", "en": "Negotiable", "he": "לפי הסכמה"}.get(lang)
     desc = s.get("description", "")
@@ -116,7 +144,7 @@ def _format_service_card(s, lang):
     contact = s.get("contact", "")
     lines = [
         f"<b>{stype}</b>",
-        f"📍 {region}",
+        f"📍 {location}",
         f"💰 {price_str}",
     ]
     if desc:
@@ -145,11 +173,19 @@ class ServiceHandler:
                     CallbackQueryHandler(self.handle_region, pattern="^svc_region_"),
                     CallbackQueryHandler(self.back_to_menu_cb, pattern="^svc_back$"),
                 ],
+                SVC_CITY: [
+                    CallbackQueryHandler(self.handle_city, pattern="^svc_city_"),
+                    CallbackQueryHandler(self.back_to_menu_cb, pattern="^svc_back$"),
+                ],
                 ADD_SVC_TYPE: [
                     CallbackQueryHandler(self.add_handle_type, pattern="^addsvc_type_"),
                 ],
                 ADD_SVC_REGION: [
                     CallbackQueryHandler(self.add_handle_region, pattern="^addsvc_region_"),
+                    CallbackQueryHandler(self.back_to_menu_cb, pattern="^svc_back$"),
+                ],
+                ADD_SVC_CITY: [
+                    CallbackQueryHandler(self.add_handle_city, pattern="^addsvc_city_"),
                     CallbackQueryHandler(self.back_to_menu_cb, pattern="^svc_back$"),
                 ],
                 ADD_SVC_PRICE: [
@@ -211,20 +247,49 @@ class ServiceHandler:
         region = query.data.replace("svc_region_", "")
         context.user_data["svc"]["region"] = region
         lang = get_lang(context)
+        region_label = REGIONS.get(region, {}).get(lang, region) if region != "all" else {
+            "ru": "Вся страна", "en": "All country", "he": "כל הארץ"
+        }[lang]
+        if region == "all":
+            # Skip city selection, search all
+            context.user_data["svc"]["city"] = "all"
+            services = db.get_services(svc_type=context.user_data["svc"].get("type"), region="all")
+            if not services:
+                await query.edit_message_text(
+                    _t(context,"😔 Объявления не найдены.\n\nБудьте первым — разместите услугу!",
+                       "😔 No listings found.\n\nBe the first — add your service!",
+                       "😔 לא נמצאו מודעות.\n\nהיה ראשון — הוסף שירות!"),
+                    reply_markup=_back_kb(context), parse_mode="HTML"
+                )
+                return ConversationHandler.END
+            context.user_data["svc_results"] = services
+            context.user_data["svc_idx"] = 0
+            await self._show_service(update, context, query=query)
+            return SVC_RESULTS
+        # Show city selection
+        await query.edit_message_text(
+            f"✅ {region_label}\n\n" + _t(context, "Выберите город:", "Select city:", "בחר עיר:"),
+            reply_markup=_city_kb(context, region, "svc_city"),
+            parse_mode="HTML"
+        )
+        return SVC_CITY
+
+    async def handle_city(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        city = query.data.replace("svc_city_", "")
+        context.user_data["svc"]["city"] = city
+        region = context.user_data["svc"].get("region")
         svc_type = context.user_data["svc"].get("type")
-
-        # Search services in DB
-        services = db.get_services(svc_type=svc_type, region=region)
+        services = db.get_services(svc_type=svc_type, region=region, city=city)
         if not services:
-            text = _t(context,
-                "😔 Объявления не найдены.\n\nБудьте первым — разместите услугу!",
-                "😔 No listings found.\n\nBe the first — add your service!",
-                "😔 לא נמצאו מודעות.\n\nהיה ראשון — הוסף שירות!"
+            await query.edit_message_text(
+                _t(context,"😔 Объявления не найдены.\n\nБудьте первым — разместите услугу!",
+                   "😔 No listings found.\n\nBe the first — add your service!",
+                   "😔 לא נמצאו מודעות.\n\nהיה ראשון — הוסף שירות!"),
+                reply_markup=_back_kb(context), parse_mode="HTML"
             )
-            await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
             return ConversationHandler.END
-
-        # Show results one by one
         context.user_data["svc_results"] = services
         context.user_data["svc_idx"] = 0
         await self._show_service(update, context, query=query)
@@ -280,6 +345,29 @@ class ServiceHandler:
         await query.answer()
         region = query.data.replace("addsvc_region_", "")
         context.user_data["add_svc"]["region"] = region
+        lang = get_lang(context)
+        if region == "all":
+            context.user_data["add_svc"]["city"] = ""
+            text = _t(context,
+                "💰 Укажите стоимость услуги (₪)\n\nНапример: 500\nИли напишите <b>0</b> если договорная",
+                "💰 Enter service price (₪)\n\nExample: 500\nOr write <b>0</b> for negotiable",
+                "💰 הזן מחיר השירות (₪)\n\nלדוגמה: 500\nאו כתוב <b>0</b> לפי הסכמה"
+            )
+            await query.edit_message_text(text, reply_markup=_back_step_kb(context), parse_mode="HTML")
+            return ADD_SVC_PRICE
+        region_label = REGIONS.get(region, {}).get(lang, region)
+        await query.edit_message_text(
+            f"✅ {region_label}\n\n" + _t(context, "Выберите город:", "Select city:", "בחר עיר:"),
+            reply_markup=_city_kb(context, region, "addsvc_city"),
+            parse_mode="HTML"
+        )
+        return ADD_SVC_CITY
+
+    async def add_handle_city(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        city = query.data.replace("addsvc_city_", "")
+        context.user_data["add_svc"]["city"] = "" if city == "all" else city
         text = _t(context,
             "💰 Укажите стоимость услуги (₪)\n\nНапример: 500\nИли напишите <b>0</b> если договорная",
             "💰 Enter service price (₪)\n\nExample: 500\nOr write <b>0</b> for negotiable",
@@ -328,10 +416,13 @@ class ServiceHandler:
         }.get(lang)
         price = svc.get("price", 0)
         price_str = f"{price:,} ₪".replace(",", " ") if price else {"ru": "Договорная", "en": "Negotiable", "he": "לפי הסכמה"}.get(lang)
+        city = svc.get("city","")
+        location_str = city if city else region_label
         summary = (
             f"📋 <b>Проверьте данные:</b>\n\n"
             f"• Услуга: {type_label}\n"
             f"• Район: {region_label}\n"
+            f"• Город: {location_str}\n"
             f"• Цена: {price_str}\n"
             f"• Описание: {svc.get('description','')}\n"
             f"• Имя: {svc.get('owner_name','')}\n"

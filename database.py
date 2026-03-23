@@ -584,8 +584,7 @@ def add_service(svc_data: dict) -> int:
     return sid
 
 
-def get_services(svc_type: str = None, region: str = None) -> list:
-    from service_handler import REGION_DISTRICTS
+def get_services(svc_type: str = None, region: str = None, city: str = None) -> list:
     data = _load()
     results = []
     for svc in data.get("services", {}).values():
@@ -596,6 +595,10 @@ def get_services(svc_type: str = None, region: str = None) -> list:
         if region and region != "all":
             svc_region = svc.get("region", "all")
             if svc_region != "all" and svc_region != region:
+                continue
+        if city and city != "all":
+            svc_city = svc.get("city", "")
+            if svc_city and svc_city != city:
                 continue
         results.append(svc)
     return results
