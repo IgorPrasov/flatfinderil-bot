@@ -6,6 +6,13 @@ import os
 _DATA_DIR = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
 DB_FILE = os.path.join(_DATA_DIR, "listings_db.json")
 
+# On first run with a volume: seed from the bundled file in the repo directory
+_BUNDLED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "listings_db.json")
+if not os.path.exists(DB_FILE) and os.path.exists(_BUNDLED) and _BUNDLED != DB_FILE:
+    import shutil
+    os.makedirs(_DATA_DIR, exist_ok=True)
+    shutil.copy2(_BUNDLED, DB_FILE)
+
 def _load():
     if os.path.exists(DB_FILE):
         try:
