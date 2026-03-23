@@ -14,10 +14,10 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 def fix_city_migration():
-    """One-time migration: re-detect cities for listings that got wrong city assignment."""
+    """Migration: re-detect city+district for listings with wrong assignment."""
     try:
         import json
-        from telegram_parser import detect_city
+        from telegram_parser import detect_city, DISTRICT_MAP
         db_path = os.path.join(os.path.dirname(__file__), "listings_db.json")
         with open(db_path) as f:
             db = json.load(f)
@@ -25,15 +25,22 @@ def fix_city_migration():
         for listing in db.get("listings", {}).values():
             city = listing.get("city", "")
             desc = listing.get("description", "") or listing.get("title", "")
-            if city in ("Тель-Авив", "Израиль") and desc:
+            # Fix wrong city
+            if city in ("Тель-Авив", "Израиль", None, "") and desc:
                 detected = detect_city(desc)
                 if detected and detected != city:
                     listing["city"] = detected
+                    city = detected
                     fixed += 1
+            # Always fix district to match city
+            correct_district = DISTRICT_MAP.get(city)
+            if correct_district and listing.get("district") != correct_district:
+                listing["district"] = correct_district
+                fixed += 1
         if fixed:
             with open(db_path, "w") as f:
                 json.dump(db, f, ensure_ascii=False, indent=2)
-            logger.info(f"City migration: fixed {fixed} listings")
+            logger.info(f"City/district migration: fixed {fixed} fields")
     except Exception as e:
         logger.warning(f"City migration failed: {e}")
 
