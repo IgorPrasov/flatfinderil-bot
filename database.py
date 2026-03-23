@@ -8,10 +8,19 @@ DB_FILE = os.path.join(_DATA_DIR, "listings_db.json")
 
 # On first run with a volume: seed from the bundled file in the repo directory
 _BUNDLED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "listings_db.json")
-if not os.path.exists(DB_FILE) and os.path.exists(_BUNDLED) and _BUNDLED != DB_FILE:
-    import shutil
-    os.makedirs(_DATA_DIR, exist_ok=True)
-    shutil.copy2(_BUNDLED, DB_FILE)
+if _BUNDLED != DB_FILE and os.path.exists(_BUNDLED):
+    _needs_seed = not os.path.exists(DB_FILE)
+    if not _needs_seed:
+        try:
+            with open(DB_FILE, 'r', encoding='utf-8') as _f:
+                _existing = json.load(_f)
+            _needs_seed = len(_existing.get("listings", {})) == 0
+        except Exception:
+            _needs_seed = True
+    if _needs_seed:
+        import shutil
+        os.makedirs(_DATA_DIR, exist_ok=True)
+        shutil.copy2(_BUNDLED, DB_FILE)
 
 def _load():
     if os.path.exists(DB_FILE):
