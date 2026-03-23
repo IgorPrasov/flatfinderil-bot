@@ -27,6 +27,10 @@ def _load():
                     data["view_requesters"] = {}
                 if "deal_next_id" not in data:
                     data["deal_next_id"] = 1
+                if "services" not in data:
+                    data["services"] = {}
+                if "services_next_id" not in data:
+                    data["services_next_id"] = 1
                 return data
         except:
             pass
@@ -43,6 +47,8 @@ def _load():
         "closed_deals": {},
         "view_requesters": {},
         "deal_next_id": 1,
+        "services": {},
+        "services_next_id": 1,
     }
 
 def _save(data):
@@ -562,3 +568,34 @@ def get_stale_listings(days: int = 30) -> List[Dict]:
         except Exception:
             continue
     return result
+
+
+# ── Services ──────────────────────────────────────────────────────────────────
+
+def add_service(svc_data: dict) -> int:
+    data = _load()
+    sid = data.get("services_next_id", 1)
+    svc_data["id"] = sid
+    svc_data["date_added"] = datetime.now().strftime("%Y-%m-%d")
+    svc_data["active"] = True
+    data["services"][str(sid)] = svc_data
+    data["services_next_id"] = sid + 1
+    _save(data)
+    return sid
+
+
+def get_services(svc_type: str = None, region: str = None) -> list:
+    from service_handler import REGION_DISTRICTS
+    data = _load()
+    results = []
+    for svc in data.get("services", {}).values():
+        if not svc.get("active", True):
+            continue
+        if svc_type and svc.get("service_type") != svc_type:
+            continue
+        if region and region != "all":
+            svc_region = svc.get("region", "all")
+            if svc_region != "all" and svc_region != region:
+                continue
+        results.append(svc)
+    return results
