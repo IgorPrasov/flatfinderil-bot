@@ -31,6 +31,16 @@ def _load():
                     data["services"] = {}
                 if "services_next_id" not in data:
                     data["services_next_id"] = 1
+                if "crm_contacts" not in data:
+                    data["crm_contacts"] = {}
+                if "crm_contact_next_id" not in data:
+                    data["crm_contact_next_id"] = 1
+                if "crm_deals" not in data:
+                    data["crm_deals"] = {}
+                if "crm_deal_next_id" not in data:
+                    data["crm_deal_next_id"] = 1
+                if "crm_notes" not in data:
+                    data["crm_notes"] = {}
                 return data
         except:
             pass
@@ -49,6 +59,11 @@ def _load():
         "deal_next_id": 1,
         "services": {},
         "services_next_id": 1,
+        "crm_contacts": {},
+        "crm_contact_next_id": 1,
+        "crm_deals": {},
+        "crm_deal_next_id": 1,
+        "crm_notes": {},
     }
 
 def _save(data):
@@ -602,3 +617,142 @@ def get_services(svc_type: str = None, region: str = None, city: str = None) -> 
                 continue
         results.append(svc)
     return results
+
+
+# ── CRM ───────────────────────────────────────────────────────────────────────
+
+VALID_DEAL_STATUSES = {"new", "in_progress", "done", "cancelled"}
+
+
+def add_crm_contact(contact_data: dict) -> int:
+    data = _load()
+    cid = data.get("crm_contact_next_id", 1)
+    contact_data["id"] = cid
+    contact_data["date_added"] = datetime.now().strftime("%Y-%m-%d")
+    contact_data["active"] = True
+    data["crm_contacts"][str(cid)] = contact_data
+    data["crm_contact_next_id"] = cid + 1
+    _save(data)
+    return cid
+
+
+def get_crm_contact(contact_id: int) -> Optional[Dict]:
+    data = _load()
+    return data.get("crm_contacts", {}).get(str(contact_id))
+
+
+def get_crm_contacts(contact_type: str = None, region: str = None,
+                     city: str = None, active_only: bool = True) -> List[Dict]:
+    data = _load()
+    results = []
+    for c in data.get("crm_contacts", {}).values():
+        if active_only and not c.get("active", True):
+            continue
+        if contact_type and c.get("contact_type") != contact_type:
+            continue
+        if region and region != "all" and c.get("region") != region:
+            continue
+        if city and city != "all" and c.get("city") != city:
+            continue
+        results.append(c)
+    return results
+
+
+def update_crm_contact(contact_id: int, fields: dict) -> bool:
+    data = _load()
+    cid = str(contact_id)
+    if cid not in data.get("crm_contacts", {}):
+        return False
+    data["crm_contacts"][cid].update(fields)
+    _save(data)
+    return True
+
+
+def deactivate_crm_contact(contact_id: int) -> bool:
+    return update_crm_contact(contact_id, {"active": False})
+
+
+def add_crm_deal(deal_data: dict) -> int:
+    data = _load()
+    did = data.get("crm_deal_next_id", 1)
+    deal_data["id"] = did
+    deal_data["date"] = datetime.now().strftime("%Y-%m-%d")
+    deal_data["updated_at"] = datetime.now().isoformat()
+    data["crm_deals"][str(did)] = deal_data
+    data["crm_deal_next_id"] = did + 1
+    _save(data)
+    return did
+
+
+def get_crm_deals(contact_id: int = None, status: str = None) -> List[Dict]:
+    data = _load()
+    results = []
+    for d in data.get("crm_deals", {}).values():
+        if contact_id and d.get("contact_id") != contact_id:
+            continue
+        if status and d.get("status") != status:
+            continue
+        results.append(d)
+    return sorted(results, key=lambda x: x.get("date", ""), reverse=True)
+
+
+def update_crm_deal_status(deal_id: int, status: str) -> bool:
+    if status not in VALID_DEAL_STATUSES:
+        return False
+    data = _load()
+    did = str(deal_id)
+    if did not in data.get("crm_deals", {}):
+        return False
+    data["crm_deals"][did]["status"] = status
+    data["crm_deals"][did]["updated_at"] = datetime.now().isoformat()
+    _save(data)
+    return True
+
+
+def add_crm_note(contact_id: int, text: str, author_id: int):
+    data = _load()
+    cid = str(contact_id)
+    if cid not in data.get("crm_notes", {}):
+        data["crm_notes"][cid] = []
+    data["crm_notes"][cid].append({
+        "text": text,
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "author_id": author_id,
+    })
+    _save(data)
+
+
+def get_crm_notes(contact_id: int) -> List[Dict]:
+    data = _load()
+    return data.get("crm_notes", {}).get(str(contact_id), [])
+
+
+def get_crm_stats() -> Dict:
+    data = _load()
+    contacts = list(data.get("crm_contacts", {}).values())
+    deals = list(data.get("crm_deals", {}).values())
+    notes = data.get("crm_notes", {})
+    total_notes = sum(len(v) for v in notes.values())
+    by_type: Dict[str, int] = {}
+    for c in contacts:
+        if c.get("active", True):
+            t = c.get("contact_type", "agent")
+            by_type[t] = by_type.get(t, 0) + 1
+    deals_by_status: Dict[str, int] = {}
+    for d in deals:
+        s = d.get("status", "new")
+        deals_by_status[s] = deals_by_status.get(s, 0) + 1
+    recent_deals = sorted(deals, key=lambda x: x.get("date", ""), reverse=True)[:5]
+    for rd in recent_deals:
+        cid = str(rd.get("contact_id", ""))
+        contact = data.get("crm_contacts", {}).get(cid, {})
+        rd["contact_name"] = contact.get("name", "—")
+        rd["contact_type"] = contact.get("contact_type", "")
+    return {
+        "total_contacts": len([c for c in contacts if c.get("active", True)]),
+        "by_type": by_type,
+        "total_deals": len(deals),
+        "deals_by_status": deals_by_status,
+        "total_notes": total_notes,
+        "recent_deals": recent_deals,
+    }

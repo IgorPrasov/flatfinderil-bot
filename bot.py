@@ -11,6 +11,7 @@ from search_handler import SearchHandler
 from listing_handler import ListingHandler
 from commercial_handler import CommercialHandler
 from service_handler import ServiceHandler
+from crm_handler import CRMHandler
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -56,6 +57,7 @@ def main():
     listing = ListingHandler()
     commercial = CommercialHandler()
     services = ServiceHandler()
+    crm = CRMHandler()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("search", search.start_search))
     app.add_handler(CommandHandler("listings", my_listings))
@@ -65,6 +67,7 @@ def main():
     app.add_handler(CommandHandler("refer", refer_command))
     app.add_handler(commercial.get_conversation_handler())
     app.add_handler(services.get_conversation_handler())
+    app.add_handler(crm.get_conversation_handler())
     app.add_handler(search.get_conversation_handler())
     app.add_handler(listing.get_conversation_handler())
     app.add_handler(CallbackQueryHandler(handle_menu))

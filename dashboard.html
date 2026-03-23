@@ -82,6 +82,7 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('listings')">🏠 Объявления</button>
     <button class="nav-btn" onclick="showTab('commercial')">🏢 Коммерческая</button>
     <button class="nav-btn" onclick="showTab('services')">🚚 Услуги</button>
+    <button class="nav-btn" onclick="showTab('crm')">👥 CRM</button>
     <button class="nav-btn" onclick="showTab('engage')">💬 Вовлечённость</button>
     <button class="nav-btn" onclick="showTab('money')">💰 Доход</button>
   </div>
@@ -201,6 +202,25 @@ canvas{max-width:100%}
     </div>
   </div>
 
+  <!-- CRM -->
+  <div class="tab" id="tab-crm">
+    <div class="kpi-row" id="kpi-crm"></div>
+    <div class="grid11">
+      <div class="card">
+        <div class="card-title">Контакты по типам</div>
+        <div class="card-body"><canvas id="chart-crm-types" height="180"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Сделки по статусам</div>
+        <div class="card-body"><canvas id="chart-crm-deals" height="180"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Последние сделки</div>
+      <div class="card-body" id="crm-recent-deals"></div>
+    </div>
+  </div>
+
   <!-- ENGAGEMENT -->
   <div class="tab" id="tab-engage">
     <div class="kpi-row" id="kpi-engage"></div>
@@ -268,6 +288,20 @@ const DEMO={
     by_type:[{type:"🚚 Перевозки",count:0},{type:"📦 Упаковка",count:0},{type:"🧹 Клининг",count:0}],
     by_region:[{region:"🌿 Север",count:0},{region:"🏙 Центр",count:0},{region:"☀️ Юг",count:0}],
     recent:[],
+  },
+  crm:{
+    total_contacts:0,
+    by_type:[
+      {type:"🏘 Агент",count:0},{type:"🚚 Перевозчик",count:0},
+      {type:"📦 Упаковщик",count:0},{type:"🧹 Клининг",count:0}
+    ],
+    total_deals:0,
+    deals_by_status:[
+      {status:"🆕 Новая",count:0},{status:"⏳ В работе",count:0},
+      {status:"✅ Завершена",count:0},{status:"❌ Отменена",count:0}
+    ],
+    total_notes:0,
+    recent_deals:[],
   },
   income:{current:1712},
   total_searches:19847,
@@ -613,6 +647,62 @@ function render(){
           <div style="font-size:14px;font-weight:500;color:${GREEN}">${s.price?n(s.price)+' ₪':'Договорная'}</div>
         </div>`).join("")
     : `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Услуги появятся здесь после первых публикаций</div>`;
+
+  // ── CRM tab ────────────────────────────────────────────────────────────
+  const CR = D.crm || {};
+  const crmTypes = CR.by_type || [];
+  const crmStatuses = CR.deals_by_status || [];
+  const activeDeals = (crmStatuses.find(x=>x.status.includes("работе"))?.count||0) + (crmStatuses.find(x=>x.status.includes("Новая"))?.count||0);
+  const doneDeals = crmStatuses.find(x=>x.status.includes("Завершена"))?.count||0;
+
+  document.getElementById("kpi-crm").innerHTML =
+    kpi("👤","Контактов",n(CR.total_contacts||0),"активных в CRM",TG)+
+    kpi("🏘","Агентов",n(crmTypes.find(x=>x.type.includes("Агент"))?.count||0),"",GREEN)+
+    kpi("🚚","Перевозчиков",n(crmTypes.find(x=>x.type.includes("Перевоз"))?.count||0),"",GOLD)+
+    kpi("🧹","Клининг/Упаковка",n((crmTypes.find(x=>x.type.includes("Клинин"))?.count||0)+(crmTypes.find(x=>x.type.includes("Упаков"))?.count||0)),"",PURPLE)+
+    kpi("💼","Сделок всего",n(CR.total_deals||0),`${activeDeals} активных`,TG)+
+    kpi("✅","Завершено сделок",n(doneDeals),"",GREEN)+
+    kpi("📝","Заметок",n(CR.total_notes||0),"",GOLD);
+
+  if(crmTypes.some(x=>x.count>0)){
+    makeChart("chart-crm-types","doughnut",crmTypes.map(x=>x.type),[
+      {data:crmTypes.map(x=>x.count),backgroundColor:[TG,GREEN,GOLD,PURPLE],borderWidth:0}
+    ],{cutout:"50%",legend:true});
+  } else {
+    const el=document.getElementById("chart-crm-types");
+    if(el)el.closest(".card-body").innerHTML=`<div style="text-align:center;padding:40px;color:#999;font-size:12px">Контакты появятся здесь после первых записей</div>`;
+  }
+
+  if(crmStatuses.some(x=>x.count>0)){
+    makeChart("chart-crm-deals","bar",crmStatuses.map(x=>x.status),[
+      {data:crmStatuses.map(x=>x.count),backgroundColor:[TG,GOLD,GREEN,RED],borderRadius:6}
+    ],{});
+  } else {
+    const el=document.getElementById("chart-crm-deals");
+    if(el)el.closest(".card-body").innerHTML=`<div style="text-align:center;padding:40px;color:#999;font-size:12px">Сделки появятся здесь</div>`;
+  }
+
+  const recentDeals = CR.recent_deals || [];
+  const CTYPE_ICONS = {"agent":"🏘","mover":"🚚","packer":"📦","cleaner":"🧹"};
+  const STATUS_COLORS = {"new":TG,"in_progress":GOLD,"done":GREEN,"cancelled":RED};
+  document.getElementById("crm-recent-deals").innerHTML = recentDeals.length
+    ? `<table style="width:100%;border-collapse:collapse;font-size:12px">
+        <tr style="color:#999;font-size:10px;border-bottom:1px solid #f0f0ea">
+          <th style="text-align:left;padding:6px 4px">Контакт</th>
+          <th style="text-align:left;padding:6px 4px">Описание</th>
+          <th style="text-align:right;padding:6px 4px">Сумма</th>
+          <th style="text-align:center;padding:6px 4px">Статус</th>
+          <th style="text-align:right;padding:6px 4px">Дата</th>
+        </tr>`+
+      recentDeals.map(d=>`
+        <tr style="border-bottom:1px solid #f8f8f4">
+          <td style="padding:8px 4px">${CTYPE_ICONS[d.contact_type]||"👤"} ${d.contact_name}</td>
+          <td style="padding:8px 4px;color:#666">${d.description||"—"}</td>
+          <td style="padding:8px 4px;text-align:right;font-weight:500">${d.amount?n(d.amount)+' ₪':'—'}</td>
+          <td style="padding:8px 4px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${STATUS_COLORS[d.status]||TG}22;color:${STATUS_COLORS[d.status]||TG}">${d.status==='new'?'Новая':d.status==='in_progress'?'В работе':d.status==='done'?'Завершена':'Отменена'}</span></td>
+          <td style="padding:8px 4px;text-align:right;color:#999">${d.date}</td>
+        </tr>`).join("")+`</table>`
+    : `<div style="text-align:center;padding:32px;color:#999;font-size:12px">Сделки появятся здесь после первых записей в CRM</div>`;
 
   // Plans
   const plans=[

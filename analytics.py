@@ -190,6 +190,12 @@ def get_analytics():
     new_members_today = sum(1 for m in members.values() if m.get("joined") == today)
     new_members_week = sum(1 for m in members.values() if m.get("joined", "") >= week_ago)
 
+    # ── CRM ──────────────────────────────────────────────────────────────────
+    crm_stats = db.get_crm_stats()
+    crm_by_type = crm_stats.get("by_type", {})
+    crm_deals_by_status = crm_stats.get("deals_by_status", {})
+    crm_recent = crm_stats.get("recent_deals", [])
+
     # ── Commercial listings ──────────────────────────────────────────────
     COMMERCIAL_KEYS = {"office","retail","warehouse","coworking","restaurant_space","other_commercial"}
     COMMERCIAL_TYPE_NAMES = {
@@ -271,6 +277,34 @@ def get_analytics():
                     "icon": {"moving":"🚚","packing":"📦","cleaning":"🧹"}.get(s.get("service_type",""),"🔧"),
                 }
                 for s in svc_recent
+            ],
+        },
+        "crm": {
+            "total_contacts": crm_stats.get("total_contacts", 0),
+            "by_type": [
+                {"type": "🏘 Агент",      "key": "agent",   "count": crm_by_type.get("agent", 0)},
+                {"type": "🚚 Перевозчик", "key": "mover",   "count": crm_by_type.get("mover", 0)},
+                {"type": "📦 Упаковщик",  "key": "packer",  "count": crm_by_type.get("packer", 0)},
+                {"type": "🧹 Клининг",    "key": "cleaner", "count": crm_by_type.get("cleaner", 0)},
+            ],
+            "total_deals": crm_stats.get("total_deals", 0),
+            "deals_by_status": [
+                {"status": "🆕 Новая",     "key": "new",         "count": crm_deals_by_status.get("new", 0)},
+                {"status": "⏳ В работе",  "key": "in_progress", "count": crm_deals_by_status.get("in_progress", 0)},
+                {"status": "✅ Завершена", "key": "done",        "count": crm_deals_by_status.get("done", 0)},
+                {"status": "❌ Отменена",  "key": "cancelled",   "count": crm_deals_by_status.get("cancelled", 0)},
+            ],
+            "total_notes": crm_stats.get("total_notes", 0),
+            "recent_deals": [
+                {
+                    "contact_name": d.get("contact_name", "—"),
+                    "contact_type": d.get("contact_type", ""),
+                    "amount": d.get("amount", 0),
+                    "status": d.get("status", "new"),
+                    "date": d.get("date", ""),
+                    "description": (d.get("description") or "")[:40],
+                }
+                for d in crm_recent
             ],
         },
         "engagement": {
