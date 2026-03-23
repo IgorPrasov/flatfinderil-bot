@@ -3,7 +3,8 @@ from typing import List, Dict, Optional
 import json
 import os
 
-DB_FILE = "listings_db.json"
+_DATA_DIR = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
+DB_FILE = os.path.join(_DATA_DIR, "listings_db.json")
 
 def _load():
     if os.path.exists(DB_FILE):

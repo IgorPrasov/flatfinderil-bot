@@ -3,7 +3,9 @@ import os
 from datetime import datetime, timedelta
 from collections import Counter
 
-STATS_FILE = "stats.json"
+import os as _os
+_DATA_DIR = _os.environ.get("DATA_DIR", _os.path.dirname(_os.path.abspath(__file__)))
+STATS_FILE = _os.path.join(_DATA_DIR, "stats.json")
 
 def _load_stats():
     if os.path.exists(STATS_FILE):
