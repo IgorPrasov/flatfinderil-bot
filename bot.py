@@ -14,7 +14,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 def fix_city_migration():
-    """Migration: re-detect city+district for listings with wrong assignment."""
+    """Migration: re-detect city+district for ALL listings using description text."""
     try:
         import json
         from telegram_parser import detect_city, DISTRICT_MAP
@@ -23,16 +23,18 @@ def fix_city_migration():
             db = json.load(f)
         fixed = 0
         for listing in db.get("listings", {}).values():
+            # Skip manually added listings (they have correct data)
+            if listing.get("source") == "manual":
+                continue
             city = listing.get("city", "")
             desc = listing.get("description", "") or listing.get("title", "")
-            # Fix wrong city
-            if city in ("Тель-Авив", "Израиль", None, "") and desc:
+            if desc:
                 detected = detect_city(desc)
                 if detected and detected != city:
                     listing["city"] = detected
                     city = detected
                     fixed += 1
-            # Always fix district to match city
+            # Fix district to match city
             correct_district = DISTRICT_MAP.get(city)
             if correct_district and listing.get("district") != correct_district:
                 listing["district"] = correct_district
