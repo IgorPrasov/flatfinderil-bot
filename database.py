@@ -27,6 +27,38 @@ if _BUNDLED != DB_FILE and os.path.exists(_BUNDLED):
         os.makedirs(_DATA_DIR, exist_ok=True)
         shutil.copy2(_BUNDLED, DB_FILE)
 
+def _dedup_listings():
+    """Remove duplicate listings by source_url (or title). Runs once on startup."""
+    if not os.path.exists(DB_FILE):
+        return
+    try:
+        with open(DB_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        listings = data.get("listings", {})
+        seen_urls, seen_titles, to_remove = set(), set(), []
+        for lid, l in listings.items():
+            url = l.get('source_url', '')
+            title = (l.get('title') or '')[:100]
+            if url:
+                if url in seen_urls:
+                    to_remove.append(lid)
+                else:
+                    seen_urls.add(url)
+            else:
+                if title and title in seen_titles:
+                    to_remove.append(lid)
+                elif title:
+                    seen_titles.add(title)
+        if to_remove:
+            for lid in to_remove:
+                del data["listings"][lid]
+            with open(DB_FILE, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+_dedup_listings()
+
 def _load():
     if os.path.exists(DB_FILE):
         try:
