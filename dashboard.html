@@ -80,6 +80,8 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('users')">👥 Пользователи</button>
     <button class="nav-btn" onclick="showTab('searches')">🔍 Поиски</button>
     <button class="nav-btn" onclick="showTab('listings')">🏠 Объявления</button>
+    <button class="nav-btn" onclick="showTab('commercial')">🏢 Коммерческая</button>
+    <button class="nav-btn" onclick="showTab('services')">🚚 Услуги</button>
     <button class="nav-btn" onclick="showTab('engage')">💬 Вовлечённость</button>
     <button class="nav-btn" onclick="showTab('money')">💰 Доход</button>
   </div>
@@ -161,6 +163,44 @@ canvas{max-width:100%}
     </div>
   </div>
 
+  <!-- COMMERCIAL -->
+  <div class="tab" id="tab-commercial">
+    <div class="kpi-row" id="kpi-commercial"></div>
+    <div class="grid11">
+      <div class="card">
+        <div class="card-title">По типам помещений</div>
+        <div class="card-body"><canvas id="chart-comm-types" height="180"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">По типу сделки</div>
+        <div class="card-body" id="comm-deals"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">По городам</div>
+      <div class="card-body" id="comm-cities"></div>
+    </div>
+  </div>
+
+  <!-- SERVICES -->
+  <div class="tab" id="tab-services">
+    <div class="kpi-row" id="kpi-services"></div>
+    <div class="grid11">
+      <div class="card">
+        <div class="card-title">По типам услуг</div>
+        <div class="card-body"><canvas id="chart-svc-types" height="180"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">По районам</div>
+        <div class="card-body" id="svc-regions"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Последние добавленные услуги</div>
+      <div class="card-body" id="svc-recent"></div>
+    </div>
+  </div>
+
   <!-- ENGAGEMENT -->
   <div class="tab" id="tab-engage">
     <div class="kpi-row" id="kpi-engage"></div>
@@ -217,6 +257,18 @@ const DEMO={
   subscription:{trial:6252,week:23,two_weeks:19,month:16,conversion:0.9},
   listings:{total:506,telegram:506,manual:0,by_city:[{city:"Тель-Авив",count:396},{city:"Хайфа",count:66},{city:"Бат-Ям",count:44},{city:"Ашдод",count:32},{city:"Нагария",count:24}],sources:[{name:"@israel_rent",count:198},{name:"@israel_apartments",count:132},{name:"@tlvapartments",count:110},{name:"@israelrealestate",count:66},{name:"@izrailnedvizimosti",count:0},{name:"@rentapartmentbatyam",count:0},{name:"@isra_home_arenda",count:0},{name:"@Sublet_Israel",count:0},{name:"@snyat_kvartiruy",count:0},{name:"@nagariyaapartments",count:0},{name:"@ashdod_rent",count:0}]},
   responses:{total:1247,favorites:389,contacts:312,avg_per_user:2.3},
+  commercial:{
+    total:0,
+    by_type:[{type:"Офис",count:0},{type:"Магазин",count:0},{type:"Склад",count:0},{type:"Коворкинг",count:0},{type:"Кафе/Ресторан",count:0}],
+    by_deal:[{deal:"Аренда",count:0},{deal:"Продажа",count:0}],
+    by_city:[],
+  },
+  services:{
+    total:0,
+    by_type:[{type:"🚚 Перевозки",count:0},{type:"📦 Упаковка",count:0},{type:"🧹 Клининг",count:0}],
+    by_region:[{region:"🌿 Север",count:0},{region:"🏙 Центр",count:0},{region:"☀️ Юг",count:0}],
+    recent:[],
+  },
   income:{current:1712},
   total_searches:19847,
   engagement:{
@@ -493,6 +545,74 @@ function render(){
       <div style="font-size:20px;font-weight:500;color:${f.color}">${f.val}</div>
       <div style="font-size:10px;color:#aaa;margin-top:2px">${f.sub}</div>
     </div>`).join("");
+
+  // ── Commercial tab ────────────────────────────────────────────────────
+  const C = D.commercial || {};
+  document.getElementById("kpi-commercial").innerHTML =
+    kpi("🏢","Объявлений",n(C.total||0),"коммерческих помещений",TG)+
+    kpi("🏪","Типов",((C.by_type||[]).filter(x=>x.count>0).length)||"0","категорий",GOLD)+
+    kpi("📍","Городов",((C.by_city||[]).length)||"0","с объявлениями",GREEN)+
+    kpi("🔑","Аренда",(C.by_deal||[]).find(x=>x.deal==="Аренда")?.count||0,"объявлений",PURPLE)+
+    kpi("💰","Продажа",(C.by_deal||[]).find(x=>x.deal==="Продажа")?.count||0,"объявлений",RED);
+
+  const commTypes = (C.by_type||[]);
+  if(commTypes.some(x=>x.count>0)){
+    makeChart("chart-comm-types","doughnut",commTypes.map(x=>x.type),[
+      {data:commTypes.map(x=>x.count),backgroundColor:COLORS,borderWidth:0}
+    ],{cutout:"50%",legend:true});
+  } else {
+    const cv=document.getElementById("chart-comm-types");
+    if(cv)cv.closest(".card-body").innerHTML=`<div style="text-align:center;padding:40px;color:#999;font-size:12px">Объявления появятся здесь</div>`;
+  }
+  document.getElementById("comm-deals").innerHTML = (C.by_deal||[]).map((d,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #f0f0ea">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:10px;height:10px;border-radius:2px;background:${COLORS[i]}"></div>
+        <span style="font-size:13px">${d.deal}</span>
+      </div>
+      <span style="font-size:20px;font-weight:500;color:${COLORS[i]}">${n(d.count)}</span>
+    </div>`).join("");
+  document.getElementById("comm-cities").innerHTML = (C.by_city||[]).length
+    ? barH(C.by_city,"count","city",TG)
+    : `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Данные появятся после первых объявлений</div>`;
+
+  // ── Services tab ──────────────────────────────────────────────────────
+  const SV = D.services || {};
+  document.getElementById("kpi-services").innerHTML =
+    kpi("🚚","Всего услуг",n(SV.total||0),"объявлений",TG)+
+    kpi("🚛","Перевозки",(SV.by_type||[]).find(x=>x.type.includes("Перевоз"))?.count||0,"",GREEN)+
+    kpi("📦","Упаковка",(SV.by_type||[]).find(x=>x.type.includes("Упаков"))?.count||0,"",GOLD)+
+    kpi("🧹","Клининг",(SV.by_type||[]).find(x=>x.type.includes("Клинин"))?.count||0,"",PURPLE);
+
+  const svcTypes = (SV.by_type||[]);
+  if(svcTypes.some(x=>x.count>0)){
+    makeChart("chart-svc-types","doughnut",svcTypes.map(x=>x.type),[
+      {data:svcTypes.map(x=>x.count),backgroundColor:[GREEN,GOLD,PURPLE],borderWidth:0}
+    ],{cutout:"50%",legend:true});
+  } else {
+    const sv=document.getElementById("chart-svc-types");
+    if(sv)sv.closest(".card-body").innerHTML=`<div style="text-align:center;padding:40px;color:#999;font-size:12px">Услуги появятся здесь</div>`;
+  }
+  document.getElementById("svc-regions").innerHTML = (SV.by_region||[]).map((r,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #f0f0ea">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:10px;height:10px;border-radius:2px;background:${COLORS[i]}"></div>
+        <span style="font-size:13px">${r.region}</span>
+      </div>
+      <span style="font-size:20px;font-weight:500;color:${COLORS[i]}">${n(r.count)}</span>
+    </div>`).join("");
+  const recentEl = document.getElementById("svc-recent");
+  recentEl.innerHTML = (SV.recent||[]).length
+    ? (SV.recent||[]).map(s=>`
+        <div style="padding:12px 0;border-bottom:1px solid #f0f0ea;display:flex;align-items:center;gap:10px">
+          <div style="font-size:22px">${s.icon||"🚚"}</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:500">${s.type}</div>
+            <div style="font-size:11px;color:#999">${s.region} · ${s.date}</div>
+          </div>
+          <div style="font-size:14px;font-weight:500;color:${GREEN}">${s.price?n(s.price)+' ₪':'Договорная'}</div>
+        </div>`).join("")
+    : `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Услуги появятся здесь после первых публикаций</div>`;
 
   // Plans
   const plans=[

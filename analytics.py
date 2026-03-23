@@ -190,6 +190,26 @@ def get_analytics():
     new_members_today = sum(1 for m in members.values() if m.get("joined") == today)
     new_members_week = sum(1 for m in members.values() if m.get("joined", "") >= week_ago)
 
+    # ── Commercial listings ──────────────────────────────────────────────
+    COMMERCIAL_KEYS = {"office","retail","warehouse","coworking","restaurant_space","other_commercial"}
+    COMMERCIAL_TYPE_NAMES = {
+        "office": "Офис", "retail": "Магазин", "warehouse": "Склад",
+        "coworking": "Коворкинг", "restaurant_space": "Кафе/Ресторан", "other_commercial": "Другое",
+    }
+    comm_listings = [l for l in listings if l.get("property_type") in COMMERCIAL_KEYS]
+    comm_by_type = Counter(COMMERCIAL_TYPE_NAMES.get(l.get("property_type",""), l.get("property_type","")) for l in comm_listings)
+    comm_by_deal = Counter(l.get("deal_type","") for l in comm_listings)
+    comm_by_city = Counter(l.get("city","") for l in comm_listings)
+
+    # ── Services ────────────────────────────────────────────────────────
+    SVC_TYPE_NAMES = {"moving": "🚚 Перевозки", "packing": "📦 Упаковка", "cleaning": "🧹 Клининг"}
+    REGION_NAMES = {"north": "🌿 Север", "center": "🏙 Центр", "south": "☀️ Юг", "all": "🌍 Вся страна"}
+    services_all = list(db_data.get("services", {}).values())
+    svc_active = [s for s in services_all if s.get("active", True)]
+    svc_by_type = Counter(SVC_TYPE_NAMES.get(s.get("service_type",""), s.get("service_type","")) for s in svc_active)
+    svc_by_region = Counter(REGION_NAMES.get(s.get("region",""), s.get("region","")) for s in svc_active)
+    svc_recent = sorted(svc_active, key=lambda x: x.get("date_added",""), reverse=True)[:5]
+
     return {
         "users": {
             "total": total_users, "new_today": new_today,
@@ -229,6 +249,30 @@ def get_analytics():
             "history": [],
         },
         "total_searches": len(searches),
+        "commercial": {
+            "total": len(comm_listings),
+            "by_type": [{"type": t, "count": n} for t, n in comm_by_type.most_common()],
+            "by_deal": [
+                {"deal": "Аренда", "count": comm_by_deal.get("rent",0) + comm_by_deal.get("commercial",0)},
+                {"deal": "Продажа", "count": comm_by_deal.get("buy",0)},
+            ],
+            "by_city": [{"city": c, "count": n} for c, n in comm_by_city.most_common(8) if c],
+        },
+        "services": {
+            "total": len(svc_active),
+            "by_type": [{"type": t, "count": n} for t, n in svc_by_type.most_common()],
+            "by_region": [{"region": r, "count": n} for r, n in svc_by_region.most_common()],
+            "recent": [
+                {
+                    "type": SVC_TYPE_NAMES.get(s.get("service_type",""), s.get("service_type","")),
+                    "region": REGION_NAMES.get(s.get("region",""), s.get("region","")),
+                    "price": s.get("price", 0),
+                    "date": s.get("date_added",""),
+                    "icon": {"moving":"🚚","packing":"📦","cleaning":"🧹"}.get(s.get("service_type",""),"🔧"),
+                }
+                for s in svc_recent
+            ],
+        },
         "engagement": {
             "total_views": total_views,
             "total_view_requests": total_view_requests,
