@@ -17,6 +17,11 @@ DISTRICT_CITIES = {
 }
 ALL_CITIES = ["Тель-Авив","Иерусалим","Хайфа","Ришон-ле-Цион","Петах-Тиква","Ашдод","Нетания","Беэр-Шева","Бней-Брак","Холон","Рамат-Ган","Реховот","Ашкелон","Бат-Ям","Кфар-Саба","Хадера","Эйлат","Герцлия","Раанана","Лод","Нес-Циона","Ор-Иегуда","Модиин"]
 
+def join_keyboard():
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("🔔 Вступить в сообщество / Join / הצטרף", callback_data="join")
+    ]])
+
 def language_keyboard():
     return InlineKeyboardMarkup([[InlineKeyboardButton(label,callback_data=f"setlang_{code}")] for code,label in LANGUAGES.items()])
 

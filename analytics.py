@@ -18,6 +18,20 @@ def _save_stats(data):
     with open(STATS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+def track_member(user_id: int):
+    """Record that user clicked 'Join' button."""
+    data = _load_stats()
+    uid = str(user_id)
+    today = datetime.now().strftime("%Y-%m-%d")
+    members = data.setdefault("members", {})
+    if uid not in members:
+        members[uid] = {"joined": today}
+        _save_stats(data)
+
+def get_member_count() -> int:
+    data = _load_stats()
+    return len(data.get("members", {}))
+
 def track_user(user_id: int, lang: str = "ru"):
     data = _load_stats()
     uid = str(user_id)
@@ -171,10 +185,20 @@ def get_analytics():
     fav_prices = db_data.get("favorites_prices", {})
     total_price_tracked = len(fav_prices)
 
+    members = data.get("members", {})
+    total_members = len(members)
+    new_members_today = sum(1 for m in members.values() if m.get("joined") == today)
+    new_members_week = sum(1 for m in members.values() if m.get("joined", "") >= week_ago)
+
     return {
         "users": {
             "total": total_users, "new_today": new_today,
             "active_today": active_today, "new_week": new_week, "active_week": active_week,
+        },
+        "members": {
+            "total": total_members,
+            "new_today": new_members_today,
+            "new_week": new_members_week,
         },
         "languages": [
             {"name": k.upper(), "value": round(v/total_users*100) if total_users else 0, "count": v}

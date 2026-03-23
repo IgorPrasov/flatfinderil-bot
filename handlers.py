@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from keyboards import (
     main_menu_keyboard, back_to_menu_keyboard,
-    results_navigation_keyboard, language_keyboard,
+    results_navigation_keyboard, language_keyboard, join_keyboard,
     subscription_keyboard, review_rating_keyboard, my_subscriptions_keyboard,
     cabinet_listings_keyboard, cabinet_listing_manage_keyboard,
     edit_listing_keyboard, confirm_delete_keyboard,
@@ -12,7 +12,7 @@ from keyboards import (
 from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
 from subscription import has_access, activate_subscription, get_status_text, is_trial_active, PLANS
-from analytics import track_user, track_subscription
+from analytics import track_user, track_subscription, track_member, get_member_count
 from display_utils import display_listing
 import database as db
 from datetime import datetime
@@ -29,17 +29,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if referrer_id != user.id:
                 added = db.add_referral(referrer_id, user.id)
                 if added:
-                    # Give referrer bonus days
                     db.add_bonus_days(referrer_id, 7)
-                    # Notify referrer
                     try:
-                        lang_ref = "ru"
-                        msg = t("refer_bonus_referral", context)
-                        await context.bot.send_message(chat_id=referrer_id, text=msg, parse_mode="HTML")
+                        await context.bot.send_message(chat_id=referrer_id, text=t("refer_bonus_referral", context), parse_mode="HTML")
                     except Exception:
                         pass
         except (ValueError, Exception):
             pass
+
+    # New user: show join screen first
+    if not context.user_data.get("joined"):
+        members = get_member_count()
+        text = (
+            f"🏠 <b>FlatFinderIL</b>\n\n"
+            f"Поиск недвижимости в Израиле — аренда и покупка.\n\n"
+            f"✅ Актуальные объявления из Telegram-каналов\n"
+            f"✅ Умный поиск по фильтрам\n"
+            f"✅ Карты, фото, контакты\n"
+            f"✅ Уведомления о новых объявлениях\n\n"
+            f"👥 Участников: <b>{members}</b>\n\n"
+            f"Нажмите кнопку ниже, чтобы вступить:"
+        )
+        await update.message.reply_text(text, reply_markup=join_keyboard(), parse_mode="HTML")
+        return
 
     if "lang" not in context.user_data:
         await update.message.reply_text(t("choose_language", context), reply_markup=language_keyboard())
@@ -58,6 +70,22 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
+
+    if data == "join":
+        user = update.effective_user
+        context.user_data["joined"] = True
+        track_member(user.id)
+        # Proceed to language selection or main menu
+        if "lang" not in context.user_data:
+            await query.edit_message_text(t("choose_language", context), reply_markup=language_keyboard())
+        else:
+            track_user(user.id, context.user_data.get("lang", "ru"))
+            await query.edit_message_text(
+                format_welcome(user.first_name, context),
+                reply_markup=main_menu_keyboard(context),
+                parse_mode="HTML"
+            )
+        return
 
     if data == "choose_lang":
         await query.edit_message_text(t("choose_language", context), reply_markup=language_keyboard())

@@ -315,16 +315,18 @@ function render(){
 
   // KPIs
   const E0 = D.engagement || {};
+  const M = D.members || {};
   document.getElementById("kpi-overview").innerHTML=
     kpi("🏠","Объявлений",n(D.listings.total),`${D.listings.telegram} из Telegram`,TG)+
-    kpi("👥","Пользователей",n(D.users.total),`+${D.users.new_today} сегодня`,GREEN)+
+    kpi("🔔","Участников",n(M.total||0),`+${M.new_today||0} сегодня`,GREEN)+
+    kpi("👥","Пользователей",n(D.users.total),`+${D.users.new_today} сегодня`,PURPLE)+
     kpi("🔍","Поисков",n(D.total_searches),"всего",GOLD)+
     kpi("👁","Просмотров",n(E0.total_views||0),"объявлений",TG)+
-    kpi("🔔","Подписок",n(E0.total_search_subs||0),"на поиск",PURPLE)+
     kpi("💰","Доход/мес",`${income} ₪`,"актуально",GREEN);
 
   document.getElementById("kpi-users").innerHTML=
-    kpi("👥","Всего",n(D.users.total),"",TG)+
+    kpi("🔔","Участников (Join)",n(M.total||0),`+${M.new_week||0} за неделю`,GREEN)+
+    kpi("👥","Пользователей",n(D.users.total),"запустили бота",TG)+
     kpi("🆕","Новых сегодня",D.users.new_today,"",GREEN)+
     kpi("⚡","Активны сегодня",D.users.active_today,"",GOLD)+
     kpi("📅","За неделю",n(D.users.active_week),"",PURPLE);

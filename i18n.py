@@ -2,6 +2,16 @@ LANGUAGES = {"ru": "🇷🇺 Русский", "en": "🇬🇧 English", "he": "�
 RTL_LANGS = {"he"}
 
 TRANSLATIONS = {
+    "join_welcome": {
+        "ru": "🏠 <b>FlatFinderIL</b>\n\nПоиск недвижимости в Израиле — аренда и покупка.\n\n✅ Актуальные объявления из Telegram-каналов\n✅ Умный поиск по фильтрам\n✅ Карты, фото, контакты\n✅ Уведомления о новых объявлениях\n\n👥 Участников: <b>{members}</b>\n\nНажмите кнопку ниже, чтобы вступить:",
+        "en": "🏠 <b>FlatFinderIL</b>\n\nFind real estate in Israel — rent and buy.\n\n✅ Fresh listings from Telegram channels\n✅ Smart search with filters\n✅ Maps, photos, contacts\n✅ New listing notifications\n\n👥 Members: <b>{members}</b>\n\nPress the button below to join:",
+        "he": "🏠 <b>FlatFinderIL</b>\n\nחיפוש נדל\"ן בישראל — שכירות ורכישה.\n\n✅ מודעות עדכניות מערוצי טלגרם\n✅ חיפוש חכם עם פילטרים\n✅ מפות, תמונות, אנשי קשר\n✅ התראות על מודעות חדשות\n\n👥 חברים: <b>{members}</b>\n\nלחץ על הכפתור להצטרף:",
+    },
+    "btn_join": {
+        "ru": "🔔 Вступить в сообщество",
+        "en": "🔔 Join the community",
+        "he": "🔔 הצטרף לקהילה",
+    },
     "choose_language": {"ru":"🌐 Выберите язык / Choose language / בחר שפה","en":"🌐 Choose language / Выберите язык / בחר שפה","he":"🌐 בחר שפה / Choose language / Выберите язык"},
     "welcome": {"ru":"🇮🇱 <b>Добро пожаловать, {name}!</b>\n\nЯ помогу вам найти недвижимость в Израиле 🏠\n\n<b>Что я умею:</b>\n🔍 Поиск по фильтрам\n🏊 Фильтр по бассейну\n🚗 Фильтр по парковке\n🏘 Класс жилья\n🏙 Инфраструктура района\n❤️ Избранное\n➕ Добавление объявлений\n\nВыберите действие:","en":"🇮🇱 <b>Welcome, {name}!</b>\n\nI will help you find real estate in Israel 🏠\n\n<b>What I can do:</b>\n🔍 Search with filters\n🏊 Pool filter\n🚗 Parking filter\n🏘 Property class\n🏙 Neighborhood infrastructure\n❤️ Favorites\n➕ Add listings\n\nChoose an action:","he":"🇮🇱 <b>ברוך הבא, {name}!</b>\n\nאני אעזור לך למצוא נדל\"ן בישראל 🏠\n\n<b>מה אני יכול לעשות:</b>\n🔍 חיפוש עם פילטרים\n🏊 סינון לפי בריכה\n🚗 סינון לפי חניה\n🏘 סוג נכס\n🏙 תשתיות שכונה\n❤️ מועדפים\n➕ הוספת מודעות\n\nבחר פעולה:"},
     "btn_search": {"ru":"🔍 Найти жильё","en":"🔍 Find property","he":"🔍 חפש נכס"},
