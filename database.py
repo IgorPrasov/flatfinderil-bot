@@ -21,6 +21,12 @@ def _load():
                     data["referrals"] = {}
                 if "referral_bonuses" not in data:
                     data["referral_bonuses"] = {}
+                if "closed_deals" not in data:
+                    data["closed_deals"] = {}
+                if "view_requesters" not in data:
+                    data["view_requesters"] = {}
+                if "deal_next_id" not in data:
+                    data["deal_next_id"] = 1
                 return data
         except:
             pass
@@ -34,6 +40,9 @@ def _load():
         "reviews": {},
         "referrals": {},
         "referral_bonuses": {},
+        "closed_deals": {},
+        "view_requesters": {},
+        "deal_next_id": 1,
     }
 
 def _save(data):
@@ -384,3 +393,172 @@ def get_similar_listings(listing: Dict) -> List[Dict]:
             if price > 0:
                 results.append(l)
     return results
+
+
+# ─── Deal tracking ───────────────────────────────────────────────────────────
+
+def record_view_requester(listing_id: int, user_id: int, username: str = "", name: str = ""):
+    """Record that a user requested viewing of a listing."""
+    data = _load()
+    lid = str(listing_id)
+    if "view_requesters" not in data:
+        data["view_requesters"] = {}
+    if lid not in data["view_requesters"]:
+        data["view_requesters"][lid] = []
+    # Avoid duplicates
+    existing_ids = [r["user_id"] for r in data["view_requesters"][lid]]
+    if user_id not in existing_ids:
+        data["view_requesters"][lid].append({
+            "user_id": user_id,
+            "username": username,
+            "name": name,
+            "date": datetime.now().strftime("%Y-%m-%d"),
+        })
+    _save(data)
+
+
+def get_view_requesters(listing_id: int) -> List[Dict]:
+    """Return list of users who requested viewing of this listing."""
+    data = _load()
+    return data.get("view_requesters", {}).get(str(listing_id), [])
+
+
+def close_deal(listing_id: int, owner_id: int, tenant_id: int,
+               listed_price: int, deal_price: int) -> int:
+    """Record a closed deal. Returns deal_id."""
+    data = _load()
+    lid = str(listing_id)
+    listing = data["listings"].get(lid, {})
+
+    deal_id = data.get("deal_next_id", 1)
+    date_listed = listing.get("date_added", "")
+    days_to_close = 0
+    if date_listed:
+        try:
+            from datetime import date
+            d0 = date.fromisoformat(date_listed)
+            d1 = date.today()
+            days_to_close = (d1 - d0).days
+        except Exception:
+            pass
+
+    deal = {
+        "id": deal_id,
+        "listing_id": listing_id,
+        "owner_id": owner_id,
+        "tenant_id": tenant_id,
+        "listed_price": listed_price,
+        "deal_price": deal_price if deal_price > 0 else listed_price,
+        "deal_type": listing.get("deal_type", "rent"),
+        "property_type": listing.get("property_type", "apartment"),
+        "city": listing.get("city", ""),
+        "rooms": listing.get("rooms", ""),
+        "days_to_close": days_to_close,
+        "closed_at": datetime.now().strftime("%Y-%m-%d"),
+        "confirmed_by": "owner",
+        "tenant_confirmed": False,
+    }
+    data["closed_deals"][str(deal_id)] = deal
+    data["deal_next_id"] = deal_id + 1
+
+    # Deactivate listing
+    if lid in data["listings"]:
+        data["listings"][lid]["active"] = False
+        data["listings"][lid]["deal_closed"] = True
+        data["listings"][lid]["deal_id"] = deal_id
+
+    _save(data)
+    return deal_id
+
+
+def tenant_confirm_deal(deal_id: int) -> bool:
+    """Tenant confirms deal — updates confirmed_by to 'both'."""
+    data = _load()
+    deal = data.get("closed_deals", {}).get(str(deal_id))
+    if not deal:
+        return False
+    deal["tenant_confirmed"] = True
+    deal["confirmed_by"] = "both"
+    _save(data)
+    return True
+
+
+def get_closed_deals() -> List[Dict]:
+    """Return all closed deals."""
+    data = _load()
+    return list(data.get("closed_deals", {}).values())
+
+
+def get_user_closed_deals(user_id: int) -> List[Dict]:
+    """Return deals where user is owner or tenant."""
+    deals = get_closed_deals()
+    return [d for d in deals if d.get("owner_id") == user_id or d.get("tenant_id") == user_id]
+
+
+def get_listing_deal(listing_id: int) -> Optional[Dict]:
+    """Return closed deal for a listing if exists."""
+    data = _load()
+    for deal in data.get("closed_deals", {}).values():
+        if deal.get("listing_id") == listing_id:
+            return deal
+    return None
+
+
+def get_deal_stats() -> Dict:
+    """Aggregated stats for analytics dashboard."""
+    deals = get_closed_deals()
+    if not deals:
+        return {"total": 0, "avg_days": 0, "avg_price_diff_pct": 0,
+                "by_city": {}, "by_type": {}, "both_confirmed": 0}
+    total = len(deals)
+    avg_days = round(sum(d.get("days_to_close", 0) for d in deals) / total)
+    both = sum(1 for d in deals if d.get("confirmed_by") == "both")
+
+    diffs = []
+    for d in deals:
+        lp, dp = d.get("listed_price", 0), d.get("deal_price", 0)
+        if lp > 0 and dp > 0:
+            diffs.append((dp - lp) / lp * 100)
+    avg_diff = round(sum(diffs) / len(diffs), 1) if diffs else 0
+
+    by_city: Dict[str, int] = {}
+    by_type: Dict[str, int] = {}
+    for d in deals:
+        c = d.get("city", "Unknown")
+        t = d.get("deal_type", "rent")
+        by_city[c] = by_city.get(c, 0) + 1
+        by_type[t] = by_type.get(t, 0) + 1
+
+    return {
+        "total": total,
+        "avg_days": avg_days,
+        "avg_price_diff_pct": avg_diff,
+        "by_city": by_city,
+        "by_type": by_type,
+        "both_confirmed": both,
+    }
+
+
+def get_stale_listings(days: int = 30) -> List[Dict]:
+    """Return active listings with view requests that haven't been closed for `days` days."""
+    data = _load()
+    result = []
+    from datetime import date
+    today = date.today()
+    for lid, listing in data["listings"].items():
+        if not listing.get("active"):
+            continue
+        if listing.get("deal_closed"):
+            continue
+        if listing.get("view_requests", 0) == 0:
+            continue
+        date_added = listing.get("date_added", "")
+        if not date_added:
+            continue
+        try:
+            d0 = date.fromisoformat(date_added)
+            if (today - d0).days >= days:
+                result.append(listing)
+        except Exception:
+            continue
+    return result

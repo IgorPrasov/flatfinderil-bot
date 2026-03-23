@@ -6,6 +6,8 @@ from keyboards import (
     subscription_keyboard, review_rating_keyboard, my_subscriptions_keyboard,
     cabinet_listings_keyboard, cabinet_listing_manage_keyboard,
     edit_listing_keyboard, confirm_delete_keyboard,
+    close_deal_select_keyboard, deal_confirm_price_keyboard,
+    tenant_deal_confirm_keyboard, owner_deal_confirm_keyboard,
 )
 from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
@@ -274,6 +276,9 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if owner_id and str(owner_id) != str(user.id):
             # Send request to owner
             db.increment_view_requests(listing_id)
+            db.record_view_requester(listing_id, user.id,
+                                     username=user.username or "",
+                                     name=user.first_name or str(user.id))
             username = user.username or user.first_name or str(user.id)
             title = listing.get("title", "")
             msg = t("view_request_owner_msg", context, title=title, username=username)
@@ -369,9 +374,10 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{rating_str}\n"
             f"Статус: {status}"
         )
+        deal_closed = listing.get("deal_closed", False)
         await query.edit_message_text(
             text,
-            reply_markup=cabinet_listing_manage_keyboard(context, listing_id, active),
+            reply_markup=cabinet_listing_manage_keyboard(context, listing_id, active, deal_closed),
             parse_mode="HTML"
         )
 
@@ -477,6 +483,126 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+    # ── Close deal: owner initiates ────────────────────────────────────────
+    elif data.startswith("close_deal_"):
+        listing_id = int(data.replace("close_deal_", ""))
+        listing = db.get_listing(listing_id)
+        if not listing:
+            await query.answer("Объявление не найдено", show_alert=True)
+            return
+        requesters = db.get_view_requesters(listing_id)
+        if requesters:
+            await query.edit_message_text(
+                t("deal_select_tenant", context),
+                reply_markup=close_deal_select_keyboard(context, listing_id, requesters),
+                parse_mode="HTML"
+            )
+        else:
+            await query.edit_message_text(
+                t("deal_no_requesters", context),
+                reply_markup=close_deal_select_keyboard(context, listing_id, []),
+                parse_mode="HTML"
+            )
+
+    # ── Close deal: owner selected tenant → ask price ──────────────────────
+    elif data.startswith("deal_tenant_"):
+        parts = data.split("_")
+        listing_id = int(parts[2])
+        tenant_id = int(parts[3])
+        context.user_data["closing_listing_id"] = listing_id
+        context.user_data["closing_tenant_id"] = tenant_id
+        context.user_data["editing_field"] = "deal_price"
+        await query.edit_message_text(t("deal_enter_price", context), parse_mode="HTML")
+
+    # ── Close deal: final confirm from owner ───────────────────────────────
+    elif data.startswith("deal_confirm_"):
+        parts = data.split("_")
+        listing_id = int(parts[2])
+        tenant_id = int(parts[3])
+        deal_price = context.user_data.pop("closing_deal_price", 0)
+        listing = db.get_listing(listing_id)
+        if not listing:
+            await query.answer("Объявление не найдено", show_alert=True)
+            return
+        owner_id = update.effective_user.id
+        listed_price = listing.get("price", 0)
+        deal_id = db.close_deal(listing_id, owner_id, tenant_id, listed_price, deal_price)
+        # Give bonus days to owner
+        db.add_bonus_days(owner_id, 3)
+        title = listing.get("title", "")[:50]
+        final_price = deal_price if deal_price > 0 else listed_price
+        msg = t("deal_closed_owner", context, title=title, price=f"{final_price:,}")
+        await query.edit_message_text(msg, reply_markup=back_to_menu_keyboard(context), parse_mode="HTML")
+        # Notify tenant if selected
+        if tenant_id > 0:
+            try:
+                await context.bot.send_message(
+                    chat_id=tenant_id,
+                    text=t("deal_notify_tenant", context, title=title),
+                    parse_mode="HTML"
+                )
+            except Exception:
+                pass
+        # Notify other requesters
+        requesters = db.get_view_requesters(listing_id)
+        for r in requesters:
+            uid = r.get("user_id")
+            if uid and uid != tenant_id:
+                try:
+                    await context.bot.send_message(
+                        chat_id=uid,
+                        text=t("deal_notify_others", context, title=title),
+                        parse_mode="HTML"
+                    )
+                except Exception:
+                    pass
+
+    # ── Tenant: "I rented/bought this" button ──────────────────────────────
+    elif data.startswith("irented_") and not data.startswith("irented_confirm_"):
+        listing_id = int(data.replace("irented_", ""))
+        listing = db.get_listing(listing_id)
+        if not listing:
+            await query.answer("Объявление не найдено", show_alert=True)
+            return
+        title = listing.get("title", "")[:50]
+        await query.edit_message_text(
+            t("deal_irented_confirm", context, title=title),
+            reply_markup=tenant_deal_confirm_keyboard(context, listing_id),
+            parse_mode="HTML"
+        )
+
+    # ── Tenant confirms: send request to owner ─────────────────────────────
+    elif data.startswith("irented_confirm_"):
+        listing_id = int(data.replace("irented_confirm_", ""))
+        listing = db.get_listing(listing_id)
+        if not listing:
+            await query.answer("Объявление не найдено", show_alert=True)
+            return
+        user = update.effective_user
+        owner_id = listing.get("user_id")
+        title = listing.get("title", "")[:50]
+        name = user.first_name or user.username or str(user.id)
+        # Record requester
+        db.record_view_requester(listing_id, user.id,
+                                 username=user.username or "",
+                                 name=name)
+        await query.edit_message_text(
+            t("deal_irented_sent", context),
+            reply_markup=back_to_menu_keyboard(context),
+            parse_mode="HTML"
+        )
+        if owner_id:
+            try:
+                await context.bot.send_message(
+                    chat_id=owner_id,
+                    text=t("deal_owner_confirm_req", context, name=name, title=title),
+                    reply_markup=owner_deal_confirm_keyboard(context, listing_id, user.id),
+                    parse_mode="HTML"
+                )
+            except Exception:
+                pass
+
+
 async def my_listings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     listings = db.get_user_listings(update.effective_user.id)
     if not listings:
@@ -525,6 +651,32 @@ async def handle_edit_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles text input when user is editing a listing field (price / description)."""
     editing_id = context.user_data.get("editing_listing_id")
     editing_field = context.user_data.get("editing_field")
+
+    # Deal price input (closing a deal)
+    closing_id = context.user_data.get("closing_listing_id")
+    closing_tenant = context.user_data.get("closing_tenant_id")
+    if editing_field == "deal_price" and closing_id:
+        text_input = update.message.text.strip()
+        lang = get_lang(context)
+        try:
+            deal_price = int(text_input.replace(",", "").replace("₪", "").replace(" ", ""))
+        except ValueError:
+            deal_price = 0
+        context.user_data["closing_deal_price"] = deal_price
+        context.user_data.pop("editing_field", None)
+        listing = db.get_listing(closing_id)
+        listed_price = listing.get("price", 0) if listing else 0
+        final_price = deal_price if deal_price > 0 else listed_price
+        lang = get_lang(context)
+        summary = {"ru": f"💰 Цена сделки: <b>{final_price:,} ₪</b>\n\nПодтвердить закрытие сделки?",
+                   "en": f"💰 Deal price: <b>{final_price:,} ₪</b>\n\nConfirm closing the deal?",
+                   "he": f"💰 מחיר עסקה: <b>{final_price:,} ₪</b>\n\nלאשר סגירת עסקה?"}.get(lang, f"{final_price:,} ₪")
+        await update.message.reply_text(
+            summary,
+            reply_markup=deal_confirm_price_keyboard(context, closing_id, closing_tenant),
+            parse_mode="HTML"
+        )
+        return
 
     if not editing_id or not editing_field:
         await handle_unknown(update, context)

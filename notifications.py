@@ -125,6 +125,36 @@ def price_drop_checker_loop():
             logger.error(f"price_drop_checker_loop error: {e}")
 
 
+def _check_stale_listings_sync():
+    """Remind owners of listings with view requests that have been active 30+ days."""
+    import database as db
+    stale = db.get_stale_listings(days=30)
+    for listing in stale:
+        owner_id = listing.get("user_id")
+        if not owner_id:
+            continue
+        title = listing.get("title", "")[:50]
+        msg = (
+            f"⏰ <b>Напоминание</b>\n\n"
+            f"Ваше объявление активно более 30 дней и получало запросы просмотра.\n\n"
+            f"{title}\n\n"
+            f"Сделка уже закрыта? Отметьте это в кабинете /cabinet"
+        )
+        _run_coroutine(_send_message(owner_id, msg))
+
+
+def stale_listing_checker_loop():
+    """Background thread: check stale listings once a day."""
+    logger.info("Stale listing checker started")
+    while True:
+        try:
+            time.sleep(24 * 60 * 60)  # 24 hours
+            logger.info("Checking stale listings...")
+            _check_stale_listings_sync()
+        except Exception as e:
+            logger.error(f"stale_listing_checker_loop error: {e}")
+
+
 def start_background_tasks(app):
     """Start all background notification threads."""
     set_bot_app(app)
@@ -134,5 +164,8 @@ def start_background_tasks(app):
 
     t2 = threading.Thread(target=price_drop_checker_loop, daemon=True, name="price-drop-checker")
     t2.start()
+
+    t3 = threading.Thread(target=stale_listing_checker_loop, daemon=True, name="stale-checker")
+    t3.start()
 
     logger.info("Background notification tasks started")

@@ -187,6 +187,8 @@ def results_navigation_keyboard(ctx, current, total, listing_id, listing=None):
         InlineKeyboardButton(t("btn_request_view", ctx), callback_data=f"reqview_{listing_id}"),
         InlineKeyboardButton(t("btn_leave_review", ctx), callback_data=f"review_{listing_id}"),
     ]
+    irented_label = {"ru": "🤝 Я снял/купил это", "en": "🤝 I rented/bought this", "he": "🤝 שכרתי/קניתי"}.get(get_lang(ctx), "🤝 I rented this")
+    irented_row = [InlineKeyboardButton(irented_label, callback_data=f"irented_{listing_id}")]
     sub_row = [
         InlineKeyboardButton(t("btn_subscribe_search", ctx), callback_data="subscribe_search"),
     ]
@@ -194,6 +196,7 @@ def results_navigation_keyboard(ctx, current, total, listing_id, listing=None):
         nav_row,
         action_row,
         extra_row,
+        irented_row,
         sub_row,
         [InlineKeyboardButton(t("btn_new_search", ctx), callback_data="search")],
         [InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")],
@@ -336,23 +339,28 @@ def cabinet_listings_keyboard(ctx, listings):
     return InlineKeyboardMarkup(keyboard)
 
 
-def cabinet_listing_manage_keyboard(ctx, listing_id, active=True):
-    """Edit / Delete / Toggle buttons for a single listing."""
+def cabinet_listing_manage_keyboard(ctx, listing_id, active=True, deal_closed=False):
+    """Edit / Delete / Toggle / Close deal buttons for a single listing."""
     lang = get_lang(ctx)
-    edit_label   = {"ru": "✏️ Редактировать", "en": "✏️ Edit",   "he": "✏️ ערוך"}.get(lang, "✏️ Edit")
-    delete_label = {"ru": "🗑️ Удалить",       "en": "🗑️ Delete", "he": "🗑️ מחק"}.get(lang, "🗑️ Delete")
+    edit_label   = {"ru": "✏️ Редактировать",   "en": "✏️ Edit",        "he": "✏️ ערוך"}.get(lang, "✏️ Edit")
+    delete_label = {"ru": "🗑️ Удалить",         "en": "🗑️ Delete",      "he": "🗑️ מחק"}.get(lang, "🗑️ Delete")
     toggle_label = (
         {"ru": "🔴 Снять с публикации", "en": "🔴 Deactivate", "he": "🔴 כבה"}.get(lang, "🔴 Deactivate")
         if active else
         {"ru": "🟢 Опубликовать снова", "en": "🟢 Activate",   "he": "🟢 הפעל"}.get(lang, "🟢 Activate")
     )
-    back_label   = {"ru": "« К списку",        "en": "« Back to list", "he": "« חזרה"}.get(lang, "« Back")
-    return InlineKeyboardMarkup([
+    close_label  = {"ru": "✅ Сдано / Продано", "en": "✅ Deal closed",  "he": "✅ עסקה נסגרה"}.get(lang, "✅ Deal closed")
+    back_label   = {"ru": "« К списку",          "en": "« Back to list", "he": "« חזרה"}.get(lang, "« Back")
+
+    rows = [
         [InlineKeyboardButton(edit_label,   callback_data=f"edit_listing_{listing_id}"),
          InlineKeyboardButton(delete_label, callback_data=f"confirm_delete_{listing_id}")],
         [InlineKeyboardButton(toggle_label, callback_data=f"toggle_active_{listing_id}")],
-        [InlineKeyboardButton(back_label,   callback_data="cabinet")],
-    ])
+    ]
+    if not deal_closed:
+        rows.append([InlineKeyboardButton(close_label, callback_data=f"close_deal_{listing_id}")])
+    rows.append([InlineKeyboardButton(back_label, callback_data="cabinet")])
+    return InlineKeyboardMarkup(rows)
 
 
 def edit_listing_keyboard(ctx, listing_id):
@@ -376,6 +384,58 @@ def confirm_delete_keyboard(ctx, listing_id):
     return InlineKeyboardMarkup([[
         InlineKeyboardButton(yes_label, callback_data=f"do_delete_{listing_id}"),
         InlineKeyboardButton(no_label,  callback_data=f"cab_listing_{listing_id}"),
+    ]])
+
+
+def close_deal_select_keyboard(ctx, listing_id, requesters):
+    """Owner selects which requester they closed deal with."""
+    lang = get_lang(ctx)
+    keyboard = []
+    for r in requesters[:8]:  # max 8 buttons
+        uid = r.get("user_id")
+        name = r.get("name") or r.get("username") or str(uid)
+        keyboard.append([InlineKeyboardButton(
+            f"👤 {name[:30]}",
+            callback_data=f"deal_tenant_{listing_id}_{uid}"
+        )])
+    # Option: close without specifying tenant
+    anyway_label = {"ru": "✅ Закрыть без выбора", "en": "✅ Close without selecting", "he": "✅ סגור ללא בחירה"}.get(lang, "✅ Close")
+    cancel_label = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}.get(lang, "❌ Cancel")
+    keyboard.append([InlineKeyboardButton(anyway_label, callback_data=f"deal_tenant_{listing_id}_0")])
+    keyboard.append([InlineKeyboardButton(cancel_label, callback_data=f"cab_listing_{listing_id}")])
+    return InlineKeyboardMarkup(keyboard)
+
+
+def deal_confirm_price_keyboard(ctx, listing_id, tenant_id):
+    """After owner entered price — final confirm."""
+    lang = get_lang(ctx)
+    yes_label    = {"ru": "✅ Подтвердить сделку", "en": "✅ Confirm deal",  "he": "✅ אשר עסקה"}.get(lang, "✅ Confirm")
+    cancel_label = {"ru": "❌ Отмена",             "en": "❌ Cancel",        "he": "❌ ביטול"}.get(lang, "❌ Cancel")
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(yes_label,    callback_data=f"deal_confirm_{listing_id}_{tenant_id}")],
+        [InlineKeyboardButton(cancel_label, callback_data=f"cab_listing_{listing_id}")],
+    ])
+
+
+def tenant_deal_confirm_keyboard(ctx, listing_id):
+    """Tenant confirms 'I rented/bought this'."""
+    lang = get_lang(ctx)
+    yes_label    = {"ru": "✅ Да, я снял/купил", "en": "✅ Yes, I did",  "he": "✅ כן, שכרתי/קניתי"}.get(lang, "✅ Yes")
+    cancel_label = {"ru": "❌ Нет",               "en": "❌ No",          "he": "❌ לא"}.get(lang, "❌ No")
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(yes_label,    callback_data=f"irented_confirm_{listing_id}"),
+        InlineKeyboardButton(cancel_label, callback_data="noop"),
+    ]])
+
+
+def owner_deal_confirm_keyboard(ctx, listing_id, tenant_id):
+    """Owner confirms deal initiated by tenant."""
+    lang = get_lang(ctx)
+    yes_label = {"ru": "✅ Подтвердить", "en": "✅ Confirm", "he": "✅ אשר"}.get(lang, "✅ Yes")
+    no_label  = {"ru": "❌ Отклонить",  "en": "❌ Decline",  "he": "❌ דחה"}.get(lang, "❌ No")
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(yes_label, callback_data=f"deal_tenant_{listing_id}_{tenant_id}"),
+        InlineKeyboardButton(no_label,  callback_data="noop"),
     ]])
 
 
