@@ -9,20 +9,26 @@ API_ID = 35002061
 API_HASH = "e0868efd711084c61c6bdee94006815e"
 
 CHANNELS = [
+    # ── Публичные активные каналы ─────────────────────────────────────────
     "israel_rent",
     "tlvapartments",
     "israelrealestate",
     "israel_apartments",
     "nadlan_israel",
-    "RealEstateIsraelBot",
     "izrailnedvizimosti",
-    "rentapartmentbatyam",
     "isra_home_arenda",
-    "Sublet_Israel",
-    "snyat_kvartiruy",
     "nagariyaapartments",
     "ashdod_rent",
     "happy_home_ashkelon",
+    # ── Новые найденные публичные ─────────────────────────────────────────
+    "haifa_arenda",
+    "realestate_israel",
+    "israel_home",
+    # ── Приватные — убраны (требуют авторизации) ─────────────────────────
+    # "rentapartmentbatyam",   # private
+    # "Sublet_Israel",         # private
+    # "snyat_kvartiruy",       # private
+    # "RealEstateIsraelBot",   # bot, not a channel
 ]
 
 CITY_KEYWORDS = {
@@ -258,11 +264,25 @@ def extract_rooms(text):
     return "3"
 
 def is_listing(text):
-    if len(text) < 50:
+    if len(text) < 40:
         return False
-    rent_words = ["аренда", "сдам", "снять", "להשכרה", "שכירות", "rent", "for rent",
-                  "מחיר", "цена", "₪", "сдается", "сдаётся", "аренд"]
-    return any(w in text.lower() for w in rent_words)
+    keywords = [
+        # Аренда (ru)
+        "аренда", "аренд", "сдам", "сдаю", "сдается", "сдаётся", "снять", "снимаю",
+        "субаренда", "саблет", "сублет",
+        # Продажа (ru)
+        "продает", "продаёт", "продаж", "продам", "продается", "продаётся",
+        # Иврит — аренда
+        "להשכרה", "שכירות", "מחיר",
+        # Иврит — продажа
+        "למכירה", "מכירה",
+        # Цена / символы
+        "цена", "₪", "nis", "ils",
+        # English
+        "rent", "for rent", "for sale", "lease",
+    ]
+    t_lower = text.lower()
+    return any(w in t_lower for w in keywords)
 
 def url_exists(source_url: str) -> bool:
     """Check if a listing with this source URL already exists in the DB."""
@@ -274,14 +294,13 @@ def url_exists(source_url: str) -> bool:
 
 # ─── web scraping (no auth required) ────────────────────────────────────────
 
-def scrape_channel_web(channel: str, limit: int = 50) -> list:
+def scrape_channel_web(channel: str, limit: int = 100) -> list:
     """
     Scrape a public Telegram channel via t.me/s/<channel>.
+    Paginates using ?before=<id> to get more historical messages.
     Returns list of (post_id, text, source_url).
-    No Telethon / authentication required.
     """
     results = []
-    url = f"https://t.me/s/{channel}"
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -289,38 +308,62 @@ def scrape_channel_web(channel: str, limit: int = 50) -> list:
             "Chrome/120.0.0.0 Safari/537.36"
         )
     }
-    try:
-        resp = requests.get(url, headers=headers, timeout=15)
-        if resp.status_code != 200:
-            print(f"  HTTP {resp.status_code} для @{channel}")
-            return results
+    from lxml import html as lhtml
 
-        from lxml import html as lhtml
-        tree = lhtml.fromstring(resp.text)
+    seen_ids = set()
+    before = None  # start from latest
 
-        # Each message lives inside a .tgme_widget_message_wrap
-        wraps = tree.xpath('//div[contains(@class,"tgme_widget_message_wrap")]')
-        for wrap in wraps[-limit:]:
-            # data-post="channelname/12345"  (lives on the inner article/div)
-            post_elems = wrap.xpath('.//*[@data-post]')
-            if not post_elems:
-                continue
-            data_post = post_elems[0].get("data-post", "")
-            post_id = data_post.split("/")[-1]
-            if not post_id or not post_id.isdigit():
-                continue
+    for _page in range(3):  # up to 3 pages (~60 messages per page)
+        url = f"https://t.me/s/{channel}"
+        if before:
+            url += f"?before={before}"
+        try:
+            resp = requests.get(url, headers=headers, timeout=15)
+            if resp.status_code != 200:
+                break
+            # Check if private
+            if "This channel is private" in resp.text:
+                break
 
-            text_elems = wrap.xpath('.//div[contains(@class,"tgme_widget_message_text")]')
-            if not text_elems:
-                continue
-            text = text_elems[0].text_content().strip()
-            if text:
-                source_url = f"https://t.me/{channel}/{post_id}"
-                results.append((post_id, text, source_url))
-    except Exception as e:
-        print(f"  Ошибка веб-скрапинга @{channel}: {e}")
+            tree = lhtml.fromstring(resp.text)
+            wraps = tree.xpath('//div[contains(@class,"tgme_widget_message_wrap")]')
+            if not wraps:
+                break
 
-    return results
+            page_ids = []
+            for wrap in wraps:
+                post_elems = wrap.xpath('.//*[@data-post]')
+                if not post_elems:
+                    continue
+                data_post = post_elems[0].get("data-post", "")
+                post_id = data_post.split("/")[-1]
+                if not post_id or not post_id.isdigit():
+                    continue
+                if post_id in seen_ids:
+                    continue
+                seen_ids.add(post_id)
+                page_ids.append(int(post_id))
+
+                text_elems = wrap.xpath('.//div[contains(@class,"tgme_widget_message_text")]')
+                if not text_elems:
+                    continue
+                text = text_elems[0].text_content().strip()
+                if text:
+                    source_url = f"https://t.me/{channel}/{post_id}"
+                    results.append((post_id, text, source_url))
+
+            if len(results) >= limit:
+                break
+            if page_ids:
+                before = min(page_ids)  # go further back
+            else:
+                break
+
+        except Exception as e:
+            print(f"  Ошибка веб-скрапинга @{channel}: {e}")
+            break
+
+    return results[-limit:]
 
 
 def parse_channel_web(channel: str, limit: int = 50) -> int:
