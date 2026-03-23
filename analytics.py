@@ -218,14 +218,16 @@ def get_analytics():
     svc_by_region = Counter(REGION_NAMES.get(s.get("region",""), s.get("region","")) for s in svc_active)
     svc_recent = sorted(svc_active, key=lambda x: x.get("date_added",""), reverse=True)[:5]
 
-    # ── User-added listings ───────────────────────────────────────────────
+    # ── User cabinets & user-added listings ───────────────────────────────
     user_listings_db = db_data.get("user_listings", {})
     user_added = []
+    cabinets = []
     for uid, lid_list in user_listings_db.items():
+        cab_listings = []
         for lid in lid_list:
             listing = db_data["listings"].get(str(lid))
-            if listing and listing.get("active"):
-                user_added.append({
+            if listing:
+                entry = {
                     "id": lid,
                     "owner_name": listing.get("owner_name") or "—",
                     "owner_phone": listing.get("owner_phone") or "—",
@@ -235,9 +237,29 @@ def get_analytics():
                     "price": listing.get("price") or 0,
                     "deal_type": listing.get("deal_type") or "—",
                     "date_added": listing.get("date_added") or "—",
+                    "active": listing.get("active", True),
+                    "views": listing.get("views", 0),
                     "user_id": uid,
-                })
+                }
+                if listing.get("active"):
+                    user_added.append(entry)
+                cab_listings.append(entry)
+        if cab_listings:
+            # Pick contact info from latest listing
+            latest = sorted(cab_listings, key=lambda x: x["date_added"], reverse=True)[0]
+            cabinets.append({
+                "user_id": uid,
+                "owner_name": latest["owner_name"],
+                "owner_phone": latest["owner_phone"],
+                "contact": latest["contact"],
+                "total_listings": len(cab_listings),
+                "active_listings": sum(1 for l in cab_listings if l["active"]),
+                "total_views": sum(l["views"] for l in cab_listings),
+                "last_date": latest["date_added"],
+                "listings": sorted(cab_listings, key=lambda x: x["date_added"], reverse=True),
+            })
     user_added.sort(key=lambda x: x["date_added"], reverse=True)
+    cabinets.sort(key=lambda x: x["last_date"], reverse=True)
 
     return {
         "users": {
@@ -271,6 +293,7 @@ def get_analytics():
             "sources": [{"name": s, "count": n} for s, n in source_details.most_common(5)],
             "user_added": user_added,
         },
+        "cabinets": cabinets,
         "responses": {"total": 0, "favorites": 0, "contacts": 0, "avg_per_user": 0, "by_day": last_7},
         "income": {
             "current": income,

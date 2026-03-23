@@ -82,6 +82,7 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('listings')">🏠 Объявления</button>
     <button class="nav-btn" onclick="showTab('commercial')">🏢 Коммерческая</button>
     <button class="nav-btn" onclick="showTab('services')">🚚 Услуги</button>
+    <button class="nav-btn" onclick="showTab('cabinets')">🗂 Кабинеты</button>
     <button class="nav-btn" onclick="showTab('crm')">👥 CRM</button>
     <button class="nav-btn" onclick="showTab('engage')">💬 Вовлечённость</button>
     <button class="nav-btn" onclick="showTab('money')">💰 Доход</button>
@@ -219,6 +220,12 @@ canvas{max-width:100%}
       <div class="card-title">Последние добавленные услуги</div>
       <div class="card-body" id="svc-recent"></div>
     </div>
+  </div>
+
+  <!-- CABINETS -->
+  <div class="tab" id="tab-cabinets">
+    <div class="kpi-row" id="kpi-cabinets"></div>
+    <div id="cabinets-list"></div>
   </div>
 
   <!-- CRM -->
@@ -683,6 +690,55 @@ function render(){
           <div style="font-size:14px;font-weight:500;color:${GREEN}">${s.price?n(s.price)+' ₪':'Договорная'}</div>
         </div>`).join("")
     : `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Услуги появятся здесь после первых публикаций</div>`;
+
+  // ── Cabinets tab ───────────────────────────────────────────────────────
+  const CAB = D.cabinets || [];
+  document.getElementById("kpi-cabinets").innerHTML =
+    kpi("🗂","Кабинетов",n(CAB.length),"пользователей с объявлениями",TG)+
+    kpi("📋","Объявлений",n(CAB.reduce((a,c)=>a+c.total_listings,0)),"всего добавлено",GREEN)+
+    kpi("✅","Активных",n(CAB.reduce((a,c)=>a+c.active_listings,0)),"сейчас опубликовано",GOLD)+
+    kpi("👁","Просмотров",n(CAB.reduce((a,c)=>a+c.total_views,0)),"суммарно",PURPLE);
+
+  document.getElementById("cabinets-list").innerHTML = CAB.length ? CAB.map(cab=>`
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>👤 ${cab.owner_name !== '—' ? cab.owner_name : 'ID: '+cab.user_id}</span>
+        <span style="font-size:11px;color:#666">${cab.last_date}</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:24px;margin-bottom:12px;flex-wrap:wrap">
+          <span style="color:#2AABEE">📞 ${cab.owner_phone}</span>
+          <span style="color:#4CAF8A">✉️ ${cab.contact}</span>
+          <span style="color:#aaa">📋 ${cab.total_listings} объявл. (${cab.active_listings} акт.)</span>
+          <span style="color:#FFD700">👁 ${n(cab.total_views)} просм.</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="color:#555;border-bottom:1px solid #2a2a2a">
+            <th style="padding:4px 8px;text-align:left">#</th>
+            <th style="padding:4px 8px;text-align:left">Город</th>
+            <th style="padding:4px 8px;text-align:left">Комн.</th>
+            <th style="padding:4px 8px;text-align:left">Цена</th>
+            <th style="padding:4px 8px;text-align:left">Тип</th>
+            <th style="padding:4px 8px;text-align:left">Статус</th>
+            <th style="padding:4px 8px;text-align:left">Просм.</th>
+            <th style="padding:4px 8px;text-align:left">Дата</th>
+          </tr></thead>
+          <tbody>${cab.listings.map((l,i)=>`
+            <tr style="border-bottom:1px solid #1e1e1e;${i%2?'background:#171717':''}">
+              <td style="padding:4px 8px;color:#555">${l.id}</td>
+              <td style="padding:4px 8px">${l.city}</td>
+              <td style="padding:4px 8px;text-align:center">${l.rooms}</td>
+              <td style="padding:4px 8px;color:#FFD700">${l.price?n(l.price)+' ₪':'—'}</td>
+              <td style="padding:4px 8px;color:#aaa;font-size:11px">${{rent:'Аренда',buy:'Покупка',sublet:'Субаренда',commercial:'Коммерч.'}[l.deal_type]||l.deal_type}</td>
+              <td style="padding:4px 8px">${l.active?'<span style="color:#4CAF8A">●</span> Активно':'<span style="color:#666">●</span> Архив'}</td>
+              <td style="padding:4px 8px;color:#aaa">${l.views}</td>
+              <td style="padding:4px 8px;color:#555;font-size:11px">${l.date_added}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`).join('') :
+    `<div class="card"><div class="card-body" style="text-align:center;padding:32px;color:#555">Нет пользователей с кабинетами</div></div>`;
 
   // ── CRM tab ────────────────────────────────────────────────────────────
   const CR = D.crm || {};
