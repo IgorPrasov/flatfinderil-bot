@@ -68,6 +68,137 @@ DISTRICT_MAP = {
 
 # ─── helpers ────────────────────────────────────────────────────────────────
 
+def extract_parking(text):
+    """Extract parking count from text. Returns int 0-3."""
+    t = text.lower()
+    # No parking
+    if re.search(r'без\s*парк|no\s*park|ללא\s*חניה', t):
+        return 0
+    # Count: "2 места парковки", "2 паркинга", "2 חניות"
+    m = re.search(r'(\d)\s*(?:мест[аео]?\s*парк|паркинг|парков|חניות|parking\s*space)', t)
+    if m:
+        n = int(m.group(1))
+        return min(n, 3)
+    # Any parking mention
+    if re.search(r'парков|паркинг|машиноместо|חניה|חניון|parking', t):
+        return 1
+    return 0
+
+
+def extract_pool(text):
+    """Returns True if pool is mentioned."""
+    t = text.lower()
+    return bool(re.search(r'бассейн|swimming\s*pool|pool|בריכה', t))
+
+
+def extract_property_type(text):
+    """Detect property type from text."""
+    t = text.lower()
+    if re.search(r'пентхаус|penthouse|פנטהאוז', t):
+        return "penthouse"
+    if re.search(r'вилл[ауыеой]?|villa|וילה', t):
+        return "villa"
+    if re.search(r'дуплекс|duplex|דופלקס', t):
+        return "duplex"
+    if re.search(r'студи[яюей]|studio|סטודיו|חדר\s*אחד', t):
+        return "studio"
+    if re.search(r'котедж|коттедж|частный\s*дом|бунгало|בית\s*פרטי|cottage|house', t):
+        return "house"
+    return "apartment"
+
+
+def extract_deal_type(text):
+    """Detect deal type: rent or buy."""
+    t = text.lower()
+    if re.search(r'продаж|продаётся|продается|למכירה|for\s*sale|מכירה|купить', t):
+        return "buy"
+    return "rent"
+
+
+def extract_floor(text):
+    """Extract floor number."""
+    patterns = [
+        r'(\d+)\s*(?:этаж|этажа|этажей)',
+        r'этаж\s*[:№]?\s*(\d+)',
+        r'קומה\s*(\d+)',
+        r'(\d+)\s*קומה',
+        r'floor\s*[:№]?\s*(\d+)',
+        r'(\d+)\s*(?:st|nd|rd|th)\s*floor',
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, text.lower())
+        if m:
+            try:
+                f = int(m.group(1))
+                if 0 <= f <= 50:
+                    return str(f)
+            except:
+                pass
+    return "1"
+
+
+def extract_area(text):
+    """Extract area in sqm."""
+    patterns = [
+        r'(\d{2,4})\s*(?:кв\.?\s*м|м²|m²|sqm|sq\.?m)',
+        r'(\d{2,4})\s*מ[\"\'״]',
+        r'площадь\s*[:—]?\s*(\d{2,4})',
+        r'(\d{2,4})\s*(?:square|метров)',
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, text.lower())
+        if m:
+            try:
+                area = int(m.group(1))
+                if 15 <= area <= 1000:
+                    return area
+            except:
+                pass
+    return 0
+
+
+INFRA_KEYWORDS = {
+    "school":       ["школ", "school", "בית ספר", "בי\"ס"],
+    "kindergarten": ["детский сад", "садик", "גן ילדים", "גן"],
+    "mall":         ["торговый центр", "торгц", "молл", "tts", "קניון", "mall", "shopping"],
+    "park":         ["парк", "park", "פארק", "גן ציבורי"],
+    "gym":          ["спортзал", "фитнес", "gym", "fitness", "חדר כושר"],
+    "hospital":     ["больниц", "клиник", "hospital", "clinic", "בית חולים", "מרפאה"],
+    "beach":        ["пляж", "море", "beach", "חוף", "ים"],
+    "transport":    ["автобус", "трамвай", "метро", "транспорт", "bus", "tram", "metro",
+                     "אוטובוס", "רכבת", "תחנה", "תחבורה", "transport"],
+    "restaurant":   ["ресторан", "кафе", "restaurant", "cafe", "מסעדה", "מסעדות", "קפה"],
+    "synagogue":    ["синагог", "synagogue", "בית כנסת"],
+    "public_pool":  ["общественный бассейн", "municipal pool", "בריכה ציבורית"],
+}
+
+def extract_infrastructure(text):
+    """Extract list of infrastructure tags mentioned in text."""
+    t = text.lower()
+    found = []
+    for tag, keywords in INFRA_KEYWORDS.items():
+        if any(kw in t for kw in keywords):
+            found.append(tag)
+    return found
+
+
+def extract_neighborhood(text, city):
+    """Try to extract neighborhood/area name from text."""
+    # Common patterns: "район Х", "квартал Х", "р-н Х", "улица Х"
+    for pattern in [
+        r'район\s+([А-ЯЁа-яёa-zA-Z\-]+)',
+        r'р-н\s+([А-ЯЁа-яёa-zA-Z\-]+)',
+        r'квартал\s+([А-ЯЁа-яёa-zA-Z\-]+)',
+        r'שכונת\s+([\w\s\-]+)',
+    ]:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            if len(val) > 2:
+                return val[:40]
+    return ""
+
+
 def detect_city(text):
     text_lower = text.lower()
     for keyword, city in CITY_KEYWORDS.items():
@@ -202,21 +333,23 @@ def parse_channel_web(channel: str, limit: int = 50) -> int:
         if not is_listing(text):
             continue
         city = detect_city(text)
+        deal_type = extract_deal_type(text)
+        prop_type = extract_property_type(text)
         listing = {
             "title": f"📱 {text[:70].replace(chr(10), ' ').strip()}...",
             "description": text[:600],
-            "property_type": "apartment",
+            "property_type": prop_type,
             "city": city,
             "district": DISTRICT_MAP.get(city, "center"),
-            "neighborhood": "",
+            "neighborhood": extract_neighborhood(text, city),
             "rooms": extract_rooms(text),
-            "floor": "1",
-            "area_sqm": 0,
+            "floor": extract_floor(text),
+            "area_sqm": extract_area(text),
             "price": extract_price(text),
-            "deal_type": "rent",
-            "parking": 0,
-            "pool": False,
-            "infrastructure": [],
+            "deal_type": deal_type,
+            "parking": extract_parking(text),
+            "pool": extract_pool(text),
+            "infrastructure": extract_infrastructure(text),
             "contact": f"@{channel}",
             "photos": ["🏢"],
             "source": "telegram",
@@ -241,21 +374,23 @@ async def parse_channel_telethon(client, channel: str, limit: int = 50) -> int:
             if not is_listing(text):
                 continue
             city = detect_city(text)
+            deal_type = extract_deal_type(text)
+            prop_type = extract_property_type(text)
             listing = {
                 "title": f"📱 {text[:70].replace(chr(10), ' ').strip()}...",
                 "description": text[:600],
-                "property_type": "apartment",
+                "property_type": prop_type,
                 "city": city,
                 "district": DISTRICT_MAP.get(city, "center"),
-                "neighborhood": "",
+                "neighborhood": extract_neighborhood(text, city),
                 "rooms": extract_rooms(text),
-                "floor": "1",
-                "area_sqm": 0,
+                "floor": extract_floor(text),
+                "area_sqm": extract_area(text),
                 "price": extract_price(text),
-                "deal_type": "rent",
-                "parking": 0,
-                "pool": False,
-                "infrastructure": [],
+                "deal_type": deal_type,
+                "parking": extract_parking(text),
+                "pool": extract_pool(text),
+                "infrastructure": extract_infrastructure(text),
                 "contact": f"@{channel}",
                 "photos": ["🏢"],
                 "source": "telegram",
