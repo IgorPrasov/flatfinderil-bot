@@ -107,11 +107,12 @@ def search_listings(filters: Dict) -> List[Dict]:
                 m = float(str(filters["rooms_max"]).replace("+",""))
                 if r > 0 and r > m: continue
             except: pass
-        # price min
+        # price min / max — skip listings with unknown price (0) when a price filter is active
         p = listing.get("price", 0)
-        if filters.get("price_min") and p > 0 and p < filters["price_min"]: continue
-        # price max
-        if filters.get("price_max") and p > 0 and p > filters["price_max"]: continue
+        if filters.get("price_min"):
+            if p == 0 or p < filters["price_min"]: continue
+        if filters.get("price_max"):
+            if p == 0 or p > filters["price_max"]: continue
         # parking
         if filters.get("parking_min") and listing.get("parking", 0) < filters["parking_min"]: continue
         # pool

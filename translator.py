@@ -1,7 +1,13 @@
 import logging
-from deep_translator import GoogleTranslator
 
 logger = logging.getLogger(__name__)
+
+try:
+    from deep_translator import GoogleTranslator
+    _TRANSLATOR_AVAILABLE = True
+except ImportError:
+    logger.warning("deep_translator not installed — translation disabled, original text will be shown")
+    _TRANSLATOR_AVAILABLE = False
 
 # In-memory cache: (text, target_lang) -> translated_text
 _cache: dict = {}
@@ -19,8 +25,10 @@ def _google_lang(bot_lang: str) -> str:
 
 
 def translate_text(text: str, target_lang: str) -> str:
-    """Translate text to target_lang. Returns original on failure."""
+    """Translate text to target_lang. Returns original on failure or if library unavailable."""
     if not text or not text.strip():
+        return text
+    if not _TRANSLATOR_AVAILABLE:
         return text
 
     cache_key = (text, target_lang)
