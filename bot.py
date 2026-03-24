@@ -21,7 +21,8 @@ def fix_city_migration():
     try:
         import json
         from telegram_parser import detect_city, DISTRICT_MAP
-        db_path = os.path.join(os.path.dirname(__file__), "listings_db.json")
+        from database import DB_FILE
+        db_path = DB_FILE
         with open(db_path) as f:
             db = json.load(f)
         fixed = 0
