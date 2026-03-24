@@ -52,6 +52,31 @@ def fix_city_migration():
 
 
 
+async def cmd_testemail(update: Update, context):
+    """Send test weekly report to the calling user (if they have email set)."""
+    user_id = update.effective_user.id
+    await update.message.reply_text("⏳ Отправляю тестовый отчёт...")
+    try:
+        import database as db
+        from email_reporter import send_report, send_all_weekly_reports
+        email = db.get_agent_email(user_id)
+        if email:
+            ok = send_report(user_id)
+            if ok:
+                await update.message.reply_text(f"✅ Отчёт отправлен на {email}")
+            else:
+                await update.message.reply_text("❌ Ошибка отправки. Проверьте SMTP настройки в логах.")
+        else:
+            # Send to all agents with email (admin test)
+            ok, total = send_all_weekly_reports()
+            await update.message.reply_text(
+                f"✅ Отчёты отправлены: {ok}/{total} агентов\n\n"
+                f"(у вас нет email — добавьте через /add → Агент → введите email)"
+            )
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
+
+
 def main():
     fix_city_migration()
     app = Application.builder().token(BOT_TOKEN).build()
@@ -67,6 +92,7 @@ def main():
     app.add_handler(CommandHandler("help", handle_unknown))
     app.add_handler(CommandHandler("cabinet", agent_cabinet))
     app.add_handler(CommandHandler("refer", refer_command))
+    app.add_handler(CommandHandler("testemail", cmd_testemail))
     app.add_handler(commercial.get_conversation_handler())
     app.add_handler(services.get_conversation_handler())
     app.add_handler(crm.get_conversation_handler())
