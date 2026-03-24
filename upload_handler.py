@@ -1,256 +1,244 @@
 """
-Bulk listing upload via CSV or XLSX file.
-Accepts a file sent to the bot, parses rows, and creates listings in the DB.
-
-Required columns (case-insensitive):
-  deal_type, property_type, city, price
-
-Optional columns:
-  address, neighborhood, district, rooms, floor, area_sqm,
-  parking, pool, shelter, elevator, description,
-  contact, owner_name, owner_phone, infrastructure
-
-deal_type values : rent | buy | sublet | commercial
-property_type    : apartment | house | villa | penthouse | studio | duplex | office | retail | warehouse | land
-parking          : 0 / 1 / 2  (number of spaces)
-pool/shelter/elevator : yes / no / 1 / 0 / true / false
-infrastructure   : comma-separated keys  e.g.  mall,school,park
+Bulk CSV/XLSX upload for agents.
+All columns are required — file is rejected if any cell is empty.
 """
+
 import csv
 import io
 import os
-import urllib.parse
-from datetime import datetime
+import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+try:
+    import openpyxl
+    _HAS_OPENPYXL = True
+except ImportError:
+    _HAS_OPENPYXL = False
 
 import database as db
-from keyboards import DISTRICT_CITIES
 
-# ── City → district lookup (reverse of DISTRICT_CITIES) ─────────────────────
-_CITY_TO_DISTRICT: dict[str, str] = {}
-for _dist, _cities in DISTRICT_CITIES.items():
-    for _c in _cities:
-        _CITY_TO_DISTRICT[_c.lower()] = _dist
+# ── Required columns ─────────────────────────────────────────────────────────
+REQUIRED_COLUMNS = [
+    "deal_type",        # rent | buy | sublet | commercial
+    "property_type",    # apartment | house | room | studio | duplex | penthouse | villa | townhouse
+    "district",         # tel_aviv | jerusalem | haifa | sharon | center | south
+    "city",
+    "neighborhood",
+    "address",
+    "rooms",
+    "floor",
+    "area_sqm",
+    "price",
+    "parking",          # 0 | 1 | 2
+    "pool",             # yes | no
+    "shelter",          # yes | no
+    "elevator",         # yes | no
+    "infrastructure",   # comma-sep: mall,school,park,gym,hospital,beach,transport,restaurant,synagogue,kindergarten
+    "description",
+    "owner_name",
+    "owner_phone",
+    "contact",
+]
 
-
-def _city_to_district(city: str) -> str:
-    return _CITY_TO_DISTRICT.get(city.lower().strip(), "tel_aviv")
-
-
-def _bool_field(val: str) -> bool:
-    return str(val).strip().lower() in ("yes", "1", "true", "да", "כן")
-
-
-def _int_field(val: str, default: int = 0) -> int:
-    try:
-        return int(str(val).strip())
-    except Exception:
-        return default
-
-
-def _float_field(val: str, default: float = 0.0) -> float:
-    try:
-        return float(str(val).strip().replace(",", "."))
-    except Exception:
-        return default
-
-
-# Valid values
 VALID_DEAL_TYPES = {"rent", "buy", "sublet", "commercial"}
-VALID_PROPERTY_TYPES = {
-    "apartment", "house", "villa", "penthouse", "studio", "duplex",
-    "office", "retail", "warehouse", "land",
+VALID_PROP_TYPES = {
+    "apartment","house","room","studio","duplex","penthouse","villa","townhouse",
+    "office","retail","warehouse","coworking","restaurant_space","other_commercial",
 }
-VALID_INFRA = {
-    "kindergarten", "school", "mall", "park", "gym",
-    "hospital", "beach", "transport", "restaurant", "synagogue",
+VALID_DISTRICTS  = {"tel_aviv","jerusalem","haifa","sharon","center","south"}
+VALID_INFRA      = {
+    "mall","school","park","gym","hospital","beach","transport",
+    "restaurant","synagogue","kindergarten",
+}
+BOOL_YES = {"yes","да","true","1","כן"}
+
+TEMPLATE_ROW = {
+    "deal_type":      "rent",
+    "property_type":  "apartment",
+    "district":       "tel_aviv",
+    "city":           "Тель-Авив",
+    "neighborhood":   "Центр",
+    "address":        "ул. Дизенгоф 1",
+    "rooms":          "3",
+    "floor":          "4",
+    "area_sqm":       "75",
+    "price":          "5000",
+    "parking":        "1",
+    "pool":           "no",
+    "shelter":        "yes",
+    "elevator":       "yes",
+    "infrastructure": "mall,park,transport",
+    "description":    "Светлая квартира в центре города",
+    "owner_name":     "Имя Агента",
+    "owner_phone":    "0501234567",
+    "contact":        "@agent_tg",
 }
 
-
-def parse_csv_bytes(raw: bytes) -> tuple[list[dict], list[str]]:
-    """Parse CSV bytes. Returns (rows_as_dicts, errors)."""
-    try:
-        text = raw.decode("utf-8-sig")  # handle BOM
-    except UnicodeDecodeError:
-        text = raw.decode("cp1251", errors="replace")
-
-    reader = csv.DictReader(io.StringIO(text))
-    # Normalize column names to lowercase stripped
-    rows = []
-    for row in reader:
-        rows.append({k.lower().strip(): v.strip() for k, v in row.items()})
-    return rows, []
-
-
-def parse_xlsx_bytes(raw: bytes) -> tuple[list[dict], list[str]]:
-    """Parse XLSX bytes. Returns (rows_as_dicts, errors)."""
-    try:
-        import openpyxl
-    except ImportError:
-        return [], ["openpyxl not installed — XLSX support unavailable"]
-
-    import openpyxl
-    wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
-    ws = wb.active
-    rows_raw = list(ws.values)
-    if not rows_raw:
-        return [], ["Empty file"]
-
-    headers = [str(h).lower().strip() if h else "" for h in rows_raw[0]]
-    rows = []
-    for row in rows_raw[1:]:
-        d = {}
-        for i, h in enumerate(headers):
-            val = row[i] if i < len(row) else None
-            d[h] = str(val).strip() if val is not None else ""
-        rows.append(d)
-    return rows, []
-
-
-def row_to_listing(row: dict, row_num: int, user_id: int) -> tuple[dict | None, str | None]:
-    """Convert a CSV/XLSX row dict to a listing dict ready for db.add_listing().
-    Returns (listing_dict, error_string) — one of them is None."""
-
-    # Required fields
-    deal_type = row.get("deal_type", "").strip().lower()
-    if deal_type not in VALID_DEAL_TYPES:
-        return None, f"Строка {row_num}: неверный deal_type '{deal_type}'"
-
-    property_type = row.get("property_type", "").strip().lower()
-    if property_type not in VALID_PROPERTY_TYPES:
-        return None, f"Строка {row_num}: неверный property_type '{property_type}'"
-
-    city = row.get("city", "").strip()
-    if not city:
-        return None, f"Строка {row_num}: пустое поле city"
-
-    price = _int_field(row.get("price", "0"))
-
-    # Optional fields
-    address = row.get("address", "").strip()
-    neighborhood = row.get("neighborhood", "").strip()
-    district = row.get("district", "").strip() or _city_to_district(city)
-    rooms = row.get("rooms", "").strip() or "0"
-    floor = row.get("floor", "").strip() or "0"
-    area_sqm = _int_field(row.get("area_sqm", row.get("area", "0")))
-    parking = _int_field(row.get("parking", "0"))
-    pool = _bool_field(row.get("pool", "0"))
-    shelter = _bool_field(row.get("shelter", "0"))
-    elevator = "yes" if _bool_field(row.get("elevator", "0")) else "no"
-    description = row.get("description", "").strip() or "—"
-    contact = row.get("contact", "").strip()
-    owner_name = row.get("owner_name", row.get("name", "")).strip()
-    owner_phone = row.get("owner_phone", row.get("phone", "")).strip()
-
-    # Infrastructure
-    infra_raw = row.get("infrastructure", "").strip()
-    infrastructure = [k.strip() for k in infra_raw.split(",") if k.strip() in VALID_INFRA] if infra_raw else []
-
-    # Build map URL if address provided
-    map_url = ""
-    if address:
-        q = urllib.parse.quote(f"{address}, {city}, Israel")
-        map_url = f"https://maps.google.com/?q={q}"
-
-    # Build title
-    deal_ru = {"rent": "Аренда", "buy": "Продажа", "sublet": "Субаренда", "commercial": "Коммерция"}
-    title = f"{deal_ru.get(deal_type, deal_type)}: {rooms} комн., {city}"
-
-    # Geocode city
-    lat, lng = None, None
-    try:
-        from geocoding import get_city_coords
-        coords = get_city_coords(city)
-        if coords:
-            lat, lng = coords
-    except Exception:
-        pass
-
-    listing = {
-        "title": title,
-        "deal_type": deal_type,
-        "property_type": property_type,
-        "city": city,
-        "district": district,
-        "neighborhood": neighborhood,
-        "address": address,
-        "map_url": map_url,
-        "rooms": rooms,
-        "floor": floor,
-        "area_sqm": area_sqm,
-        "price": price,
-        "parking": parking,
-        "pool": pool,
-        "shelter": shelter,
-        "elevator": elevator,
-        "infrastructure": infrastructure,
-        "description": description,
-        "contact": contact,
-        "owner_name": owner_name,
-        "owner_phone": owner_phone,
-        "photos": ["🏠"],
-        "user_id": user_id,
-        "source": "upload",
-        "date_added": datetime.now().strftime("%Y-%m-%d"),
-        "active": True,
-        "views": 0,
-        "view_requests": 0,
-    }
-    if lat:
-        listing["lat"] = lat
-        listing["lng"] = lng
-
-    return listing, None
-
-
-def process_upload(raw: bytes, filename: str, user_id: int) -> dict:
-    """
-    Parse file and import listings.
-    Returns {
-      "ok": int,    # imported count
-      "errors": list[str],
-      "total": int,
-    }
-    """
-    fn_lower = filename.lower()
-    if fn_lower.endswith(".xlsx") or fn_lower.endswith(".xls"):
-        rows, parse_errors = parse_xlsx_bytes(raw)
-    elif fn_lower.endswith(".csv"):
-        rows, parse_errors = parse_csv_bytes(raw)
-    else:
-        return {"ok": 0, "errors": ["Поддерживаются только .csv и .xlsx файлы"], "total": 0}
-
-    if parse_errors:
-        return {"ok": 0, "errors": parse_errors, "total": 0}
-
-    errors = []
-    ok = 0
-    for i, row in enumerate(rows, start=2):  # row 1 = header
-        if not any(row.values()):
-            continue  # skip empty rows
-        listing, err = row_to_listing(row, i, user_id)
-        if err:
-            errors.append(err)
-            continue
-        try:
-            db.add_listing(listing)
-            ok += 1
-        except Exception as e:
-            errors.append(f"Строка {i}: DB error — {e}")
-
-    return {"ok": ok, "errors": errors, "total": len(rows)}
-
-
-# ── CSV template ─────────────────────────────────────────────────────────────
-
-CSV_TEMPLATE = (
-    "deal_type,property_type,city,address,neighborhood,rooms,floor,area_sqm,"
-    "price,parking,pool,shelter,elevator,infrastructure,description,contact,owner_name,owner_phone\n"
-    "rent,apartment,Тель-Авив,ул. Дизенгоф 99,Центр,3,4,85,"
-    "7500,1,no,yes,yes,\"mall,school\",Светлая квартира с балконом,@agent1,Иван,0501234567\n"
-    "buy,house,Хайфа,ул. Хагалиль 12,,5,1,150,"
-    "2500000,2,yes,yes,no,park,Частный дом с садом,@agent2,Мария,0521234567\n"
+COLUMN_HINTS = (
+    "deal_type: rent | buy | sublet | commercial\n"
+    "property_type: apartment | house | room | studio | duplex | penthouse | villa | townhouse\n"
+    "district: tel_aviv | jerusalem | haifa | sharon | center | south\n"
+    "parking: 0 | 1 | 2\n"
+    "pool / shelter / elevator: yes | no\n"
+    "infrastructure: mall, school, park, gym, hospital, beach, transport, restaurant, synagogue, kindergarten\n"
 )
 
 
-def get_csv_template_bytes() -> bytes:
-    return CSV_TEMPLATE.encode("utf-8-sig")  # BOM for Excel compatibility
+def generate_template_bytes() -> bytes:
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=REQUIRED_COLUMNS)
+    w.writeheader()
+    w.writerow(TEMPLATE_ROW)
+    return buf.getvalue().encode("utf-8-sig")
+
+
+def _read_csv(data: bytes) -> list:
+    text = data.decode("utf-8-sig", errors="replace")
+    return list(csv.DictReader(io.StringIO(text)))
+
+
+def _read_xlsx(data: bytes) -> list:
+    if not _HAS_OPENPYXL:
+        raise ImportError("openpyxl not installed")
+    wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        return []
+    headers = [str(h).strip() if h is not None else "" for h in rows[0]]
+    return [
+        {headers[i]: (str(v).strip() if v is not None else "") for i, v in enumerate(row)}
+        for row in rows[1:]
+    ]
+
+
+def validate_and_import(data: bytes, filename: str, seller_user_id: int) -> dict:
+    """
+    Returns:
+      {"ok": True,  "imported": N, "ids": [...]}
+      {"ok": False, "errors": [...]}
+    """
+    # Parse
+    try:
+        rows = _read_xlsx(data) if filename.lower().endswith(".xlsx") else _read_csv(data)
+    except ImportError:
+        return {"ok": False, "errors": ["openpyxl не установлен на сервере. Загрузите CSV файл."]}
+    except Exception as e:
+        return {"ok": False, "errors": [f"Ошибка чтения файла: {e}"]}
+
+    if not rows:
+        return {"ok": False, "errors": ["Файл пустой — нет строк с данными."]}
+
+    # Check headers
+    actual = set(rows[0].keys())
+    missing = [c for c in REQUIRED_COLUMNS if c not in actual]
+    if missing:
+        return {"ok": False, "errors": [
+            f"❌ Отсутствуют колонки ({len(missing)} шт.):\n" + ", ".join(missing),
+            "Скачайте шаблон: нажмите «📄 Скачать шаблон»",
+        ]}
+
+    errors = []
+    listings = []
+
+    for i, row in enumerate(rows, start=2):
+        row_err = []
+
+        # All columns must be non-empty
+        empty = [c for c in REQUIRED_COLUMNS if not str(row.get(c, "")).strip()]
+        if empty:
+            errors.append(f"Строка {i}: пустые колонки — {', '.join(empty)}")
+            continue
+
+        deal_type = row["deal_type"].strip().lower()
+        if deal_type not in VALID_DEAL_TYPES:
+            row_err.append(f"deal_type «{deal_type}» — допустимо: {', '.join(sorted(VALID_DEAL_TYPES))}")
+
+        prop_type = row["property_type"].strip().lower()
+        if prop_type not in VALID_PROP_TYPES:
+            row_err.append(f"property_type «{prop_type}» неверный")
+
+        district = row["district"].strip().lower()
+        if district not in VALID_DISTRICTS:
+            row_err.append(f"district «{district}» — допустимо: {', '.join(sorted(VALID_DISTRICTS))}")
+
+        try:
+            rooms = float(row["rooms"].strip())
+        except ValueError:
+            row_err.append("rooms должно быть числом"); rooms = 0
+
+        try:
+            floor = int(row["floor"].strip())
+        except ValueError:
+            row_err.append("floor должно быть числом"); floor = 0
+
+        try:
+            area_sqm = float(row["area_sqm"].strip())
+        except ValueError:
+            row_err.append("area_sqm должно быть числом"); area_sqm = 0
+
+        try:
+            price = int(float(row["price"].strip()))
+        except ValueError:
+            row_err.append("price должно быть числом"); price = 0
+
+        try:
+            parking = int(row["parking"].strip())
+            if parking not in (0, 1, 2):
+                row_err.append("parking: 0, 1 или 2")
+        except ValueError:
+            row_err.append("parking: 0, 1 или 2"); parking = 0
+
+        pool     = row["pool"].strip().lower() in BOOL_YES
+        shelter  = row["shelter"].strip().lower() in BOOL_YES
+        elevator = row["elevator"].strip().lower() in BOOL_YES
+        infra    = [x.strip() for x in row["infrastructure"].split(",") if x.strip().lower() in VALID_INFRA]
+
+        if row_err:
+            errors.append(f"Строка {i}: " + "; ".join(row_err))
+            continue
+
+        city = row["city"].strip()
+        listings.append({
+            "seller_type":    "agent",
+            "deal_type":      deal_type,
+            "property_type":  prop_type,
+            "district":       district,
+            "city":           city,
+            "neighborhood":   row["neighborhood"].strip(),
+            "address":        row["address"].strip(),
+            "rooms":          rooms,
+            "floor":          floor,
+            "area_sqm":       area_sqm,
+            "price":          price,
+            "parking":        parking,
+            "pool":           pool,
+            "shelter":        shelter,
+            "elevator":       elevator,
+            "infrastructure": infra,
+            "description":    row["description"].strip(),
+            "owner_name":     row["owner_name"].strip(),
+            "owner_phone":    row["owner_phone"].strip(),
+            "contact":        row["contact"].strip(),
+            "title":          f"{city}, {rooms} комн.",
+            "photos":         [],
+            "active":         True,
+            "date_added":     datetime.date.today().isoformat(),
+            "user_id":        seller_user_id,
+            "source":         "csv_upload",
+            "views":          0,
+            "view_requests":  0,
+        })
+
+    if errors:
+        return {"ok": False, "errors": errors}
+
+    imported_ids = []
+    for listing in listings:
+        lid = db.add_listing(listing)
+        db.add_user_listing(seller_user_id, lid)
+        imported_ids.append(lid)
+
+    return {"ok": True, "imported": len(imported_ids), "ids": imported_ids}

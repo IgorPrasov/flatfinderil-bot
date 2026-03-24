@@ -8,16 +8,18 @@ from city_translations import get_city_name
 from keyboards import DISTRICT_CITIES, DISTRICT_KEYS, get_district_name, paywall_keyboard
 import database as db
 from subscription import has_access, is_trial_active
+import upload_handler as uploader
 
 # States
 (
     ADD_SELLER_TYPE,
+    ADD_UPLOAD_FILE,
     ADD_DEAL_TYPE, ADD_PROPERTY_TYPE, ADD_DISTRICT, ADD_CITY,
     ADD_ADDRESS,
     ADD_ROOMS, ADD_FLOOR, ADD_AREA, ADD_PRICE,
     ADD_PARKING, ADD_POOL, ADD_SHELTER, ADD_ELEVATOR,
     ADD_INFRASTRUCTURE, ADD_DESCRIPTION, ADD_NAME, ADD_PHONE, ADD_CONTACT, ADD_PHOTOS, ADD_CONFIRM
-) = range(21)
+) = range(22)
 
 PROPERTY_TYPES = {
     "apartment": {"ru": "🏢 Квартира", "en": "🏢 Apartment", "he": "🏢 דירה"},
@@ -61,6 +63,21 @@ def _seller_type_keyboard(ctx):
         [InlineKeyboardButton(agent,   callback_data="add_seller_agent")],
         [InlineKeyboardButton(private, callback_data="add_seller_private")],
         [InlineKeyboardButton(menu,    callback_data="back_to_menu")],
+    ])
+
+
+def _agent_method_keyboard(ctx):
+    """After agent is selected: choose manual entry or CSV upload."""
+    lang = get_lang(ctx)
+    manual   = {"ru": "✍️ Добавить вручную",      "en": "✍️ Add manually",      "he": "✍️ הוסף ידנית"}[lang]
+    upload   = {"ru": "📤 Загрузить CSV/XLSX",    "en": "📤 Upload CSV/XLSX",    "he": "📤 העלה CSV/XLSX"}[lang]
+    template = {"ru": "📄 Скачать шаблон",         "en": "📄 Download template",  "he": "📄 הורד תבנית"}[lang]
+    back     = {"ru": "« Назад",                   "en": "« Back",               "he": "« חזרה"}[lang]
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(manual,   callback_data="add_agent_manual")],
+        [InlineKeyboardButton(upload,   callback_data="add_agent_upload")],
+        [InlineKeyboardButton(template, callback_data="add_agent_template")],
+        [InlineKeyboardButton(back,     callback_data="add_agent_back")],
     ])
 
 
@@ -262,6 +279,10 @@ class ListingHandler:
                     CallbackQueryHandler(self.handle_seller_type, pattern="^add_seller_"),
                     CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),
                 ],
+                ADD_UPLOAD_FILE: [
+                    CallbackQueryHandler(self.handle_agent_method, pattern="^add_agent_"),
+                    MessageHandler(filters.Document.ALL, self.handle_upload_document),
+                ],
                 ADD_DEAL_TYPE: [
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
                     CallbackQueryHandler(self.handle_deal, pattern="^add_deal_"),
@@ -411,25 +432,154 @@ class ListingHandler:
         seller_type = query.data.replace("add_seller_", "")  # "agent" or "private"
         context.user_data["add_listing"]["seller_type"] = seller_type
         lang = get_lang(context)
-        label = {
-            "agent":   {"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך"},
-            "private": {"ru": "👤 Частное лицо",     "en": "👤 Private person",  "he": "👤 אדם פרטי"},
-        }.get(seller_type, {}).get(lang, seller_type)
+
+        if seller_type == "agent":
+            # Agent gets extra choice: manual or CSV upload
+            text = _step_text(context,
+                "🏢 Агент / Риелтор\n\nКак хотите добавить объявления?",
+                "🏢 Agent / Realtor\n\nHow would you like to add listings?",
+                "🏢 סוכן / מתווך\n\nכיצד תרצה להוסיף מודעות?"
+            )
+            await query.edit_message_text(text, reply_markup=_agent_method_keyboard(context), parse_mode="HTML")
+            context.user_data["add_state"] = ADD_UPLOAD_FILE
+            return ADD_UPLOAD_FILE
+
+        # Private person — go straight to deal type
+        label = {"ru": "👤 Частное лицо", "en": "👤 Private person", "he": "👤 אדם פרטי"}[lang]
         await query.edit_message_text(
             _confirmed(context, "Тип продавца", "Seller type", "סוג המוכר", label),
             parse_mode="HTML"
         )
         context.user_data["add_state"] = ADD_DEAL_TYPE
-        text = _step_text(context,
-            "Шаг 2/16: Тип сделки",
-            "Step 2/16: Deal type",
-            "שלב 2/16: סוג עסקה"
-        )
+        text = _step_text(context, "Шаг 2/16: Тип сделки", "Step 2/16: Deal type", "שלב 2/16: סוג עסקה")
         await context.bot.send_message(
             chat_id=update.effective_chat.id, text=text,
             reply_markup=_deal_keyboard(context), parse_mode="HTML"
         )
         return ADD_DEAL_TYPE
+
+    async def handle_agent_method(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        action = query.data  # add_agent_manual | add_agent_upload | add_agent_template | add_agent_back
+
+        if action == "add_agent_back":
+            # Back to seller type selection
+            text = _step_text(context,
+                "Шаг 1/16: Кто размещает объявление?",
+                "Step 1/16: Who is posting the listing?",
+                "שלב 1/16: מי מפרסם את המודעה?"
+            )
+            await query.edit_message_text(text, reply_markup=_seller_type_keyboard(context), parse_mode="HTML")
+            context.user_data["add_state"] = ADD_SELLER_TYPE
+            return ADD_SELLER_TYPE
+
+        if action == "add_agent_template":
+            # Send CSV template file
+            csv_bytes = uploader.generate_template_bytes()
+            await query.edit_message_text(
+                _step_text(context,
+                    "📄 Шаблон отправлен. Заполните все колонки и загрузите файл.",
+                    "📄 Template sent. Fill all columns and upload the file.",
+                    "📄 התבנית נשלחה. מלא את כל העמודות והעלה את הקובץ."
+                ),
+                reply_markup=_agent_method_keyboard(context), parse_mode="HTML"
+            )
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=csv_bytes,
+                filename="flatfinder_template.csv",
+                caption=uploader.COLUMN_HINTS,
+            )
+            return ADD_UPLOAD_FILE
+
+        if action == "add_agent_upload":
+            lang = get_lang(context)
+            prompt = {
+                "ru": (
+                    "📤 <b>Загрузка объявлений из файла</b>\n\n"
+                    "Отправьте файл <b>CSV</b> или <b>XLSX</b>.\n"
+                    "Все колонки обязательны — файл с пропусками не принимается.\n\n"
+                    "Если у вас нет шаблона — нажмите «📄 Скачать шаблон»."
+                ),
+                "en": (
+                    "📤 <b>Bulk listing upload</b>\n\n"
+                    "Send a <b>CSV</b> or <b>XLSX</b> file.\n"
+                    "All columns are required — incomplete files are rejected.\n\n"
+                    "No template? Press «📄 Download template»."
+                ),
+                "he": (
+                    "📤 <b>העלאת מודעות מקובץ</b>\n\n"
+                    "שלח קובץ <b>CSV</b> או <b>XLSX</b>.\n"
+                    "כל העמודות חובה — קבצים עם חוסרים נדחים.\n\n"
+                    "אין תבנית? לחץ «📄 הורד תבנית»."
+                ),
+            }[lang]
+            await query.edit_message_text(prompt, reply_markup=_agent_method_keyboard(context), parse_mode="HTML")
+            return ADD_UPLOAD_FILE
+
+        if action == "add_agent_manual":
+            lang = get_lang(context)
+            label = {"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך"}[lang]
+            await query.edit_message_text(
+                _confirmed(context, "Тип продавца", "Seller type", "סוג המוכר", label),
+                parse_mode="HTML"
+            )
+            context.user_data["add_state"] = ADD_DEAL_TYPE
+            text = _step_text(context, "Шаг 2/16: Тип сделки", "Step 2/16: Deal type", "שלב 2/16: סוג עסקה")
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id, text=text,
+                reply_markup=_deal_keyboard(context), parse_mode="HTML"
+            )
+            return ADD_DEAL_TYPE
+
+    async def handle_upload_document(self, update, context):
+        """Process uploaded CSV or XLSX file."""
+        lang = get_lang(context)
+        doc = update.message.document
+        fname = doc.file_name or ""
+
+        if not (fname.lower().endswith(".csv") or fname.lower().endswith(".xlsx")):
+            await update.message.reply_text(
+                {"ru": "❌ Отправьте файл CSV или XLSX.",
+                 "en": "❌ Please send a CSV or XLSX file.",
+                 "he": "❌ שלח קובץ CSV או XLSX."}[lang],
+                reply_markup=_agent_method_keyboard(context)
+            )
+            return ADD_UPLOAD_FILE
+
+        # Download file
+        try:
+            file_obj = await context.bot.get_file(doc.file_id)
+            file_bytes = await file_obj.download_as_bytearray()
+        except Exception as e:
+            await update.message.reply_text(f"❌ Ошибка загрузки файла: {e}")
+            return ADD_UPLOAD_FILE
+
+        user_id = update.effective_user.id
+        result = uploader.validate_and_import(bytes(file_bytes), fname, user_id)
+
+        if not result["ok"]:
+            errors = result["errors"]
+            max_show = 10
+            shown = errors[:max_show]
+            tail = f"\n... и ещё {len(errors) - max_show} ошибок" if len(errors) > max_show else ""
+            err_text = {
+                "ru": f"❌ <b>Файл не принят</b>\n\n" + "\n".join(shown) + tail + "\n\nИсправьте ошибки и загрузите снова.",
+                "en": f"❌ <b>File rejected</b>\n\n" + "\n".join(shown) + tail + "\n\nFix the errors and re-upload.",
+                "he": f"❌ <b>הקובץ נדחה</b>\n\n" + "\n".join(shown) + tail + "\n\nתקן את השגיאות ושלח שוב.",
+            }[lang]
+            await update.message.reply_text(err_text, reply_markup=_agent_method_keyboard(context), parse_mode="HTML")
+            return ADD_UPLOAD_FILE
+
+        n = result["imported"]
+        ok_text = {
+            "ru": f"✅ <b>Загружено {n} объявлений!</b>\n\nОни уже доступны в поиске.",
+            "en": f"✅ <b>{n} listings imported!</b>\n\nThey are now visible in search.",
+            "he": f"✅ <b>{n} מודעות הועלו!</b>\n\nהן כבר זמינות בחיפוש.",
+        }[lang]
+        await update.message.reply_text(ok_text, parse_mode="HTML")
+        return ConversationHandler.END
 
     async def handle_back(self, update, context):
         query = update.callback_query
