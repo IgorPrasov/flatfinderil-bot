@@ -302,10 +302,29 @@ def city_multi_keyboard(ctx, selected=None, districts=None):
 
 def subscription_keyboard(ctx):
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(t("btn_sub_week", ctx),      callback_data="sub_week")],
-        [InlineKeyboardButton(t("btn_sub_two_weeks", ctx), callback_data="sub_two_weeks")],
-        [InlineKeyboardButton(t("btn_sub_month", ctx),     callback_data="sub_month")],
+        [InlineKeyboardButton(t("btn_sub_week", ctx),         callback_data="sub_week")],
+        [InlineKeyboardButton(t("btn_sub_two_weeks", ctx),    callback_data="sub_two_weeks")],
+        [InlineKeyboardButton(t("btn_sub_month", ctx),        callback_data="sub_month")],
+        [InlineKeyboardButton(t("btn_sub_search_alert", ctx), callback_data="sub_search_alert")],
+        [InlineKeyboardButton(t("btn_back_menu", ctx),        callback_data="back_to_menu")],
+    ])
+
+
+def paywall_keyboard(ctx):
+    """Keyboard shown when user hits the paywall."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("btn_subscribe_now", ctx), callback_data="subscription")],
         [InlineKeyboardButton(t("btn_back_menu", ctx),     callback_data="back_to_menu")],
+    ])
+
+
+def search_alert_confirm_keyboard(ctx):
+    """Confirm screen for search_alert plan purchase."""
+    lang = get_lang(ctx)
+    confirm = {"ru": "✅ Активировать · 39.90 ₪/мес", "en": "✅ Activate · ₪39.90/mo", "he": "✅ הפעל · ₪39.90/חודש"}.get(lang, "✅ Activate")
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(confirm,                 callback_data="sub_search_alert_confirm")],
+        [InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")],
     ])
 
 def review_rating_keyboard(listing_id):

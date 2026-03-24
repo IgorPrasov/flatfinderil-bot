@@ -95,6 +95,8 @@ def _load():
                     data["crm_deal_next_id"] = 1
                 if "crm_notes" not in data:
                     data["crm_notes"] = {}
+                if "paid_subscriptions" not in data:
+                    data["paid_subscriptions"] = {}
                 return data
         except:
             pass
@@ -424,6 +426,36 @@ def add_bonus_days(user_id: int, days: int):
 def get_bonus_days(user_id: int) -> int:
     data = _load()
     return data.get("referral_bonuses", {}).get(str(user_id), 0)
+
+
+def get_bonus_expiry(user_id: int):
+    """Returns expiry datetime if user has bonus days, else None."""
+    from datetime import datetime, timedelta
+    days = get_bonus_days(user_id)
+    if days > 0:
+        return datetime.now() + timedelta(days=days)
+    return None
+
+
+# ── Paid subscriptions (persistent) ──────────────────────────────────────────
+
+def get_user_paid_subscriptions(user_id: int) -> dict:
+    """Return dict of plan_type -> iso expiry string for user."""
+    data = _load()
+    return data.get("paid_subscriptions", {}).get(str(user_id), {})
+
+
+def set_user_paid_subscription(user_id: int, plan_type: str, expiry_iso: str):
+    """Save paid subscription expiry for user."""
+    data = _load()
+    if "paid_subscriptions" not in data:
+        data["paid_subscriptions"] = {}
+    uid = str(user_id)
+    if uid not in data["paid_subscriptions"]:
+        data["paid_subscriptions"][uid] = {}
+    data["paid_subscriptions"][uid][plan_type] = expiry_iso
+    _save(data)
+
 
 # ── Price market comparison ───────────────────────────────────────────────────
 

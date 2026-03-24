@@ -243,6 +243,70 @@ TRANSLATIONS["sub_status"] = {"ru":"📊 Статус подписки","en":"�
 TRANSLATIONS["btn_sub_week"] = {"ru":"1 неделя · 19.90 ₪","en":"1 week · ₪19.90","he":"שבוע · ₪19.90"}
 TRANSLATIONS["btn_sub_two_weeks"] = {"ru":"2 недели · 29.90 ₪ ⭐️","en":"2 weeks · ₪29.90 ⭐️","he":"2 שבועות · ₪29.90 ⭐️"}
 TRANSLATIONS["btn_sub_month"] = {"ru":"1 месяц · 39.90 ₪","en":"1 month · ₪39.90","he":"חודש · ₪39.90"}
+TRANSLATIONS["btn_sub_search_alert"] = {"ru":"🔔 Подписка на поиск · 39.90 ₪/мес","en":"🔔 Search alerts · ₪39.90/mo","he":"🔔 התראות חיפוש · ₪39.90/חודש"}
+TRANSLATIONS["sub_search_alert_desc"] = {
+    "ru": "🔔 <b>Подписка на поиск</b>\n\nПолучайте мгновенные уведомления о новых объявлениях, которые совпадают с вашими фильтрами.\n\n• Безлимитный поиск ✅\n• Уведомления о новых объявлениях ✅\n• Добавление объявлений ✅\n\n39.90 ₪ / месяц",
+    "en": "🔔 <b>Search alerts subscription</b>\n\nGet instant notifications about new listings matching your filters.\n\n• Unlimited search ✅\n• New listing notifications ✅\n• Add listings ✅\n\n₪39.90 / month",
+    "he": "🔔 <b>מנוי התראות חיפוש</b>\n\nקבל התראות מיידיות על מודעות חדשות התואמות לפילטרים שלך.\n\n• חיפוש ללא הגבלה ✅\n• התראות על מודעות חדשות ✅\n• הוספת מודעות ✅\n\n₪39.90 / חודש",
+}
+
+# ── Paywall strings ──────────────────────────────────────────────────────────
+TRANSLATIONS["paywall_search"] = {
+    "ru": (
+        "🔒 <b>Тестовый период завершён</b>\n\n"
+        "Показаны первые 3 результата из {total}.\n\n"
+        "Оформите подписку, чтобы видеть все объявления без ограничений:\n\n"
+        "• 1 неделя — 19.90 ₪\n"
+        "• 2 недели — 29.90 ₪ ⭐\n"
+        "• 1 месяц — 39.90 ₪\n"
+        "• 🔔 Подписка на поиск — 39.90 ₪/мес"
+    ),
+    "en": (
+        "🔒 <b>Trial period ended</b>\n\n"
+        "Showing first 3 results out of {total}.\n\n"
+        "Subscribe to see all listings without limits:\n\n"
+        "• 1 week — ₪19.90\n"
+        "• 2 weeks — ₪29.90 ⭐\n"
+        "• 1 month — ₪39.90\n"
+        "• 🔔 Search alerts — ₪39.90/mo"
+    ),
+    "he": (
+        "🔒 <b>תקופת הניסיון הסתיימה</b>\n\n"
+        "מוצגים 3 תוצאות ראשונות מתוך {total}.\n\n"
+        "הירשם כדי לראות את כל המודעות ללא הגבלות:\n\n"
+        "• שבוע — ₪19.90\n"
+        "• 2 שבועות — ₪29.90 ⭐\n"
+        "• חודש — ₪39.90\n"
+        "• 🔔 התראות חיפוש — ₪39.90/חודש"
+    ),
+}
+TRANSLATIONS["paywall_add"] = {
+    "ru": (
+        "🔒 <b>Тестовый период завершён</b>\n\n"
+        "Добавление объявлений доступно только по подписке.\n\n"
+        "• 1 неделя — 19.90 ₪\n"
+        "• 2 недели — 29.90 ₪ ⭐\n"
+        "• 1 месяц — 39.90 ₪\n"
+        "• 🔔 Подписка на поиск — 39.90 ₪/мес"
+    ),
+    "en": (
+        "🔒 <b>Trial period ended</b>\n\n"
+        "Adding listings requires an active subscription.\n\n"
+        "• 1 week — ₪19.90\n"
+        "• 2 weeks — ₪29.90 ⭐\n"
+        "• 1 month — ₪39.90\n"
+        "• 🔔 Search alerts — ₪39.90/mo"
+    ),
+    "he": (
+        "🔒 <b>תקופת הניסיון הסתיימה</b>\n\n"
+        "הוספת מודעות זמינה רק עם מנוי פעיל.\n\n"
+        "• שבוע — ₪19.90\n"
+        "• 2 שבועות — ₪29.90 ⭐\n"
+        "• חודש — ₪39.90\n"
+        "• 🔔 התראות חיפוש — ₪39.90/חודש"
+    ),
+}
+TRANSLATIONS["btn_subscribe_now"] = {"ru":"💳 Оформить подписку","en":"💳 Subscribe now","he":"💳 הירשם עכשיו"}
 
 TRANSLATIONS["step_elevator"] = {"ru":"🛗 Наличие лифта:","en":"🛗 Elevator availability:","he":"🛗 זמינות מעלית:"}
 TRANSLATIONS["btn_elevator_yes"] = {"ru":"🛗 Есть лифт","en":"🛗 With elevator","he":"🛗 עם מעלית"}

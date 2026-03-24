@@ -543,8 +543,26 @@ class SearchHandler:
         if infra_filter:
             results = _sort_by_proximity(results, infra_filter)
 
+        # --- Paywall: limit to FREE_SEARCH_LIMIT after trial ---
+        total_found = len(results)
+        user_id = update.effective_user.id
+        if not is_trial_active() and not has_access(user_id) and total_found > FREE_SEARCH_LIMIT:
+            results = results[:FREE_SEARCH_LIMIT]
+            context.user_data["results"] = results
+            await query.edit_message_text(t("found_n", context, n=total_found), parse_mode="HTML")
+            await display_listing(query, context, results[0], 0, len(results))
+            lang = get_lang(context)
+            paywall_text = t("paywall_search", context, total=total_found)
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=paywall_text,
+                reply_markup=paywall_keyboard(context),
+                parse_mode="HTML",
+            )
+            return ConversationHandler.END
+
         context.user_data["results"] = results
-        await query.edit_message_text(t("found_n", context, n=len(results)), parse_mode="HTML")
+        await query.edit_message_text(t("found_n", context, n=total_found), parse_mode="HTML")
         await display_listing(query, context, results[0], 0, len(results))
         return ConversationHandler.END
 
@@ -582,12 +600,14 @@ from keyboards import (
     infrastructure_keyboard, confirm_search_keyboard, results_navigation_keyboard,
     price_keyboard, back_to_menu_keyboard, shelter_keyboard,
     city_multi_keyboard, district_multi_keyboard, elevator_keyboard, with_photos_keyboard,
+    paywall_keyboard,
 )
 from formatters import format_search_summary, format_listing_card
 from i18n import t, get_lang, get_district_name
 from display_utils import display_listing
 import database as db
 from analytics import track_search, track_user
+from subscription import has_access, FREE_SEARCH_LIMIT, is_trial_active
 from geocoding import get_city_coords, haversine, format_distance
 from overpass import get_pois
 

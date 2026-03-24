@@ -5,8 +5,9 @@ from telegram.ext import (
 )
 from i18n import t, get_lang
 from city_translations import get_city_name
-from keyboards import DISTRICT_CITIES, DISTRICT_KEYS, get_district_name
+from keyboards import DISTRICT_CITIES, DISTRICT_KEYS, get_district_name, paywall_keyboard
 import database as db
+from subscription import has_access, is_trial_active
 
 # States
 (
@@ -330,6 +331,43 @@ class ListingHandler:
         )
 
     async def start_add(self, update, context):
+        user_id = update.effective_user.id
+        # Block adding listings after trial ends for non-subscribers
+        if not is_trial_active() and not has_access(user_id):
+            lang = get_lang(context)
+            paywall_text = {
+                "ru": (
+                    "🔒 <b>Тестовый период завершён</b>\n\n"
+                    "Добавление объявлений доступно только по подписке.\n\n"
+                    "• 1 неделя — 19.90 ₪\n"
+                    "• 2 недели — 29.90 ₪ ⭐\n"
+                    "• 1 месяц — 39.90 ₪\n"
+                    "• 🔔 Подписка на поиск — 39.90 ₪/мес"
+                ),
+                "en": (
+                    "🔒 <b>Trial period ended</b>\n\n"
+                    "Adding listings requires an active subscription.\n\n"
+                    "• 1 week — ₪19.90\n"
+                    "• 2 weeks — ₪29.90 ⭐\n"
+                    "• 1 month — ₪39.90\n"
+                    "• 🔔 Search alerts — ₪39.90/mo"
+                ),
+                "he": (
+                    "🔒 <b>תקופת הניסיון הסתיימה</b>\n\n"
+                    "הוספת מודעות זמינה רק עם מנוי פעיל.\n\n"
+                    "• שבוע — ₪19.90\n"
+                    "• 2 שבועות — ₪29.90 ⭐\n"
+                    "• חודש — ₪39.90\n"
+                    "• 🔔 התראות חיפוש — ₪39.90/חודש"
+                ),
+            }.get(lang, "")
+            if update.callback_query:
+                await update.callback_query.answer()
+                await update.callback_query.edit_message_text(paywall_text, reply_markup=paywall_keyboard(context), parse_mode="HTML")
+            else:
+                await update.message.reply_text(paywall_text, reply_markup=paywall_keyboard(context), parse_mode="HTML")
+            return ConversationHandler.END
+
         context.user_data["add_listing"] = {}
         context.user_data["add_state"] = ADD_DEAL_TYPE
         text = _step_text(context,

@@ -8,6 +8,7 @@ from keyboards import (
     edit_listing_keyboard, confirm_delete_keyboard,
     close_deal_select_keyboard, deal_confirm_price_keyboard,
     tenant_deal_confirm_keyboard, owner_deal_confirm_keyboard,
+    search_alert_confirm_keyboard,
 )
 from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
@@ -139,7 +140,25 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("sub_"):
         plan_key = data.replace("sub_", "")
-        if plan_key in PLANS:
+        if plan_key == "search_alert":
+            await query.edit_message_text(
+                t("sub_search_alert_desc", context),
+                reply_markup=search_alert_confirm_keyboard(context),
+                parse_mode="HTML",
+            )
+        elif plan_key == "search_alert_confirm":
+            user_id = update.effective_user.id
+            expiry = activate_subscription(user_id, "search_alert")
+            lang = get_lang(context)
+            plan = PLANS["search_alert"]
+            plan_name = plan[f"name_{lang}"] if f"name_{lang}" in plan else plan["name_ru"]
+            expiry_str = expiry.strftime("%d.%m.%Y")
+            await query.edit_message_text(
+                t("sub_activated", context, plan=plan_name, expiry=expiry_str),
+                reply_markup=back_to_menu_keyboard(context),
+                parse_mode="HTML",
+            )
+        elif plan_key in PLANS:
             user_id = update.effective_user.id
             expiry = activate_subscription(user_id, plan_key)
             lang = get_lang(context)
