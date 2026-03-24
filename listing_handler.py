@@ -576,10 +576,23 @@ class ListingHandler:
         return ADD_ADDRESS
 
     async def handle_address(self, update, context):
+        import urllib.parse
         address = update.message.text.strip()
+        city = context.user_data["add_listing"].get("city", "")
         context.user_data["add_listing"]["address"] = address
+
+        # Build Google Maps link: city + address + Israel
+        query_str = urllib.parse.quote(f"{address}, {city}, Israel")
+        map_url = f"https://maps.google.com/?q={query_str}"
+        context.user_data["add_listing"]["map_url"] = map_url
+
+        lang = get_lang(context)
+        map_label = {"ru": "🗺 Посмотреть на карте", "en": "🗺 View on map", "he": "🗺 הצג במפה"}.get(lang, "🗺 Map")
+        confirmed_text = _confirmed(context, "Адрес", "Address", "כתובת", address)
         await update.message.reply_text(
-            _confirmed(context, "Адрес", "Address", "כתובת", address), parse_mode="HTML"
+            f"{confirmed_text}\n\n<a href=\"{map_url}\">{map_label}</a>",
+            parse_mode="HTML",
+            disable_web_page_preview=True,
         )
         ptype = context.user_data["add_listing"].get("property_type", "")
         # Skip rooms for commercial listings
@@ -861,7 +874,7 @@ class ListingHandler:
 
 {'Тип' if lang=='ru' else 'Type' if lang=='en' else 'סוג'}: {deal_label} · {ptype_label}
 {'Город' if lang=='ru' else 'City' if lang=='en' else 'עיר'}: {d.get('city','')}
-{'Адрес' if lang=='ru' else 'Address' if lang=='en' else 'כתובת'}: {d.get('address', '—')}
+{'Адрес' if lang=='ru' else 'Address' if lang=='en' else 'כתובת'}: {d.get('address', '—')}{f" — {d.get('map_url','')}" if d.get('map_url') else ''}
 {'Комнат' if lang=='ru' else 'Rooms' if lang=='en' else 'חדרים'}: {d.get('rooms','')}
 {'Этаж' if lang=='ru' else 'Floor' if lang=='en' else 'קומה'}: {d.get('floor','')}
 {'Площадь' if lang=='ru' else 'Area' if lang=='en' else 'שטח'}: {d.get('area_sqm','')} м²

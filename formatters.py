@@ -104,7 +104,14 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
 
     addr_label = {"ru": "Адрес", "en": "Address", "he": "כתובת"}.get(lang, "Address")
     address = listing.get("address", "")
-    address_str = f"\n🏠 <b>{addr_label}:</b> {address}" if address else ""
+    map_url = listing.get("map_url", "")
+    if address and map_url:
+        map_label = {"ru": "карта", "en": "map", "he": "מפה"}.get(lang, "map")
+        address_str = f"\n🏠 <b>{addr_label}:</b> {address}  <a href=\"{map_url}\">🗺 {map_label}</a>"
+    elif address:
+        address_str = f"\n🏠 <b>{addr_label}:</b> {address}"
+    else:
+        address_str = ""
 
     return (
         f"{header}{photo} <b>{listing.get('title','—')}</b>\n\n"
