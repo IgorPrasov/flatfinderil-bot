@@ -119,45 +119,6 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
 
-    elif data == "upload_listings":
-        from telegram import InputFile
-        import io
-        from upload_handler import get_csv_template_bytes
-        lang = get_lang(context)
-        tpl = get_csv_template_bytes()
-        caption = {
-            "ru": (
-                "📤 <b>Массовая загрузка объявлений</b>\n\n"
-                "1. Скачайте шаблон ниже\n"
-                "2. Заполните строки (Excel или Google Sheets)\n"
-                "3. Сохраните как <b>.csv</b> или <b>.xlsx</b>\n"
-                "4. Пришлите файл боту — и объявления появятся в базе\n\n"
-                "<b>Обязательные колонки:</b> deal_type · property_type · city · price\n"
-                "<b>Необязательные:</b> address · rooms · floor · area_sqm · parking · pool · shelter · elevator · infrastructure · description · contact · owner_name · owner_phone"
-            ),
-            "en": (
-                "📤 <b>Bulk listing upload</b>\n\n"
-                "1. Download the template below\n"
-                "2. Fill in rows (Excel or Google Sheets)\n"
-                "3. Save as <b>.csv</b> or <b>.xlsx</b>\n"
-                "4. Send the file to the bot — listings will be added\n\n"
-                "<b>Required columns:</b> deal_type · property_type · city · price"
-            ),
-            "he": (
-                "📤 <b>העלאת מודעות בכמות</b>\n\n"
-                "1. הורד את התבנית למטה\n"
-                "2. מלא שורות (Excel או Google Sheets)\n"
-                "3. שמור כ-<b>.csv</b> או <b>.xlsx</b>\n"
-                "4. שלח את הקובץ לבוט — המודעות יתווספו לבסיס הנתונים"
-            ),
-        }.get(lang, "")
-        await query.message.reply_document(
-            document=InputFile(io.BytesIO(tpl), filename="listings_template.csv"),
-            caption=caption,
-            parse_mode="HTML",
-        )
-        await query.answer()
-
     elif data == "subscription":
         lang = get_lang(context)
         user_id = update.effective_user.id

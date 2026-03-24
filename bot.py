@@ -12,7 +12,6 @@ from listing_handler import ListingHandler
 from commercial_handler import CommercialHandler
 from service_handler import ServiceHandler
 from crm_handler import CRMHandler
-from upload_handler import process_upload, get_csv_template_bytes
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -51,70 +50,6 @@ def fix_city_migration():
         logger.warning(f"City migration failed: {e}")
 
 
-async def handle_upload_command(update, context):
-    """Send CSV template when user types /upload."""
-    from telegram import InputFile
-    import io
-    tpl = get_csv_template_bytes()
-    caption = (
-        "📤 <b>Массовая загрузка объявлений</b>\n\n"
-        "Скачайте шаблон, заполните и пришлите обратно боту.\n\n"
-        "<b>Обязательные колонки:</b>\n"
-        "• <code>deal_type</code> — rent / buy / sublet / commercial\n"
-        "• <code>property_type</code> — apartment / house / villa / studio / duplex / penthouse / office / retail / warehouse / land\n"
-        "• <code>city</code> — название города (например: Тель-Авив)\n"
-        "• <code>price</code> — цена в ₪\n\n"
-        "<b>Необязательные:</b> address, neighborhood, rooms, floor, area_sqm, "
-        "parking, pool, shelter, elevator, infrastructure, description, contact, owner_name, owner_phone\n\n"
-        "Поддерживаются форматы: <b>.csv</b> и <b>.xlsx</b>"
-    )
-    await update.message.reply_document(
-        document=InputFile(io.BytesIO(tpl), filename="listings_template.csv"),
-        caption=caption,
-        parse_mode="HTML",
-    )
-
-
-async def handle_document_upload(update, context):
-    """Handle CSV/XLSX file upload."""
-    doc = update.message.document
-    if not doc:
-        return
-    fname = doc.file_name or ""
-    if not (fname.lower().endswith(".csv") or fname.lower().endswith(".xlsx") or fname.lower().endswith(".xls")):
-        return  # ignore other document types
-
-    user_id = update.effective_user.id
-    wait_msg = await update.message.reply_text("⏳ Обрабатываю файл...")
-
-    try:
-        tg_file = await context.bot.get_file(doc.file_id)
-        raw = bytes(await tg_file.download_as_bytearray())
-    except Exception as e:
-        await wait_msg.edit_text(f"❌ Не удалось скачать файл: {e}")
-        return
-
-    result = process_upload(raw, fname, user_id)
-
-    ok = result["ok"]
-    errors = result["errors"]
-    total = result["total"]
-
-    lines = [f"📊 <b>Результат загрузки</b>", ""]
-    lines.append(f"✅ Добавлено: <b>{ok}</b> из {total}")
-
-    if errors:
-        lines.append(f"⚠️ Ошибок: <b>{len(errors)}</b>")
-        for e in errors[:10]:
-            lines.append(f"• {e}")
-        if len(errors) > 10:
-            lines.append(f"• ...и ещё {len(errors) - 10}")
-
-    if ok > 0:
-        lines.append("")
-        lines.append("Объявления доступны через поиск 🔍")
-
-    await wait_msg.edit_text("\n".join(lines), parse_mode="HTML")
 
 
 def main():
@@ -138,8 +73,6 @@ def main():
     app.add_handler(search.get_conversation_handler())
     app.add_handler(listing.get_conversation_handler())
     app.add_handler(CallbackQueryHandler(handle_menu))
-    app.add_handler(CommandHandler("upload", handle_upload_command))
-    app.add_handler(MessageHandler(filters.Document.ALL, handle_document_upload))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_text))
 
     # Start background notification tasks
