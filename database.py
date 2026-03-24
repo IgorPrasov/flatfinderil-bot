@@ -488,6 +488,92 @@ def update_listing(listing_id: int, fields: dict) -> bool:
     return True
 
 
+# ── Admin helpers ─────────────────────────────────────────────────────────────
+
+def get_all_listings_admin(filters: Optional[Dict] = None) -> List[Dict]:
+    """Return ALL listings (active + inactive) for back-office."""
+    data = _load()
+    result = list(data["listings"].values())
+    if filters:
+        q = (filters.get("q") or "").lower()
+        city = (filters.get("city") or "").lower()
+        deal = filters.get("deal_type")
+        ptype = filters.get("property_type")
+        active = filters.get("active")  # True / False / None = all
+        if q:
+            result = [l for l in result if q in l.get("title","").lower() or q in l.get("description","").lower()]
+        if city:
+            result = [l for l in result if city in l.get("city","").lower()]
+        if deal:
+            result = [l for l in result if l.get("deal_type") == deal]
+        if ptype:
+            result = [l for l in result if l.get("property_type") == ptype]
+        if active is not None:
+            result = [l for l in result if bool(l.get("active", True)) == active]
+    return sorted(result, key=lambda x: str(x.get("date_added", "")), reverse=True)
+
+
+def admin_delete_listing(listing_id: int) -> bool:
+    """Hard-delete a listing (admin only, no user_id check)."""
+    data = _load()
+    lid = str(listing_id)
+    if lid not in data["listings"]:
+        return False
+    uid = str(data["listings"][lid].get("user_id", ""))
+    del data["listings"][lid]
+    if uid and uid in data.get("user_listings", {}):
+        data["user_listings"][uid] = [i for i in data["user_listings"][uid] if str(i) != lid]
+    _save(data)
+    return True
+
+
+def update_service(service_id: str, fields: dict) -> bool:
+    """Update arbitrary fields of an existing service."""
+    data = _load()
+    if service_id not in data.get("services", {}):
+        return False
+    data["services"][service_id].update(fields)
+    _save(data)
+    return True
+
+
+def delete_service(service_id: str) -> bool:
+    """Hard-delete a service record."""
+    data = _load()
+    if service_id not in data.get("services", {}):
+        return False
+    del data["services"][service_id]
+    _save(data)
+    return True
+
+
+def get_all_users_admin() -> List[Dict]:
+    """Return merged user info for back-office (from user_listings + agent_profiles + stats)."""
+    data = _load()
+    users: Dict[str, dict] = {}
+
+    for uid, lid_list in data.get("user_listings", {}).items():
+        if uid not in users:
+            users[uid] = {"user_id": uid, "listing_ids": [], "email": None, "lang": None}
+        users[uid]["listing_ids"] = lid_list
+
+    for uid, profile in data.get("agent_profiles", {}).items():
+        if uid not in users:
+            users[uid] = {"user_id": uid, "listing_ids": [], "email": None, "lang": None}
+        users[uid]["email"] = profile.get("email")
+        users[uid]["lang"]  = profile.get("lang")
+        users[uid]["owner_name"]  = profile.get("owner_name")
+        users[uid]["owner_phone"] = profile.get("owner_phone")
+
+    for uid, info in users.items():
+        lid_list = info.get("listing_ids", [])
+        active = sum(1 for lid in lid_list if data["listings"].get(str(lid), {}).get("active"))
+        info["total_listings"]  = len(lid_list)
+        info["active_listings"] = active
+
+    return sorted(users.values(), key=lambda x: x["total_listings"], reverse=True)
+
+
 def get_similar_listings(listing: Dict) -> List[Dict]:
     """Returns active listings in same city + property_type + deal_type, excluding self."""
     data = _load()

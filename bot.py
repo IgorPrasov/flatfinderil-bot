@@ -108,6 +108,11 @@ def main():
     from notifications import start_background_tasks
     start_background_tasks(app)
 
+    # Start back-office admin panel
+    from backoffice_server import start_backoffice_server
+    bo_thread = threading.Thread(target=start_backoffice_server, daemon=True)
+    bo_thread.start()
+
     # Start weekly email reporter (Sunday 10:00)
     _start_email_scheduler()
 
