@@ -824,7 +824,16 @@ class ListingHandler:
         d["title"] = f"{'Аренда' if d.get('deal_type')=='rent' else 'Продажа'}: {d.get('rooms','')} комн., {d.get('city','')}"
         if not d.get("photos"):
             d["photos"] = ["🏠"]
-        d["neighborhood"] = ""
+        d["neighborhood"] = d.get("neighborhood", "")
+
+        # Save city coordinates for proximity sorting
+        try:
+            from geocoding import get_city_coords
+            coords = get_city_coords(d.get("city", ""))
+            if coords:
+                d["lat"], d["lng"] = coords
+        except Exception:
+            pass
 
         listing_id = db.add_listing(d)
 

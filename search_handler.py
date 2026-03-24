@@ -537,6 +537,12 @@ class SearchHandler:
         if not results:
             await query.edit_message_text(t("no_results", context), reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
             return SEARCH_CONFIRM
+
+        # --- Sort by proximity if infrastructure filter is active ---
+        infra_filter = f.get("infrastructure") or []
+        if infra_filter:
+            results = _sort_by_proximity(results, infra_filter)
+
         context.user_data["results"] = results
         await query.edit_message_text(t("found_n", context, n=len(results)), parse_mode="HTML")
         await display_listing(query, context, results[0], 0, len(results))
@@ -582,6 +588,61 @@ from i18n import t, get_lang, get_district_name
 from display_utils import display_listing
 import database as db
 from analytics import track_search, track_user
+from geocoding import get_city_coords, haversine, format_distance
+from overpass import get_pois
+
+
+def _sort_by_proximity(results: list, infra_types: list) -> list:
+    """
+    Sort listings by distance to the nearest POI of the requested infrastructure types.
+    Each listing gets a '_nearest_m' annotation for display.
+    Listings without city coordinates go to the end.
+    """
+    if not infra_types or not results:
+        return results
+
+    # Collect unique cities to avoid duplicate Overpass queries
+    poi_cache = {}  # (city_lower, infra_type) -> list of (lat, lng)
+
+    def get_cached_pois(city: str, itype: str):
+        key = (city.lower().strip(), itype)
+        if key not in poi_cache:
+            coords = get_city_coords(city)
+            if coords:
+                poi_cache[key] = get_pois(coords[0], coords[1], itype, radius=5000)
+            else:
+                poi_cache[key] = []
+        return poi_cache[key]
+
+    def listing_min_dist(listing: dict) -> float:
+        city = listing.get("city", "")
+        coords = get_city_coords(city)
+        if not coords:
+            return float("inf")
+
+        # Use stored coordinates if available, otherwise fall back to city center
+        lat = listing.get("lat") or coords[0]
+        lng = listing.get("lng") or coords[1]
+
+        min_d = float("inf")
+        for itype in infra_types:
+            pois = get_cached_pois(city, itype)
+            for plat, plng in pois:
+                d = haversine(lat, lng, plat, plng)
+                if d < min_d:
+                    min_d = d
+        return min_d
+
+    # Annotate each listing with distance
+    annotated = []
+    for listing in results:
+        dist = listing_min_dist(listing)
+        entry = dict(listing)
+        entry["_nearest_m"] = dist
+        annotated.append(entry)
+
+    annotated.sort(key=lambda x: x["_nearest_m"])
+    return annotated
 
 
 def _price_label(value, deal_type, lang):

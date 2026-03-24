@@ -90,6 +90,18 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
     except Exception:
         pass
 
+    # Proximity badge (set by proximity sort)
+    nearest_m = listing.get("_nearest_m")
+    if nearest_m is not None and nearest_m < float("inf"):
+        try:
+            from geocoding import format_distance
+            dist_label = {"ru": "до инфраструктуры", "en": "to infrastructure", "he": "לתשתית"}.get(lang, "")
+            proximity_str = f"\n📌 <b>{format_distance(nearest_m)}</b> {dist_label}"
+        except Exception:
+            proximity_str = ""
+    else:
+        proximity_str = ""
+
     return (
         f"{header}{photo} <b>{listing.get('title','—')}</b>\n\n"
         f"{deal_emoji} <b>{deal_label}</b>  |  {prop_type}\n"
@@ -101,7 +113,7 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
         f"{pool_str}\n{park_str}{infra_str}\n\n"
         f"📝 {listing.get('description','—')}\n\n"
         f"📅 <i>{added_label}: {listing.get('date_added','—')}</i>"
-        f"{rating_str}{views_str}"
+        f"{rating_str}{views_str}{proximity_str}"
     )
 
 def format_search_summary(filters: dict, ctx) -> str:
