@@ -86,22 +86,28 @@ def main():
 import threading
 import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 import json as json_module
 
 DASHBOARD_FILE = os.path.join(os.path.dirname(__file__), "dashboard.html")
 
 class WebHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/analytics":
+        parsed = urlparse(self.path)
+        if parsed.path == "/analytics":
             try:
                 from analytics import get_analytics
-                data = get_analytics()
+                qs = parse_qs(parsed.query)
+                date_from = (qs.get("from") or [None])[0]
+                date_to   = (qs.get("to")   or [None])[0]
+                data = get_analytics(date_from=date_from, date_to=date_to)
             except Exception as e:
                 data = {"error": str(e)}
             body = json_module.dumps(data, ensure_ascii=False).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Content-Length", len(body))
             self.end_headers()
             self.wfile.write(body)
         else:
@@ -110,6 +116,7 @@ class WebHandler(BaseHTTPRequestHandler):
                     content = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", len(content))
                 self.end_headers()
                 self.wfile.write(content)
             except Exception as e:
