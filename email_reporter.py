@@ -2,25 +2,29 @@
 Weekly email reports for agents.
 Sends HTML report with listing views every Sunday at 10:00.
 
+Tries in order:
+  1. SMTP SSL  port 465 (smtp.gmail.com)
+  2. SMTP STARTTLS port 587
+  3. Gmail REST API via urllib (HTTPS — always open on Railway)
+
 Required env vars:
-  SMTP_HOST  (default: smtp.gmail.com)
-  SMTP_PORT  (default: 587)
-  SMTP_USER  — sender Gmail address
-  SMTP_PASS  — Gmail App Password (not regular password)
+  SMTP_USER  — Gmail address (flatfinderilbot@gmail.com)
+  SMTP_PASS  — Gmail App Password (16 chars, no spaces)
   SMTP_FROM  — display name (default: FlatFinderIL)
 """
 
 import os
+import ssl
 import smtplib
 import logging
+import json
+import urllib.request
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import database as db
 
 logger = logging.getLogger(__name__)
 
-SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
 SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = os.environ.get("SMTP_PASS", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", "FlatFinderIL")
@@ -135,17 +139,61 @@ def send_report(user_id: int) -> bool:
     msg["To"]      = email
     msg.attach(MIMEText(html, "html", "utf-8"))
 
+    # ── Try 1: SMTP SSL port 465 ────────────────────────────────────────────
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx, timeout=15) as server:
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, email, msg.as_bytes())
+        logger.info(f"[SSL-465] Report sent to {email}")
+        return True
+    except Exception as e1:
+        logger.warning(f"[SSL-465] Failed: {e1} — trying STARTTLS 587")
+
+    # ── Try 2: SMTP STARTTLS port 587 ───────────────────────────────────────
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
             server.ehlo()
             server.starttls()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, email, msg.as_bytes())
-        logger.info(f"Weekly report sent to {email} (user {user_id})")
+        logger.info(f"[STARTTLS-587] Report sent to {email}")
         return True
-    except Exception as e:
-        logger.error(f"Failed to send report to {email}: {e}")
-        return False
+    except Exception as e2:
+        logger.warning(f"[STARTTLS-587] Failed: {e2} — trying Gmail REST API")
+
+    # ── Try 3: Resend HTTP API (port 443 — always open on Railway) ──────────
+    # Requires RESEND_API_KEY env var (free at resend.com — 100 emails/day)
+    resend_key = os.environ.get("RESEND_API_KEY", "")
+    if resend_key:
+        try:
+            payload = json.dumps({
+                "from":    f"{SMTP_FROM} <onboarding@resend.dev>",
+                "to":      [email],
+                "subject": msg["Subject"],
+                "html":    html,
+            }).encode()
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=payload,
+                headers={
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type":  "application/json",
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read())
+            if result.get("id"):
+                logger.info(f"[RESEND] Report sent to {email}, id={result['id']}")
+                return True
+        except Exception as e3:
+            logger.error(f"[RESEND] Failed: {e3}")
+
+    logger.error(f"[ALL-METHODS] Could not send to {email}. "
+                 f"Errors: SSL={e1} | STARTTLS={e2} | "
+                 f"{'No RESEND_API_KEY' if not resend_key else 'Resend failed'}")
+    return False
 
 
 def send_all_weekly_reports():
