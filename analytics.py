@@ -310,6 +310,63 @@ def get_analytics(date_from: str = None, date_to: str = None):
     user_added.sort(key=lambda x: x["date_added"], reverse=True)
     cabinets.sort(key=lambda x: x["last_date"], reverse=True)
 
+    # ── Email subscribers ──────────────────────────────────────────────────
+    agent_profiles   = db_data.get("agent_profiles", {})
+    service_profiles = db_data.get("service_profiles", {})
+    services_dict    = db_data.get("services", {})
+
+    # Agents with email
+    email_agents = []
+    for uid, prof in agent_profiles.items():
+        if not prof.get("email"):
+            continue
+        # get their listings
+        lids = db_data.get("user_listings", {}).get(uid, [])
+        active_count = sum(1 for lid in lids if db_data["listings"].get(str(lid), {}).get("active"))
+        total_views  = sum(db_data["listings"].get(str(lid), {}).get("views", 0) for lid in lids)
+        email_agents.append({
+            "user_id":    uid,
+            "name":       prof.get("owner_name") or f"Агент #{uid}",
+            "email":      prof.get("email"),
+            "lang":       prof.get("lang", "ru"),
+            "type":       "🏢 Агент",
+            "listings":   len(lids),
+            "active":     active_count,
+            "views":      total_views,
+        })
+
+    # Service providers with email (movers/packers)
+    email_services = []
+    for uid, prof in service_profiles.items():
+        if not prof.get("email"):
+            continue
+        user_svcs = [s for s in services_dict.values()
+                     if str(s.get("user_id","")) == uid
+                     and s.get("service_type") in ("moving","packing")
+                     and s.get("active", True)]
+        if not user_svcs:
+            continue
+        latest = sorted(user_svcs, key=lambda x: x.get("date_added",""), reverse=True)[0]
+        svc_type_label = {"moving": "🚚 Перевозчик", "packing": "📦 Упаковщик"}.get(latest.get("service_type",""), "")
+        total_views = sum(s.get("views", 0) for s in user_svcs)
+        email_services.append({
+            "user_id":  uid,
+            "name":     latest.get("owner_name") or f"#{uid}",
+            "email":    prof.get("email"),
+            "lang":     latest.get("lang", "ru"),
+            "type":     svc_type_label,
+            "services": len(user_svcs),
+            "views":    total_views,
+        })
+
+    email_subscribers = {
+        "agents":         sorted(email_agents,   key=lambda x: x["views"], reverse=True),
+        "services":       sorted(email_services, key=lambda x: x["views"], reverse=True),
+        "total_agents":   len(email_agents),
+        "total_services": len(email_services),
+        "total":          len(email_agents) + len(email_services),
+    }
+
     # ── Seller type split (agent vs private) ──────────────────────────────
     agent_listings   = [l for l in listings if l.get("seller_type") == "agent"]
     private_listings = [l for l in listings if l.get("seller_type") == "private"]
@@ -380,6 +437,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
             "user_added": user_added,
         },
         "cabinets": cabinets,
+        "email_subscribers": email_subscribers,
         "seller_stats": seller_stats,
         "responses": {"total": 0, "favorites": 0, "contacts": 0, "avg_per_user": 0, "by_day": last_7},
         "income": {

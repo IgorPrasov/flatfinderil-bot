@@ -106,6 +106,7 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('services')">🚚 Услуги</button>
     <button class="nav-btn" onclick="showTab('cabinets')">🗂 Кабинеты</button>
     <button class="nav-btn" onclick="showTab('sellers')">🏢 Агент / Частные</button>
+    <button class="nav-btn" onclick="showTab('emails')">📧 Email рассылка</button>
     <button class="nav-btn" onclick="showTab('crm')">👥 CRM</button>
     <button class="nav-btn" onclick="showTab('engage')">💬 Вовлечённость</button>
     <button class="nav-btn" onclick="showTab('money')">💰 Доход</button>
@@ -283,6 +284,42 @@ canvas{max-width:100%}
       <h3>📋 Последние объявления частных лиц</h3>
       <table><thead><tr><th>Город</th><th>Комнат</th><th>Цена</th><th>Тип</th><th>Дата</th></tr></thead>
       <tbody id="tbl-private-recent"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Email subscribers -->
+  <div class="tab" id="tab-emails">
+    <div class="kpi-row" id="kpi-emails"></div>
+
+    <div class="card">
+      <h3>🏢 Агенты с подпиской на отчёты</h3>
+      <table>
+        <thead><tr>
+          <th>Имя</th><th>Email</th><th>Язык</th>
+          <th style="text-align:right">Объявл.</th>
+          <th style="text-align:right">Активных</th>
+          <th style="text-align:right">👁 Просм.</th>
+        </tr></thead>
+        <tbody id="tbl-email-agents"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>🚚 Перевозчики и упаковщики с подпиской</h3>
+      <table>
+        <thead><tr>
+          <th>Имя</th><th>Email</th><th>Тип</th><th>Язык</th>
+          <th style="text-align:right">Услуг</th>
+          <th style="text-align:right">👁 Просм.</th>
+        </tr></thead>
+        <tbody id="tbl-email-services"></tbody>
+      </table>
+    </div>
+
+    <div class="card" style="background:#f0fff8;border:1px solid #c3eed8">
+      <h3>📅 Следующая рассылка</h3>
+      <p id="next-report-date" style="font-size:15px;font-weight:600;color:#2a7a52"></p>
+      <p style="font-size:12px;color:#888">Каждое воскресенье в 10:00 по израильскому времени (UTC+3)</p>
     </div>
   </div>
 
@@ -900,6 +937,50 @@ function render(){
   document.getElementById("tbl-private-recent").innerHTML = prRecent.length
     ? prRecent.map(l=>`<tr><td>${l.city||'—'}</td><td>${l.rooms||'—'}</td><td>${(l.price||0).toLocaleString()} ₪</td><td>${l.deal_type||'—'}</td><td>${l.date_added||'—'}</td></tr>`).join("")
     : '<tr><td colspan="5" style="text-align:center;color:#888">Нет данных</td></tr>';
+
+  // ── Email subscribers tab ───────────────────────────────────────────────
+  const EM = D.email_subscribers || {agents:[],services:[],total:0,total_agents:0,total_services:0};
+  const langFlag = l => ({"ru":"🇷🇺","en":"🇬🇧","he":"🇮🇱"}[l]||"🌐");
+
+  document.getElementById("kpi-emails").innerHTML =
+    kpi("📧","Всего подписчиков", n(EM.total), "получают еженедельный отчёт", GREEN)+
+    kpi("🏢","Агентов",           n(EM.total_agents),   "с email", BLUE)+
+    kpi("🚚","Перевозчики/Упаковщики", n(EM.total_services), "с email", GOLD);
+
+  // Next Sunday calc
+  const now = new Date();
+  const daysUntilSun = (7 - now.getDay()) % 7 || 7;
+  const nextSun = new Date(now);
+  nextSun.setDate(now.getDate() + daysUntilSun);
+  nextSun.setHours(10, 0, 0, 0);
+  document.getElementById("next-report-date").textContent =
+    `📅 ${nextSun.toLocaleDateString("ru-RU",{weekday:"long",day:"numeric",month:"long"})} — 10:00 IL`;
+
+  // Agents table
+  const agRows = EM.agents || [];
+  document.getElementById("tbl-email-agents").innerHTML = agRows.length
+    ? agRows.map(a=>`<tr>
+        <td><b>${a.name||'—'}</b></td>
+        <td><a href="mailto:${a.email}" style="color:#2AABEE">${a.email}</a></td>
+        <td style="text-align:center">${langFlag(a.lang)} ${(a.lang||'').toUpperCase()}</td>
+        <td style="text-align:right">${a.listings||0}</td>
+        <td style="text-align:right;color:#4CAF8A">${a.active||0}</td>
+        <td style="text-align:right;font-weight:600;color:#2AABEE">${n(a.views||0)}</td>
+      </tr>`).join("")
+    : '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Нет агентов с email</td></tr>';
+
+  // Services table
+  const svcRows = EM.services || [];
+  document.getElementById("tbl-email-services").innerHTML = svcRows.length
+    ? svcRows.map(s=>`<tr>
+        <td><b>${s.name||'—'}</b></td>
+        <td><a href="mailto:${s.email}" style="color:#2AABEE">${s.email}</a></td>
+        <td>${s.type||'—'}</td>
+        <td style="text-align:center">${langFlag(s.lang)} ${(s.lang||'').toUpperCase()}</td>
+        <td style="text-align:right">${s.services||0}</td>
+        <td style="text-align:right;font-weight:600;color:#2AABEE">${n(s.views||0)}</td>
+      </tr>`).join("")
+    : '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Нет перевозчиков/упаковщиков с email</td></tr>';
 
   // ── CRM tab ────────────────────────────────────────────────────────────
   const CR = D.crm || {};
