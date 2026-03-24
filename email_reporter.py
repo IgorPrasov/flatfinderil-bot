@@ -168,7 +168,7 @@ def send_report(user_id: int) -> bool:
     if resend_key:
         try:
             payload = json.dumps({
-                "from":    f"{SMTP_FROM} <onboarding@resend.dev>",
+                "from":    f"{SMTP_FROM} <flatfinderilbot@gmail.com>",
                 "to":      [email],
                 "subject": msg["Subject"],
                 "html":    html,
