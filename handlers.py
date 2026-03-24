@@ -40,7 +40,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # New user: show join screen first
     if not context.user_data.get("joined"):
-        members = get_member_count()
         text = (
             f"🏠 <b>FlatFinderIL</b>\n\n"
             f"Поиск недвижимости в Израиле — аренда и покупка.\n\n"
@@ -48,7 +47,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"✅ Умный поиск по фильтрам\n"
             f"✅ Карты, фото, контакты\n"
             f"✅ Уведомления о новых объявлениях\n\n"
-            f"👥 Участников: <b>{members}</b>\n\n"
             f"Нажмите кнопку ниже, чтобы вступить:"
         )
         await update.message.reply_text(text, reply_markup=join_keyboard(), parse_mode="HTML")
