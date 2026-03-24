@@ -82,20 +82,43 @@ def track_subscription(user_id: int, plan: str):
         data["users"][uid]["subscribed"] = True
     _save_stats(data)
 
-def get_analytics():
+def get_analytics(date_from: str = None, date_to: str = None):
     data = _load_stats()
     import database as db
-    listings = db.get_all_listings(limit=10000)
+    listings_all = db.get_all_listings(limit=10000)
     today = datetime.now().strftime("%Y-%m-%d")
     week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+    # ── Date range setup ──────────────────────────────────────────────────────
+    # Normalise the period so all downstream counters respect it
+    _df = date_from or "2020-01-01"   # "all time" fallback
+    _dt = date_to   or today
+    # Make sure _dt is inclusive end
+    in_period = lambda d: _df <= (d or "") <= _dt
+
+    # Filter listings to the selected period
+    listings = [l for l in listings_all if in_period(l.get("date_added",""))]
+    # When no date filter given we show totals, so use all listings for city/source counters
+    listings_for_counters = listings if date_from else listings_all
+
     users = data.get("users", {})
     total_users = len(users)
-    new_today = sum(1 for u in users.values() if u.get("first_seen") == today)
+
+    # User counts scoped to period
+    new_today  = sum(1 for u in users.values() if u.get("first_seen") == today)
     active_today = sum(1 for u in users.values() if u.get("last_seen") == today)
-    new_week = sum(1 for u in users.values() if u.get("first_seen", "") >= week_ago)
+    new_week   = sum(1 for u in users.values() if u.get("first_seen", "") >= week_ago)
     active_week = sum(1 for u in users.values() if u.get("last_seen", "") >= week_ago)
+    # Period-specific
+    new_period    = sum(1 for u in users.values() if in_period(u.get("first_seen","")))
+    active_period = sum(1 for u in users.values() if in_period(u.get("last_seen","")))
+
     lang_counter = Counter(u.get("lang", "ru") for u in users.values())
-    searches = data.get("searches", [])
+
+    # Searches scoped to period
+    searches_all = data.get("searches", [])
+    searches = [s for s in searches_all if in_period(s.get("date", ""))] if date_from else searches_all
+
     city_counter = Counter()
     filter_counter = Counter()
     for s in searches:
@@ -108,25 +131,51 @@ def get_analytics():
         if s.get("shelter"): filter_counter["Мамад/Миклат"] += 1
         if s.get("elevator") == "yes": filter_counter["Лифт"] += 1
         if s.get("rooms_min"): filter_counter[f"от {s['rooms_min']} комн."] += 1
+
     subs = data.get("subscriptions", {})
     sub_plans = Counter(v.get("plan") for v in subs.values())
     conversion = round(len(subs) / total_users * 100, 1) if total_users > 0 else 0
+
+    # ── Daily breakdown for the period ────────────────────────────────────────
     daily = data.get("daily", {})
-    last_7 = []
-    days = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
-    for i in range(6, -1, -1):
-        d = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
-        day_data = daily.get(d, {})
-        dow = (datetime.now() - timedelta(days=i)).weekday()
-        last_7.append({
-            "day": days[dow], "date": d,
-            "searches": day_data.get("searches", 0),
-            "users": len(day_data.get("users", [])),
-            "new": sum(1 for u in users.values() if u.get("first_seen") == d),
-        })
-    listing_cities = Counter(l.get("city","") for l in listings)
-    listing_sources = Counter(l.get("source","manual") for l in listings)
-    source_details = Counter(l.get("contact","") for l in listings if l.get("source") == "telegram")
+    days_ru = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
+
+    # Build day list: if period given use it, else last 7 days
+    if date_from and date_to:
+        from_dt = datetime.strptime(_df, "%Y-%m-%d")
+        to_dt   = datetime.strptime(_dt, "%Y-%m-%d")
+        delta_days = (to_dt - from_dt).days + 1
+        # Cap at 90 days for display
+        cap = min(delta_days, 90)
+        day_list = []
+        for i in range(cap - 1, -1, -1):
+            d = (to_dt - timedelta(days=i)).strftime("%Y-%m-%d")
+            day_data = daily.get(d, {})
+            dow = (to_dt - timedelta(days=i)).weekday()
+            day_list.append({
+                "day": days_ru[dow], "date": d,
+                "searches": day_data.get("searches", 0),
+                "users": len(day_data.get("users", [])),
+                "new": sum(1 for u in users.values() if u.get("first_seen") == d),
+            })
+    else:
+        day_list = []
+        for i in range(6, -1, -1):
+            d = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+            day_data = daily.get(d, {})
+            dow = (datetime.now() - timedelta(days=i)).weekday()
+            day_list.append({
+                "day": days_ru[dow], "date": d,
+                "searches": day_data.get("searches", 0),
+                "users": len(day_data.get("users", [])),
+                "new": sum(1 for u in users.values() if u.get("first_seen") == d),
+            })
+
+    last_7 = day_list  # keep compat name
+
+    listing_cities  = Counter(l.get("city","")    for l in listings_for_counters)
+    listing_sources = Counter(l.get("source","manual") for l in listings_for_counters)
+    source_details  = Counter(l.get("contact","") for l in listings_for_counters if l.get("source") == "telegram")
     income = round(
         sub_plans.get("week", 0) * 19.90 +
         sub_plans.get("two_weeks", 0) * 29.90 +
@@ -296,9 +345,11 @@ def get_analytics():
     }
 
     return {
+        "period": {"from": _df, "to": _dt, "days": (datetime.strptime(_dt,"%Y-%m-%d")-datetime.strptime(_df,"%Y-%m-%d")).days+1},
         "users": {
             "total": total_users, "new_today": new_today,
             "active_today": active_today, "new_week": new_week, "active_week": active_week,
+            "new_period": new_period, "active_period": active_period,
         },
         "members": {
             "total": total_members,
@@ -311,6 +362,7 @@ def get_analytics():
         ],
         "searches_by_city": [{"city": c, "count": n} for c, n in city_counter.most_common(8)],
         "popular_filters": [{"filter": f, "count": n, "pct": round(n/len(searches)*100) if searches else 0} for f, n in filter_counter.most_common(8)],
+        "total_searches_period": len(searches),
         "activity_week": last_7,
         "subscription": {
             "trial": total_users - len(subs),

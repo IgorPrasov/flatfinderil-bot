@@ -1,4 +1,5 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 import json, sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -6,10 +7,14 @@ PORT = int(os.environ.get("PORT", 8765))
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/analytics" or self.path == "/":
+        parsed = urlparse(self.path)
+        if parsed.path in ("/analytics", "/"):
             try:
                 from analytics import get_analytics
-                data = get_analytics()
+                qs = parse_qs(parsed.query)
+                date_from = (qs.get("from") or [None])[0]
+                date_to   = (qs.get("to")   or [None])[0]
+                data = get_analytics(date_from=date_from, date_to=date_to)
             except Exception as e:
                 data = {"error": str(e)}
             body = json.dumps(data, ensure_ascii=False).encode()
