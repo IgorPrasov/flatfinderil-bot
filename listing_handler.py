@@ -18,8 +18,8 @@ import upload_handler as uploader
     ADD_ADDRESS,
     ADD_ROOMS, ADD_FLOOR, ADD_AREA, ADD_PRICE,
     ADD_PARKING, ADD_POOL, ADD_SHELTER, ADD_ELEVATOR,
-    ADD_INFRASTRUCTURE, ADD_DESCRIPTION, ADD_NAME, ADD_PHONE, ADD_CONTACT, ADD_PHOTOS, ADD_CONFIRM
-) = range(22)
+    ADD_INFRASTRUCTURE, ADD_DESCRIPTION, ADD_NAME, ADD_PHONE, ADD_CONTACT, ADD_EMAIL, ADD_PHOTOS, ADD_CONFIRM
+) = range(23)
 
 PROPERTY_TYPES = {
     "apartment": {"ru": "🏢 Квартира", "en": "🏢 Apartment", "he": "🏢 דירה"},
@@ -355,6 +355,11 @@ class ListingHandler:
                 ADD_CONTACT: [
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_contact),
+                ],
+                ADD_EMAIL: [
+                    CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
+                    CallbackQueryHandler(self.handle_email_skip, pattern="^add_email_skip$"),
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_email),
                 ],
                 ADD_PHOTOS: [
                     MessageHandler(filters.PHOTO, self.handle_photo_message),
@@ -699,7 +704,31 @@ class ListingHandler:
             await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_PHONE
             return ADD_PHONE
+        elif state == ADD_EMAIL:
+            text = _step_text(context,
+                "Контактная информация\n\nВведите ваш Telegram @username или дополнительный контакт:",
+                "Contact information\n\nEnter your Telegram @username or additional contact:",
+                "פרטי קשר\n\nהזן את ה-Telegram @username או פרטי קשר נוספים:"
+            )
+            await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
+            context.user_data["add_state"] = ADD_CONTACT
+            return ADD_CONTACT
         elif state == ADD_PHOTOS:
+            # If agent, go back to email; otherwise go back to contact
+            if context.user_data["add_listing"].get("seller_type") == "agent":
+                lang = get_lang(context)
+                user_id = update.effective_user.id
+                existing_email = db.get_agent_email(user_id)
+                hint = f" (сохранён: {existing_email})" if existing_email else ""
+                skip_btn = InlineKeyboardMarkup([[InlineKeyboardButton("⏭ Пропустить", callback_data="add_email_skip")]])
+                text = _step_text(context,
+                    f"📧 Email для отчётов{hint}",
+                    f"📧 Email for reports{hint}",
+                    f"📧 אימייל לדוחות{hint}"
+                )
+                await query.edit_message_text(text, reply_markup=skip_btn, parse_mode="HTML")
+                context.user_data["add_state"] = ADD_EMAIL
+                return ADD_EMAIL
             text = _step_text(context,
                 "Контактная информация\n\nВведите ваш Telegram @username или дополнительный контакт:",
                 "Contact information\n\nEnter your Telegram @username or additional contact:",
@@ -1028,14 +1057,78 @@ class ListingHandler:
         contact = update.message.text.strip()
         context.user_data["add_listing"]["contact"] = contact
         context.user_data["add_listing"]["photos"] = []
-        context.user_data["add_state"] = ADD_PHOTOS
 
+        # Agents get email step; private persons go straight to photos
+        if context.user_data["add_listing"].get("seller_type") == "agent":
+            context.user_data["add_state"] = ADD_EMAIL
+            lang = get_lang(context)
+            # Check if email already saved for this agent
+            user_id = update.effective_user.id
+            existing_email = db.get_agent_email(user_id)
+            if existing_email:
+                hint = {"ru": f"(сохранён: {existing_email})", "en": f"(saved: {existing_email})", "he": f"(שמור: {existing_email})"}[lang]
+            else:
+                hint = ""
+            skip_btn = InlineKeyboardMarkup([[
+                InlineKeyboardButton(
+                    {"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}[lang],
+                    callback_data="add_email_skip"
+                )
+            ]])
+            text = _step_text(context,
+                f"📧 Email для отчётов {hint}\n\nВведите e-mail адрес — раз в неделю будем присылать отчёт о просмотрах ваших объявлений.\nИли пропустите.",
+                f"📧 Email for reports {hint}\n\nEnter your e-mail — weekly report with views will be sent.\nOr skip.",
+                f"📧 אימייל לדוחות {hint}\n\nהזן כתובת אימייל — נשלח דוח שבועי עם צפיות.\nאו דלג."
+            )
+            await update.message.reply_text(text, reply_markup=skip_btn, parse_mode="HTML")
+            return ADD_EMAIL
+
+        # Private person — straight to photos
+        context.user_data["add_state"] = ADD_PHOTOS
         text = _step_text(context,
             "📸 Фотографии\n\nОтправьте фотографии объекта (до 10 штук).\nКогда закончите — нажмите кнопку ниже.",
             "📸 Photos\n\nSend photos of the property (up to 10).\nWhen done, press the button below.",
             "📸 תמונות\n\nשלח תמונות של הנכס (עד 10).\nכשתסיים, לחץ על הכפתור למטה."
         )
         await update.message.reply_text(text, reply_markup=_photos_keyboard(context, 0))
+        return ADD_PHOTOS
+
+    async def handle_email(self, update, context):
+        email = update.message.text.strip().lower()
+        import re
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+            lang = get_lang(context)
+            await update.message.reply_text(
+                {"ru": "❌ Неверный формат e-mail. Попробуйте ещё раз или нажмите Пропустить.",
+                 "en": "❌ Invalid e-mail format. Try again or press Skip.",
+                 "he": "❌ כתובת אימייל שגויה. נסה שוב או לחץ דלג."}[lang]
+            )
+            return ADD_EMAIL
+        user_id = update.effective_user.id
+        db.save_agent_email(user_id, email)
+        context.user_data["add_listing"]["agent_email"] = email
+        await update.message.reply_text(
+            _confirmed(context, "Email сохранён", "Email saved", "אימייל נשמר", f"📧 {email}"),
+            parse_mode="HTML"
+        )
+        return await self._go_to_photos(update, context)
+
+    async def handle_email_skip(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        return await self._go_to_photos(update, context, via_query=True)
+
+    async def _go_to_photos(self, update, context, via_query=False):
+        context.user_data["add_state"] = ADD_PHOTOS
+        text = _step_text(context,
+            "📸 Фотографии\n\nОтправьте фотографии объекта (до 10 штук).\nКогда закончите — нажмите кнопку ниже.",
+            "📸 Photos\n\nSend photos of the property (up to 10).\nWhen done, press the button below.",
+            "📸 תמונות\n\nשלח תמונות של הנכס (עד 10).\nכשתסיים, לחץ על הכפתור למטה."
+        )
+        if via_query:
+            await update.callback_query.edit_message_text(text, reply_markup=_photos_keyboard(context, 0))
+        else:
+            await update.message.reply_text(text, reply_markup=_photos_keyboard(context, 0))
         return ADD_PHOTOS
 
     async def handle_photo_message(self, update, context):

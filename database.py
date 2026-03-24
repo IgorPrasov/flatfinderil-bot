@@ -97,6 +97,8 @@ def _load():
                     data["crm_notes"] = {}
                 if "paid_subscriptions" not in data:
                     data["paid_subscriptions"] = {}
+                if "agent_profiles" not in data:
+                    data["agent_profiles"] = {}
                 return data
         except:
             pass
@@ -841,4 +843,67 @@ def get_crm_stats() -> Dict:
         "deals_by_status": deals_by_status,
         "total_notes": total_notes,
         "recent_deals": recent_deals,
+    }
+
+
+# ── Agent profile (email + stats) ────────────────────────────────────────────
+
+def save_agent_email(user_id: int, email: str):
+    data = _load()
+    uid = str(user_id)
+    if "agent_profiles" not in data:
+        data["agent_profiles"] = {}
+    if uid not in data["agent_profiles"]:
+        data["agent_profiles"][uid] = {}
+    data["agent_profiles"][uid]["email"] = email
+    _save(data)
+
+def get_agent_email(user_id: int) -> Optional[str]:
+    data = _load()
+    uid = str(user_id)
+    return data.get("agent_profiles", {}).get(uid, {}).get("email")
+
+def get_all_agent_emails() -> List[Dict]:
+    """Return list of {user_id, email} for agents who have email set."""
+    data = _load()
+    result = []
+    for uid, profile in data.get("agent_profiles", {}).items():
+        if profile.get("email"):
+            result.append({"user_id": int(uid), "email": profile["email"]})
+    return result
+
+def get_agent_report_data(user_id: int) -> Dict:
+    """Collect weekly stats for a single agent."""
+    import datetime
+    data = _load()
+    uid = str(user_id)
+    listing_ids = data.get("user_listings", {}).get(uid, [])
+    listings = []
+    total_views = 0
+    for lid in listing_ids:
+        l = data["listings"].get(str(lid))
+        if l and l.get("active"):
+            views = l.get("views", 0)
+            total_views += views
+            listings.append({
+                "id": lid,
+                "title": l.get("title", "—"),
+                "city": l.get("city", "—"),
+                "rooms": l.get("rooms", "—"),
+                "price": l.get("price", 0),
+                "deal_type": l.get("deal_type", "—"),
+                "views": views,
+                "view_requests": l.get("view_requests", 0),
+                "date_added": l.get("date_added", "—"),
+            })
+    listings.sort(key=lambda x: x["views"], reverse=True)
+    profile = data.get("agent_profiles", {}).get(uid, {})
+    return {
+        "user_id": user_id,
+        "email": profile.get("email", ""),
+        "owner_name": profile.get("owner_name", ""),
+        "total_listings": len(listings),
+        "total_views": total_views,
+        "listings": listings,
+        "week": datetime.date.today().strftime("%d.%m.%Y"),
     }

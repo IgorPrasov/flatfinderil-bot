@@ -79,6 +79,9 @@ def main():
     from notifications import start_background_tasks
     start_background_tasks(app)
 
+    # Start weekly email reporter (Sunday 10:00)
+    _start_email_scheduler()
+
     logger.info("Bot started!")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
@@ -129,6 +132,33 @@ def start_web_server():
     server = HTTPServer(("0.0.0.0", port), WebHandler)
     logger.info(f"Web server on port {port}")
     server.serve_forever()
+
+
+def _email_scheduler_loop():
+    """Background thread: every Sunday at 10:00 IL time send weekly reports."""
+    import time
+    from datetime import datetime, timezone, timedelta
+    IL_TZ = timezone(timedelta(hours=3))  # Israel Standard Time (UTC+3)
+    sent_this_week = None
+    while True:
+        now = datetime.now(IL_TZ)
+        week_key = f"{now.isocalendar()[0]}-W{now.isocalendar()[1]}"
+        # Sunday=6 in Python weekday(), 10:00–10:59
+        if now.weekday() == 6 and now.hour == 10 and sent_this_week != week_key:
+            try:
+                from email_reporter import send_all_weekly_reports
+                ok, total = send_all_weekly_reports()
+                logger.info(f"Email scheduler: {ok}/{total} reports sent")
+                sent_this_week = week_key
+            except Exception as e:
+                logger.error(f"Email scheduler error: {e}")
+        time.sleep(60)   # check every minute
+
+
+def _start_email_scheduler():
+    t = threading.Thread(target=_email_scheduler_loop, daemon=True, name="email-scheduler")
+    t.start()
+    logger.info("Email scheduler started (runs every Sunday 10:00 IL)")
 
 web_thread = threading.Thread(target=start_web_server, daemon=True)
 web_thread.start()
