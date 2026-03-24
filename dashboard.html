@@ -589,7 +589,7 @@ function render(){
   const periodSub  = periodDays===1 ? "за выбранный день" : `за ${periodDays} дн.`;
 
   document.getElementById("kpi-overview").innerHTML=
-    kpi("🏠","Объявлений",n(D.listings.total),`${D.listings.telegram||0} из Telegram`,TG)+
+    kpi("🏠","Объявлений",n(D.listings.total),`+${D.listings.added_period||0} ${periodSub}`,TG)+
     kpi("🔔","Участников",n(M.total||0),`+${M.new_today||0} сегодня`,GREEN)+
     kpi("👥","Новых польз.",n(D.users.new_period||D.users.new_today),periodSub,PURPLE)+
     kpi("🔍","Поисков",n(D.total_searches_period||D.total_searches),periodSub,GOLD)+
@@ -609,9 +609,9 @@ function render(){
     kpi("📋","Топ фильтр",D.popular_filters[0]?.filter||"—","",GOLD);
 
   document.getElementById("kpi-listings").innerHTML=
-    kpi("📋","Всего",n(D.listings.total),"",TG)+
-    kpi("📱","Из Telegram",n(D.listings.telegram),"каждые 30 мин",GREEN)+
-    kpi("📡","Каналов",D.listings.sources.length,"активных",PURPLE);
+    kpi("📋","Всего в базе",n(D.listings.total),"",TG)+
+    kpi("📱","Из Telegram",n(D.listings.telegram),"каналов: "+D.listings.sources.length,GREEN)+
+    kpi("➕","За период",n(D.listings.added_period||0),periodSub,PURPLE);
 
   document.getElementById("kpi-money").innerHTML=
     kpi("💰","Доход сейчас",`${income} ₪/мес`,"",GREEN)+

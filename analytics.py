@@ -429,11 +429,12 @@ def get_analytics(date_from: str = None, date_to: str = None):
             "conversion": conversion,
         },
         "listings": {
-            "total": len(listings),
-            "telegram": listing_sources.get("telegram", 0),
-            "manual": listing_sources.get("manual", 0),
-            "by_city": [{"city": c, "count": n} for c, n in listing_cities.most_common(5)],
-            "sources": [{"name": s, "count": n} for s, n in source_details.most_common(5)],
+            "total": len(listings_all),          # всегда полный размер базы
+            "added_period": len(listings),        # добавлено за выбранный период
+            "telegram": Counter(l.get("source","manual") for l in listings_all).get("telegram", 0),
+            "manual": Counter(l.get("source","manual") for l in listings_all).get("manual", 0),
+            "by_city": [{"city": c, "count": n} for c, n in Counter(l.get("city","") for l in listings_all).most_common(5)],
+            "sources": [{"name": s, "count": n} for s, n in Counter(l.get("contact","") for l in listings_all if l.get("source") == "telegram").most_common(5)],
             "user_added": user_added,
         },
         "cabinets": cabinets,
