@@ -6,8 +6,8 @@ import database as db
 # States
 (
     SVC_MENU, SVC_REGION, SVC_CITY, SVC_RESULTS,
-    ADD_SVC_TYPE, ADD_SVC_REGION, ADD_SVC_CITY, ADD_SVC_PRICE, ADD_SVC_DESC, ADD_SVC_NAME, ADD_SVC_PHONE, ADD_SVC_CONFIRM
-) = range(10, 22)
+    ADD_SVC_TYPE, ADD_SVC_REGION, ADD_SVC_CITY, ADD_SVC_PRICE, ADD_SVC_DESC, ADD_SVC_NAME, ADD_SVC_PHONE, ADD_SVC_EMAIL, ADD_SVC_CONFIRM
+) = range(10, 23)
 
 SERVICE_TYPES = {
     "moving":   {"ru": "🚚 Перевозки",   "en": "🚚 Moving",   "he": "🚚 הובלות"},
@@ -203,6 +203,10 @@ class ServiceHandler:
                 ADD_SVC_PHONE: [
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.add_handle_phone),
                     CallbackQueryHandler(self.back_to_menu_cb, pattern="^svc_back$"),
+                ],
+                ADD_SVC_EMAIL: [
+                    CallbackQueryHandler(self.add_handle_email_skip, pattern="^svc_email_skip$"),
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.add_handle_email),
                 ],
                 ADD_SVC_CONFIRM: [
                     CallbackQueryHandler(self.add_confirm, pattern="^addsvc_confirm_yes$"),
@@ -406,7 +410,55 @@ class ServiceHandler:
 
     async def add_handle_phone(self, update, context):
         context.user_data["add_svc"]["phone"] = update.message.text.strip()
+        svc_type = context.user_data["add_svc"].get("service_type", "")
+        if svc_type in ("moving", "packing"):
+            lang = get_lang(context)
+            user = update.effective_user
+            existing = db.get_service_email(user.id if user else None)
+            hint = ""
+            if existing:
+                hint = {"ru": f"\n(сохранён: {existing})", "en": f"\n(saved: {existing})", "he": f"\n(שמור: {existing})"}[lang]
+            email_text = _t(context,
+                f"📧 Email для еженедельных отчётов о просмотрах:{hint}\n\n<i>Отчёт приходит каждое воскресенье в 10:00</i>",
+                f"📧 Email for weekly view reports:{hint}\n\n<i>Report arrives every Sunday at 10:00</i>",
+                f"📧 אימייל לדוחות שבועיים:{hint}\n\n<i>הדוח מגיע כל יום ראשון ב-10:00</i>"
+            )
+            skip_btn_label = {"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}.get(lang, "⏭ Skip")
+            skip_kb = InlineKeyboardMarkup([[InlineKeyboardButton(skip_btn_label, callback_data="svc_email_skip")]])
+            await update.message.reply_text(email_text, reply_markup=skip_kb, parse_mode="HTML")
+            return ADD_SVC_EMAIL
+        # cleaning — go straight to confirm
+        return await self._show_svc_confirm(update, context)
+
+    async def add_handle_email(self, update, context):
+        import re
+        email = update.message.text.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+            lang = get_lang(context)
+            await update.message.reply_text(
+                _t(context,
+                   "❌ Неверный формат e-mail. Попробуйте ещё раз или нажмите Пропустить.",
+                   "❌ Invalid e-mail. Try again or press Skip.",
+                   "❌ כתובת אימייל שגויה. נסה שוב או לחץ דלג.")
+            )
+            return ADD_SVC_EMAIL
+        db.save_service_email(update.effective_user.id, email)
+        context.user_data["add_svc"]["email"] = email
         lang = get_lang(context)
+        await update.message.reply_text(
+            _t(context, f"✅ Email сохранён: {email}", f"✅ Email saved: {email}", f"✅ אימייל נשמר: {email}"),
+            parse_mode="HTML"
+        )
+        return await self._show_svc_confirm(update, context)
+
+    async def add_handle_email_skip(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        return await self._show_svc_confirm(update, context, via_query=True)
+
+    async def _show_svc_confirm(self, update, context, via_query=False):
+        lang = get_lang(context)
+        context.user_data["add_svc"]["lang"] = lang
         svc = context.user_data["add_svc"]
         svc_type = svc.get("service_type", "")
         region_key = svc.get("region", "")
@@ -416,19 +468,44 @@ class ServiceHandler:
         }.get(lang)
         price = svc.get("price", 0)
         price_str = f"{price:,} ₪".replace(",", " ") if price else {"ru": "Договорная", "en": "Negotiable", "he": "לפי הסכמה"}.get(lang)
-        city = svc.get("city","")
+        city = svc.get("city", "")
         location_str = city if city else region_label
-        summary = (
-            f"📋 <b>Проверьте данные:</b>\n\n"
-            f"• Услуга: {type_label}\n"
-            f"• Район: {region_label}\n"
-            f"• Город: {location_str}\n"
-            f"• Цена: {price_str}\n"
-            f"• Описание: {svc.get('description','')}\n"
-            f"• Имя: {svc.get('owner_name','')}\n"
-            f"• Телефон: {svc.get('phone','')}"
+        summary = _t(context,
+            (
+                f"📋 <b>Проверьте данные:</b>\n\n"
+                f"• Услуга: {type_label}\n"
+                f"• Район: {region_label}\n"
+                f"• Город: {location_str}\n"
+                f"• Цена: {price_str}\n"
+                f"• Описание: {svc.get('description','')}\n"
+                f"• Имя: {svc.get('owner_name','')}\n"
+                f"• Телефон: {svc.get('phone','')}"
+            ),
+            (
+                f"📋 <b>Check your data:</b>\n\n"
+                f"• Service: {type_label}\n"
+                f"• Region: {region_label}\n"
+                f"• City: {location_str}\n"
+                f"• Price: {price_str}\n"
+                f"• Description: {svc.get('description','')}\n"
+                f"• Name: {svc.get('owner_name','')}\n"
+                f"• Phone: {svc.get('phone','')}"
+            ),
+            (
+                f"📋 <b>בדוק את הנתונים:</b>\n\n"
+                f"• שירות: {type_label}\n"
+                f"• אזור: {region_label}\n"
+                f"• עיר: {location_str}\n"
+                f"• מחיר: {price_str}\n"
+                f"• תיאור: {svc.get('description','')}\n"
+                f"• שם: {svc.get('owner_name','')}\n"
+                f"• טלפון: {svc.get('phone','')}"
+            ),
         )
-        await update.message.reply_text(summary, reply_markup=_confirm_kb(context), parse_mode="HTML")
+        if via_query:
+            await update.callback_query.edit_message_text(summary, reply_markup=_confirm_kb(context), parse_mode="HTML")
+        else:
+            await update.message.reply_text(summary, reply_markup=_confirm_kb(context), parse_mode="HTML")
         return ADD_SVC_CONFIRM
 
     async def add_confirm(self, update, context):
@@ -438,6 +515,7 @@ class ServiceHandler:
         svc = context.user_data.get("add_svc", {})
         svc["user_id"] = str(user.id)
         svc["category"] = "service"
+        svc["lang"] = get_lang(context)
         db.add_service(svc)
         lang = get_lang(context)
         text = _t(context,

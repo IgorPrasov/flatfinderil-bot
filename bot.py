@@ -58,19 +58,22 @@ async def cmd_testemail(update: Update, context):
     await update.message.reply_text("⏳ Отправляю тестовый отчёт...")
     try:
         import database as db
-        from email_reporter import send_report, send_all_weekly_reports
+        from email_reporter import send_report, send_all_weekly_reports, send_all_service_reports
         email = db.get_agent_email(user_id)
         if email:
             ok = send_report(user_id)
             if ok:
-                await update.message.reply_text(f"✅ Отчёт отправлен на {email}")
+                await update.message.reply_text(f"✅ Отчёт агента отправлен на {email}")
             else:
                 await update.message.reply_text("❌ Ошибка отправки. Проверьте SMTP настройки в логах.")
         else:
             # Send to all agents with email (admin test)
             ok, total = send_all_weekly_reports()
+            ok2, total2 = send_all_service_reports()
             await update.message.reply_text(
-                f"✅ Отчёты отправлены: {ok}/{total} агентов\n\n"
+                f"✅ Отчёты отправлены:\n"
+                f"• Агенты: {ok}/{total}\n"
+                f"• Перевозчики/упаковщики: {ok2}/{total2}\n\n"
                 f"(у вас нет email — добавьте через /add → Агент → введите email)"
             )
     except Exception as e:

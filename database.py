@@ -99,6 +99,8 @@ def _load():
                     data["paid_subscriptions"] = {}
                 if "agent_profiles" not in data:
                     data["agent_profiles"] = {}
+                if "service_profiles" not in data:
+                    data["service_profiles"] = {}
                 return data
         except:
             pass
@@ -848,7 +850,7 @@ def get_crm_stats() -> Dict:
 
 # ── Agent profile (email + stats) ────────────────────────────────────────────
 
-def save_agent_email(user_id: int, email: str):
+def save_agent_email(user_id: int, email: str, lang: str = "ru"):
     data = _load()
     uid = str(user_id)
     if "agent_profiles" not in data:
@@ -856,6 +858,7 @@ def save_agent_email(user_id: int, email: str):
     if uid not in data["agent_profiles"]:
         data["agent_profiles"][uid] = {}
     data["agent_profiles"][uid]["email"] = email
+    data["agent_profiles"][uid]["lang"] = lang
     _save(data)
 
 def get_agent_email(user_id: int) -> Optional[str]:
@@ -902,8 +905,78 @@ def get_agent_report_data(user_id: int) -> Dict:
         "user_id": user_id,
         "email": profile.get("email", ""),
         "owner_name": profile.get("owner_name", ""),
+        "lang": profile.get("lang", "ru"),
         "total_listings": len(listings),
         "total_views": total_views,
         "listings": listings,
+        "week": datetime.date.today().strftime("%d.%m.%Y"),
+    }
+
+
+# ── Service provider profile (email + stats) ─────────────────────────────────
+
+def save_service_email(user_id: int, email: str):
+    data = _load()
+    uid = str(user_id)
+    if "service_profiles" not in data:
+        data["service_profiles"] = {}
+    if uid not in data["service_profiles"]:
+        data["service_profiles"][uid] = {}
+    data["service_profiles"][uid]["email"] = email
+    _save(data)
+
+
+def get_service_email(user_id) -> Optional[str]:
+    if user_id is None:
+        return None
+    data = _load()
+    return data.get("service_profiles", {}).get(str(user_id), {}).get("email")
+
+
+def get_all_service_emails() -> List[Dict]:
+    """Return {user_id, email, service_type, lang} for movers/packers with email."""
+    data = _load()
+    result = []
+    profiles = data.get("service_profiles", {})
+    services = data.get("services", {})
+    for uid, profile in profiles.items():
+        email = profile.get("email")
+        if not email:
+            continue
+        user_svcs = [s for s in services.values()
+                     if str(s.get("user_id", "")) == uid
+                     and s.get("service_type") in ("moving", "packing")]
+        if user_svcs:
+            latest = sorted(user_svcs, key=lambda x: x.get("date_added", ""), reverse=True)[0]
+            result.append({
+                "user_id": int(uid),
+                "email": email,
+                "service_type": latest.get("service_type", ""),
+                "owner_name": latest.get("owner_name", ""),
+                "lang": latest.get("lang", "ru"),
+            })
+    return result
+
+
+def get_service_report_data(user_id: int) -> Dict:
+    """Collect stats for a service provider."""
+    import datetime
+    data = _load()
+    uid = str(user_id)
+    profile = data.get("service_profiles", {}).get(uid, {})
+    services = [s for s in data.get("services", {}).values()
+                if str(s.get("user_id", "")) == uid
+                and s.get("active", True)
+                and s.get("service_type") in ("moving", "packing")]
+    total_views = sum(s.get("views", 0) for s in services)
+    return {
+        "user_id": user_id,
+        "email": profile.get("email", ""),
+        "owner_name": services[0].get("owner_name", "") if services else "",
+        "lang": services[0].get("lang", "ru") if services else "ru",
+        "service_type": services[0].get("service_type", "") if services else "",
+        "total_services": len(services),
+        "total_views": total_views,
+        "services": sorted(services, key=lambda x: x.get("views", 0), reverse=True),
         "week": datetime.date.today().strftime("%d.%m.%Y"),
     }

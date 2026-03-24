@@ -1105,7 +1105,8 @@ class ListingHandler:
             )
             return ADD_EMAIL
         user_id = update.effective_user.id
-        db.save_agent_email(user_id, email)
+        lang = get_lang(context)
+        db.save_agent_email(user_id, email, lang)
         context.user_data["add_listing"]["agent_email"] = email
         await update.message.reply_text(
             _confirmed(context, "Email сохранён", "Email saved", "אימייל נשמר", f"📧 {email}"),
