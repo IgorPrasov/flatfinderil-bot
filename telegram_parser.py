@@ -534,7 +534,8 @@ def scrape_channel_web(channel: str, limit: int = 100) -> list:
     seen_ids = set()
     before = None  # start from latest
 
-    for _page in range(3):  # up to 3 pages (~60 messages per page)
+    max_pages = max(3, (limit // 20) + 1)  # ~20 msgs per page
+    for _page in range(max_pages):  # paginate deep enough for the requested limit
         url = f"https://t.me/s/{channel}"
         if before:
             url += f"?before={before}"
@@ -695,18 +696,24 @@ async def run_parser():
     else:
         print("📡 Режим: веб-скрапинг (без авторизации)")
 
+    first_run = True
     while True:
         now = datetime.now().strftime("%H:%M:%S")
-        print(f"\n[{now}] Запуск парсинга {len(CHANNELS)} каналов...")
+        # Deep parse on first run to collect history, then normal limit
+        run_limit = 500 if first_run else 50
+        if first_run:
+            print(f"\n[{now}] 🔍 ГЛУБОКИЙ парсинг (первый запуск, limit={run_limit})...")
+        else:
+            print(f"\n[{now}] Запуск парсинга {len(CHANNELS)} каналов (limit={run_limit})...")
         total = 0
 
         for channel in CHANNELS:
             print(f"  @{channel} ...", end=" ", flush=True)
             try:
                 if client:
-                    n = await parse_channel_telethon(client, channel)
+                    n = await parse_channel_telethon(client, channel, limit=run_limit)
                 else:
-                    n = parse_channel_web(channel)
+                    n = parse_channel_web(channel, limit=run_limit)
                     await asyncio.sleep(0)   # yield to event loop
                 print(f"+{n}")
                 total += n
@@ -714,8 +721,11 @@ async def run_parser():
                 print(f"❌ {e}")
             await asyncio.sleep(3)   # be polite between channels
 
-        print(f"\n✅ Итого новых: {total} | Следующий запуск через 30 мин.")
-        await asyncio.sleep(1800)
+        was_deep = first_run
+        first_run = False
+        pause = 300 if was_deep else 1800  # 5 min after deep scan, 30 min normally
+        print(f"\n✅ Итого новых: {total} | Следующий запуск через {pause // 60} мин.")
+        await asyncio.sleep(pause)
 
 
 if __name__ == "__main__":
