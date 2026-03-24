@@ -42,7 +42,8 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
         card_word = {"ru":"Объявление","en":"Listing","he":"מודעה"}.get(lang)
         of_word = {"ru":"из","en":"of","he":"מתוך"}.get(lang)
         header = f"📋 <i>{card_word} {index+1} {of_word} {total}</i>\n\n"
-    photo = listing.get("photos", ["🏠"])[0]
+    photos_list = listing.get("photos") or ["🏠"]
+    photo = photos_list[0] if photos_list else "🏠"
     sqm_label = {"ru":"кв.м","en":"sq.m","he":'מ"ר'}.get(lang, "sq.m")
     city_label = {"ru":"Город","en":"City","he":"עיר"}.get(lang)
     hood_label = {"ru":"Район","en":"Area","he":"אזור"}.get(lang)
