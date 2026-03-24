@@ -83,6 +83,7 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('commercial')">🏢 Коммерческая</button>
     <button class="nav-btn" onclick="showTab('services')">🚚 Услуги</button>
     <button class="nav-btn" onclick="showTab('cabinets')">🗂 Кабинеты</button>
+    <button class="nav-btn" onclick="showTab('sellers')">🏢 Агент / Частные</button>
     <button class="nav-btn" onclick="showTab('crm')">👥 CRM</button>
     <button class="nav-btn" onclick="showTab('engage')">💬 Вовлечённость</button>
     <button class="nav-btn" onclick="showTab('money')">💰 Доход</button>
@@ -228,6 +229,41 @@ canvas{max-width:100%}
     <div id="cabinets-list"></div>
   </div>
 
+  <!-- Sellers: Agent vs Private -->
+  <div class="tab" id="tab-sellers">
+    <div class="kpi-row" id="kpi-sellers"></div>
+    <div class="grid2">
+      <div class="card">
+        <h3>🏢 Агенты / Риелторы</h3>
+        <div id="sellers-agent-stats"></div>
+        <canvas id="chart-agent-cities" height="180"></canvas>
+      </div>
+      <div class="card">
+        <h3>👤 Частные лица</h3>
+        <div id="sellers-private-stats"></div>
+        <canvas id="chart-private-cities" height="180"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h3>💰 Ценовые условия — Аренда</h3>
+      <canvas id="chart-price-rent" height="100"></canvas>
+    </div>
+    <div class="card">
+      <h3>💰 Ценовые условия — Продажа</h3>
+      <canvas id="chart-price-buy" height="100"></canvas>
+    </div>
+    <div class="card">
+      <h3>📋 Последние объявления агентов</h3>
+      <table><thead><tr><th>Город</th><th>Комнат</th><th>Цена</th><th>Тип</th><th>Дата</th></tr></thead>
+      <tbody id="tbl-agent-recent"></tbody></table>
+    </div>
+    <div class="card">
+      <h3>📋 Последние объявления частных лиц</h3>
+      <table><thead><tr><th>Город</th><th>Комнат</th><th>Цена</th><th>Тип</th><th>Дата</th></tr></thead>
+      <tbody id="tbl-private-recent"></tbody></table>
+    </div>
+  </div>
+
   <!-- CRM -->
   <div class="tab" id="tab-crm">
     <div class="kpi-row" id="kpi-crm"></div>
@@ -291,7 +327,7 @@ canvas{max-width:100%}
 </div>
 
 <script>
-const TG="#2AABEE",GREEN="#4CAF8A",GOLD="#EF9F27",PURPLE="#7F77DD",RED="#E24B4A";
+const TG="#2AABEE",GREEN="#4CAF8A",GOLD="#EF9F27",PURPLE="#7F77DD",RED="#E24B4A",BLUE="#2AABEE";
 const COLORS=[TG,GREEN,GOLD,PURPLE,RED,"#D85A30","#1D9E75"];
 
 const DEMO={
@@ -739,6 +775,45 @@ function render(){
       </div>
     </div>`).join('') :
     `<div class="card"><div class="card-body" style="text-align:center;padding:32px;color:#555">Нет пользователей с кабинетами</div></div>`;
+
+  // ── Sellers tab ─────────────────────────────────────────────────────────
+  const SL = D.seller_stats || {};
+  const agSL = SL.agent   || {total:0,active:0,price_rent:{min:0,max:0,avg:0},price_buy:{min:0,max:0,avg:0},top_cities:[],recent:[]};
+  const prSL = SL.private  || {total:0,active:0,price_rent:{min:0,max:0,avg:0},price_buy:{min:0,max:0,avg:0},top_cities:[],recent:[]};
+  document.getElementById("kpi-sellers").innerHTML =
+    kpi("🏢","Агентов",n(agSL.total),"активных: "+n(agSL.active),GREEN)+
+    kpi("👤","Частных лиц",n(prSL.total),"активных: "+n(prSL.active),BLUE)+
+    kpi("💰","Ср. аренда (агент)",agSL.price_rent.avg ? agSL.price_rent.avg.toLocaleString()+" ₪" : "—","",GOLD)+
+    kpi("💰","Ср. аренда (частник)",prSL.price_rent.avg ? prSL.price_rent.avg.toLocaleString()+" ₪" : "—","",PURPLE);
+
+  document.getElementById("sellers-agent-stats").innerHTML = `
+    <p>Всего: <b>${n(agSL.total)}</b> | Активных: <b>${n(agSL.active)}</b></p>
+    <p>Аренда: мин <b>${agSL.price_rent.min?.toLocaleString()||'—'} ₪</b> · макс <b>${agSL.price_rent.max?.toLocaleString()||'—'} ₪</b> · ср <b>${agSL.price_rent.avg?.toLocaleString()||'—'} ₪</b></p>
+    <p>Продажа: мин <b>${agSL.price_buy.min?.toLocaleString()||'—'} ₪</b> · макс <b>${agSL.price_buy.max?.toLocaleString()||'—'} ₪</b> · ср <b>${agSL.price_buy.avg?.toLocaleString()||'—'} ₪</b></p>`;
+
+  document.getElementById("sellers-private-stats").innerHTML = `
+    <p>Всего: <b>${n(prSL.total)}</b> | Активных: <b>${n(prSL.active)}</b></p>
+    <p>Аренда: мин <b>${prSL.price_rent.min?.toLocaleString()||'—'} ₪</b> · макс <b>${prSL.price_rent.max?.toLocaleString()||'—'} ₪</b> · ср <b>${prSL.price_rent.avg?.toLocaleString()||'—'} ₪</b></p>
+    <p>Продажа: мин <b>${prSL.price_buy.min?.toLocaleString()||'—'} ₪</b> · макс <b>${prSL.price_buy.max?.toLocaleString()||'—'} ₪</b> · ср <b>${prSL.price_buy.avg?.toLocaleString()||'—'} ₪</b></p>`;
+
+  if(agSL.top_cities.length) makeChart("chart-agent-cities","bar",agSL.top_cities.map(x=>x.city),[agSL.top_cities.map(x=>x.count)],["Агенты"],[GREEN]);
+  if(prSL.top_cities.length) makeChart("chart-private-cities","bar",prSL.top_cities.map(x=>x.city),[prSL.top_cities.map(x=>x.count)],["Частные"],[BLUE]);
+
+  // Price comparison bar charts
+  const rentLabels=["Агент (мин)","Агент (ср)","Агент (макс)","Частник (мин)","Частник (ср)","Частник (макс)"];
+  const rentData=[agSL.price_rent.min,agSL.price_rent.avg,agSL.price_rent.max,prSL.price_rent.min,prSL.price_rent.avg,prSL.price_rent.max];
+  makeChart("chart-price-rent","bar",rentLabels,[rentData],["Цена ₪"],[GREEN,GREEN,GREEN,BLUE,BLUE,BLUE]);
+  const buyData=[agSL.price_buy.min,agSL.price_buy.avg,agSL.price_buy.max,prSL.price_buy.min,prSL.price_buy.avg,prSL.price_buy.max];
+  makeChart("chart-price-buy","bar",rentLabels,[buyData],["Цена ₪"],[GREEN,GREEN,GREEN,BLUE,BLUE,BLUE]);
+
+  const agRecent = agSL.recent || [];
+  document.getElementById("tbl-agent-recent").innerHTML = agRecent.length
+    ? agRecent.map(l=>`<tr><td>${l.city||'—'}</td><td>${l.rooms||'—'}</td><td>${(l.price||0).toLocaleString()} ₪</td><td>${l.deal_type||'—'}</td><td>${l.date_added||'—'}</td></tr>`).join("")
+    : '<tr><td colspan="5" style="text-align:center;color:#888">Нет данных</td></tr>';
+  const prRecent = prSL.recent || [];
+  document.getElementById("tbl-private-recent").innerHTML = prRecent.length
+    ? prRecent.map(l=>`<tr><td>${l.city||'—'}</td><td>${l.rooms||'—'}</td><td>${(l.price||0).toLocaleString()} ₪</td><td>${l.deal_type||'—'}</td><td>${l.date_added||'—'}</td></tr>`).join("")
+    : '<tr><td colspan="5" style="text-align:center;color:#888">Нет данных</td></tr>';
 
   // ── CRM tab ────────────────────────────────────────────────────────────
   const CR = D.crm || {};

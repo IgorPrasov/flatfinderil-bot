@@ -113,8 +113,17 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
     else:
         address_str = ""
 
+    seller_type = listing.get("seller_type", "")
+    if seller_type == "agent":
+        seller_badge = {"ru": "🏢 Агент", "en": "🏢 Agent", "he": "🏢 סוכן"}.get(lang, "🏢 Agent")
+    elif seller_type == "private":
+        seller_badge = {"ru": "👤 Частное лицо", "en": "👤 Private", "he": "👤 פרטי"}.get(lang, "👤 Private")
+    else:
+        seller_badge = ""
+    seller_str = f"  <i>{seller_badge}</i>" if seller_badge else ""
+
     return (
-        f"{header}{photo} <b>{listing.get('title','—')}</b>\n\n"
+        f"{header}{photo} <b>{listing.get('title','—')}</b>{seller_str}\n\n"
         f"{deal_emoji} <b>{deal_label}</b>  |  {prop_type}\n"
         f"💰 <b>{price_str}</b>{price_fairness_str}\n\n"
         f"📍 <b>{city_label}:</b> {listing.get('city','—')}{f' ({district_name})' if district_name else ''}{address_str}\n"

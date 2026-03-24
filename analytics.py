@@ -261,6 +261,40 @@ def get_analytics():
     user_added.sort(key=lambda x: x["date_added"], reverse=True)
     cabinets.sort(key=lambda x: x["last_date"], reverse=True)
 
+    # ── Seller type split (agent vs private) ──────────────────────────────
+    agent_listings   = [l for l in listings if l.get("seller_type") == "agent"]
+    private_listings = [l for l in listings if l.get("seller_type") == "private"]
+
+    def _avg_price(lst):
+        prices = [l.get("price", 0) for l in lst if (l.get("price") or 0) > 0]
+        return round(sum(prices) / len(prices)) if prices else 0
+
+    def _price_ranges(lst):
+        prices = [l.get("price", 0) for l in lst if (l.get("price") or 0) > 0]
+        if not prices:
+            return {"min": 0, "max": 0, "avg": 0}
+        return {"min": min(prices), "max": max(prices), "avg": round(sum(prices) / len(prices))}
+
+    seller_stats = {
+        "agent": {
+            "total":       len(agent_listings),
+            "active":      sum(1 for l in agent_listings if l.get("active")),
+            "price_rent":  _price_ranges([l for l in agent_listings if l.get("deal_type") == "rent"]),
+            "price_buy":   _price_ranges([l for l in agent_listings if l.get("deal_type") == "buy"]),
+            "top_cities":  [{"city": c, "count": n} for c, n in Counter(l.get("city","") for l in agent_listings).most_common(5) if c],
+            "recent":      sorted(agent_listings, key=lambda x: x.get("date_added",""), reverse=True)[:5],
+        },
+        "private": {
+            "total":       len(private_listings),
+            "active":      sum(1 for l in private_listings if l.get("active")),
+            "price_rent":  _price_ranges([l for l in private_listings if l.get("deal_type") == "rent"]),
+            "price_buy":   _price_ranges([l for l in private_listings if l.get("deal_type") == "buy"]),
+            "top_cities":  [{"city": c, "count": n} for c, n in Counter(l.get("city","") for l in private_listings).most_common(5) if c],
+            "recent":      sorted(private_listings, key=lambda x: x.get("date_added",""), reverse=True)[:5],
+        },
+        "unknown": len(listings) - len(agent_listings) - len(private_listings),
+    }
+
     return {
         "users": {
             "total": total_users, "new_today": new_today,
@@ -294,6 +328,7 @@ def get_analytics():
             "user_added": user_added,
         },
         "cabinets": cabinets,
+        "seller_stats": seller_stats,
         "responses": {"total": 0, "favorites": 0, "contacts": 0, "avg_per_user": 0, "by_day": last_7},
         "income": {
             "current": income,
