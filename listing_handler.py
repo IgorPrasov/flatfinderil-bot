@@ -12,10 +12,11 @@ from subscription import has_access, is_trial_active
 # States
 (
     ADD_DEAL_TYPE, ADD_PROPERTY_TYPE, ADD_DISTRICT, ADD_CITY,
+    ADD_ADDRESS,
     ADD_ROOMS, ADD_FLOOR, ADD_AREA, ADD_PRICE,
     ADD_PARKING, ADD_POOL, ADD_SHELTER, ADD_ELEVATOR,
     ADD_INFRASTRUCTURE, ADD_DESCRIPTION, ADD_NAME, ADD_PHONE, ADD_CONTACT, ADD_PHOTOS, ADD_CONFIRM
-) = range(19)
+) = range(20)
 
 PROPERTY_TYPES = {
     "apartment": {"ru": "🏢 Квартира", "en": "🏢 Apartment", "he": "🏢 דירה"},
@@ -260,6 +261,10 @@ class ListingHandler:
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
                     CallbackQueryHandler(self.handle_city, pattern="^add_city_"),
                 ],
+                ADD_ADDRESS: [
+                    CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
+                    MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_address),
+                ],
                 ADD_ROOMS: [
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
                     CallbackQueryHandler(self.handle_rooms, pattern="^add_rooms_"),
@@ -371,9 +376,9 @@ class ListingHandler:
         context.user_data["add_listing"] = {}
         context.user_data["add_state"] = ADD_DEAL_TYPE
         text = _step_text(context,
-            "🏠 Добавление объявления\n\nШаг 1/14: Тип сделки",
-            "🏠 Add listing\n\nStep 1/14: Deal type",
-            "🏠 הוספת מודעה\n\nשלב 1/14: סוג עסקה"
+            "🏠 Добавление объявления\n\nШаг 1/15: Тип сделки",
+            "🏠 Add listing\n\nStep 1/15: Deal type",
+            "🏠 הוספת מודעה\n\nשלב 1/15: סוג עסקה"
         )
         if update.callback_query:
             await update.callback_query.answer()
@@ -388,79 +393,88 @@ class ListingHandler:
         state = context.user_data.get("add_state", ADD_DEAL_TYPE)
 
         if state == ADD_PROPERTY_TYPE:
-            text = _step_text(context, "Шаг 1/14: Тип сделки", "Step 1/14: Deal type", "שלב 1/14: סוג עסקה")
+            text = _step_text(context, "Шаг 1/15: Тип сделки", "Step 1/15: Deal type", "שלב 1/15: סוג עסקה")
             await query.edit_message_text(text, reply_markup=_deal_keyboard(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_DEAL_TYPE
             return ADD_DEAL_TYPE
         elif state == ADD_DISTRICT:
-            text = _step_text(context, "Шаг 2/14: Тип жилья", "Step 2/14: Property type", "שלב 2/14: סוג נכס")
+            text = _step_text(context, "Шаг 2/15: Тип жилья", "Step 2/15: Property type", "שלב 2/15: סוג נכס")
             await query.edit_message_text(text, reply_markup=_ptype_keyboard(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_PROPERTY_TYPE
             return ADD_PROPERTY_TYPE
         elif state == ADD_CITY:
-            text = _step_text(context, "Шаг 3/14: Округ", "Step 3/14: District", "שלב 3/14: מחוז")
+            text = _step_text(context, "Шаг 3/15: Округ", "Step 3/15: District", "שלב 3/15: מחוז")
             await query.edit_message_text(text, reply_markup=_district_keyboard(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_DISTRICT
             return ADD_DISTRICT
-        elif state == ADD_ROOMS:
+        elif state == ADD_ADDRESS:
             district = context.user_data["add_listing"].get("district", "tel_aviv")
-            text = _step_text(context, "Шаг 4/14: Город", "Step 4/14: City", "שלב 4/14: עיר")
+            text = _step_text(context, "Шаг 4/15: Город", "Step 4/15: City", "שלב 4/15: עיר")
             await query.edit_message_text(text, reply_markup=_city_keyboard(context, district), parse_mode="HTML")
             context.user_data["add_state"] = ADD_CITY
             return ADD_CITY
+        elif state == ADD_ROOMS:
+            text = _step_text(context,
+                "📍 Шаг 5/15: Адрес\n\nВведите улицу и номер дома.\nПример: <i>ул. Дизенгоф, 99</i>",
+                "📍 Step 5/15: Address\n\nEnter street and house number.\nExample: <i>Dizengoff St, 99</i>",
+                "📍 שלב 5/15: כתובת\n\nהזן את שם הרחוב ומספר הבית.\nדוגמה: <i>דיזנגוף 99</i>"
+            )
+            await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
+            context.user_data["add_state"] = ADD_ADDRESS
+            return ADD_ADDRESS
         elif state == ADD_FLOOR:
-            text = _step_text(context, "Шаг 5/14: Количество комнат", "Step 5/14: Number of rooms", "שלב 5/14: מספר חדרים")
+            text = _step_text(context, "Шаг 6/15: Количество комнат", "Step 6/15: Number of rooms", "שלב 6/15: מספר חדרים")
             await query.edit_message_text(text, reply_markup=_rooms_keyboard(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_ROOMS
             return ADD_ROOMS
         elif state == ADD_AREA:
-            text = _step_text(context, "Шаг 6/14: Этаж", "Step 6/14: Floor", "שלב 6/14: קומה")
+            text = _step_text(context, "Шаг 7/15: Этаж", "Step 7/15: Floor", "שלב 7/15: קומה")
             await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_FLOOR
             return ADD_FLOOR
         elif state == ADD_PRICE:
-            text = _step_text(context, "Шаг 7/14: Площадь (кв.м)", "Step 7/14: Area (sqm)", "שלב 7/14: שטח (מ\"ר)")
+            text = _step_text(context, "Шаг 8/15: Площадь (кв.м)", "Step 8/15: Area (sqm)", "שלב 8/15: שטח (מ\"ר)")
             await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_AREA
             return ADD_AREA
         elif state == ADD_PARKING:
             deal = context.user_data["add_listing"].get("deal_type", "rent")
             price_text = _step_text(context,
-                f"Шаг 8/14: Цена ({'₪/мес' if deal=='rent' else '₪'})",
-                f"Step 8/14: Price ({'₪/mo' if deal=='rent' else '₪'})",
-                f"שלב 8/14: מחיר ({'₪/חודש' if deal=='rent' else '₪'})"
+                f"Шаг 9/15: Цена ({'₪/мес' if deal=='rent' else '₪'})",
+                f"Step 9/15: Price ({'₪/mo' if deal=='rent' else '₪'})",
+                f"שלב 9/15: מחיר ({'₪/חודש' if deal=='rent' else '₪'})"
             )
             await query.edit_message_text(price_text, reply_markup=_back_kb(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_PRICE
             return ADD_PRICE
         elif state == ADD_POOL:
-            text = _step_text(context, "Шаг 9/14: Парковка", "Step 9/14: Parking", "שלב 9/14: חניה")
+            text = _step_text(context, "Шаг 10/15: Парковка", "Step 10/15: Parking", "שלב 10/15: חניה")
             await query.edit_message_text(text, reply_markup=_yes_no_keyboard(context, "add_parking"), parse_mode="HTML")
             context.user_data["add_state"] = ADD_PARKING
             return ADD_PARKING
         elif state == ADD_SHELTER:
-            text = _step_text(context, "Шаг 10/14: Бассейн", "Step 10/14: Pool", "שלב 10/14: בריכה")
+            text = _step_text(context, "Шаг 11/15: Бассейн", "Step 11/15: Pool", "שלב 11/15: בריכה")
             await query.edit_message_text(text, reply_markup=_yes_no_keyboard(context, "add_pool"), parse_mode="HTML")
             context.user_data["add_state"] = ADD_POOL
             return ADD_POOL
         elif state == ADD_ELEVATOR:
-            text = _step_text(context, "Шаг 11/14: Мамад/Миклат", "Step 11/14: Mamad/Miklat", "שלב 11/14: ממ\"ד/מקלט")
+            text = _step_text(context, "Шаг 12/15: Мамад/Миклат", "Step 12/15: Mamad/Miklat", "שלב 12/15: ממ\"ד/מקלט")
             await query.edit_message_text(text, reply_markup=_shelter_keyboard(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_SHELTER
             return ADD_SHELTER
         elif state == ADD_INFRASTRUCTURE:
-            text = _step_text(context, "Шаг 12/14: Лифт", "Step 12/14: Elevator", "שלב 12/14: מעלית")
+            text = _step_text(context, "Шаг 13/15: Лифт", "Step 13/15: Elevator", "שלב 13/15: מעלית")
             await query.edit_message_text(text, reply_markup=_yes_no_keyboard(context, "add_elevator"), parse_mode="HTML")
             context.user_data["add_state"] = ADD_ELEVATOR
             return ADD_ELEVATOR
         elif state == ADD_DESCRIPTION:
             selected = context.user_data["add_listing"].get("infrastructure", [])
-            text = _step_text(context, "Шаг 13/14: Инфраструктура", "Step 13/14: Infrastructure", "שלב 13/14: תשתיות")
+            text = _step_text(context, "Шаг 14/15: Инфраструктура", "Step 14/15: Infrastructure", "שלב 14/15: תשתיות")
             await query.edit_message_text(text, reply_markup=_infra_keyboard(context, selected), parse_mode="HTML")
             context.user_data["add_state"] = ADD_INFRASTRUCTURE
             return ADD_INFRASTRUCTURE
         elif state == ADD_NAME:
-            text = _step_text(context, "Шаг 14/14: Описание", "Step 14/14: Description", "שלב 14/14: תיאור")
+            text = _step_text(context, "Шаг 15/15: Описание", "Step 15/15: Description", "שלב 15/15: תיאור")
             await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
             context.user_data["add_state"] = ADD_DESCRIPTION
             return ADD_DESCRIPTION
@@ -509,10 +523,10 @@ class ListingHandler:
         deal_label = deal_labels.get(deal, deal_labels["rent"])[lang]
         await query.edit_message_text(_confirmed(context, "Тип сделки", "Deal type", "סוג עסקה", deal_label), parse_mode="HTML")
         if deal == "commercial":
-            text = _step_text(context, "Шаг 2/14: Тип помещения", "Step 2/14: Property type", "שלב 2/14: סוג נכס")
+            text = _step_text(context, "Шаг 2/15: Тип помещения", "Step 2/15: Property type", "שלב 2/15: סוג נכס")
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_comm_type_keyboard(context), parse_mode="HTML")
         else:
-            text = _step_text(context, "Шаг 2/14: Тип жилья", "Step 2/14: Property type", "שלב 2/14: סוג נכס")
+            text = _step_text(context, "Шаг 2/15: Тип жилья", "Step 2/15: Property type", "שלב 2/15: סוג נכס")
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_ptype_keyboard(context), parse_mode="HTML")
         return ADD_PROPERTY_TYPE
 
@@ -527,7 +541,7 @@ class ListingHandler:
         ptype_label = all_types.get(ptype, {}).get(lang, ptype)
         label_key = "Тип помещения" if ptype in COMMERCIAL_KEYS else "Тип жилья"
         await query.edit_message_text(_confirmed(context, label_key, "Property type", "סוג נכס", ptype_label), parse_mode="HTML")
-        text = _step_text(context, "Шаг 3/14: Округ", "Step 3/14: District", "שלב 3/14: מחוז")
+        text = _step_text(context, "Шаг 3/15: Округ", "Step 3/15: District", "שלב 3/15: מחוז")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_district_keyboard(context), parse_mode="HTML")
         return ADD_DISTRICT
 
@@ -540,7 +554,7 @@ class ListingHandler:
         lang = get_lang(context)
         dist_label = get_district_name(district, lang)
         await query.edit_message_text(_confirmed(context, "Округ", "District", "מחוז", dist_label), parse_mode="HTML")
-        text = _step_text(context, "Шаг 4/14: Город", "Step 4/14: City", "שלב 4/14: עיר")
+        text = _step_text(context, "Шаг 4/15: Город", "Step 4/15: City", "שלב 4/15: עיר")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_city_keyboard(context, district), parse_mode="HTML")
         return ADD_CITY
 
@@ -552,20 +566,35 @@ class ListingHandler:
         lang = get_lang(context)
         city_label = get_city_name(city, lang)
         await query.edit_message_text(_confirmed(context, "Город", "City", "עיר", city_label), parse_mode="HTML")
-        # Skip rooms for commercial listings
+        context.user_data["add_state"] = ADD_ADDRESS
+        text = _step_text(context,
+            "📍 Шаг 5/15: Адрес\n\nВведите улицу и номер дома.\nПример: <i>ул. Дизенгоф, 99</i>",
+            "📍 Step 5/15: Address\n\nEnter street and house number.\nExample: <i>Dizengoff St, 99</i>",
+            "📍 שלב 5/15: כתובת\n\nהזן את שם הרחוב ומספר הבית.\nדוגמה: <i>דיזנגוף 99</i>"
+        )
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
+        return ADD_ADDRESS
+
+    async def handle_address(self, update, context):
+        address = update.message.text.strip()
+        context.user_data["add_listing"]["address"] = address
+        await update.message.reply_text(
+            _confirmed(context, "Адрес", "Address", "כתובת", address), parse_mode="HTML"
+        )
         ptype = context.user_data["add_listing"].get("property_type", "")
+        # Skip rooms for commercial listings
         if ptype in COMMERCIAL_KEYS:
             context.user_data["add_listing"]["rooms"] = "0"
             context.user_data["add_state"] = ADD_FLOOR
             text = _step_text(context,
-                "Шаг 5/14: Этаж\n\nВведите номер этажа (например: 1)",
-                "Step 5/14: Floor\n\nEnter floor number (e.g.: 1)",
-                "שלב 5/14: קומה\n\nהזן מספר קומה (לדוגמה: 1)"
+                "Шаг 6/15: Этаж\n\nВведите номер этажа (например: 1)",
+                "Step 6/15: Floor\n\nEnter floor number (e.g.: 1)",
+                "שלב 6/15: קומה\n\nהזן מספר קומה (לדוגמה: 1)"
             )
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
             return ADD_FLOOR
         context.user_data["add_state"] = ADD_ROOMS
-        text = _step_text(context, "Шаг 5/14: Количество комнат", "Step 5/14: Number of rooms", "שלב 5/14: מספר חדרים")
+        text = _step_text(context, "Шаг 6/15: Количество комнат", "Step 6/15: Number of rooms", "שלב 6/15: מספר חדרים")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_rooms_keyboard(context), parse_mode="HTML")
         return ADD_ROOMS
 
@@ -577,9 +606,9 @@ class ListingHandler:
         context.user_data["add_state"] = ADD_FLOOR
         await query.edit_message_text(_confirmed(context, "Комнат", "Rooms", "חדרים", rooms), parse_mode="HTML")
         text = _step_text(context,
-            "Шаг 6/14: Этаж\n\nВведите номер этажа (например: 3)",
-            "Step 6/14: Floor\n\nEnter floor number (e.g.: 3)",
-            "שלב 6/14: קומה\n\nהזן מספר קומה (לדוגמה: 3)"
+            "Шаг 7/15: Этаж\n\nВведите номер этажа (например: 3)",
+            "Step 7/15: Floor\n\nEnter floor number (e.g.: 3)",
+            "שלב 7/15: קומה\n\nהזן מספר קומה (לדוגמה: 3)"
         )
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ADD_FLOOR
@@ -590,9 +619,9 @@ class ListingHandler:
         context.user_data["add_state"] = ADD_AREA
         await update.message.reply_text(_confirmed(context, "Этаж", "Floor", "קומה", floor), parse_mode="HTML")
         text = _step_text(context,
-            "Шаг 7/14: Площадь\n\nВведите площадь в кв.м (например: 85)",
-            "Step 7/14: Area\n\nEnter area in sqm (e.g.: 85)",
-            "שלב 7/14: שטח\n\nהזן שטח במ\"ר (לדוגמה: 85)"
+            "Шаг 8/15: Площадь\n\nВведите площадь в кв.м (например: 85)",
+            "Step 8/15: Area\n\nEnter area in sqm (e.g.: 85)",
+            "שלב 8/15: שטח\n\nהזן שטח במ\"ר (לדוגמה: 85)"
         )
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ADD_AREA
@@ -607,9 +636,9 @@ class ListingHandler:
         await update.message.reply_text(_confirmed(context, "Площадь", "Area", "שטח", f"{area} м²"), parse_mode="HTML")
         deal = context.user_data["add_listing"].get("deal_type", "rent")
         text = _step_text(context,
-            f"Шаг 8/14: Цена\n\nВведите цену в шекелях ({'в месяц' if deal=='rent' else 'полная стоимость'})",
-            f"Step 8/14: Price\n\nEnter price in shekels ({'per month' if deal=='rent' else 'total price'})",
-            f"שלב 8/14: מחיר\n\nהזן מחיר בשקלים ({'לחודש' if deal=='rent' else 'מחיר מלא'})"
+            f"Шаг 9/15: Цена\n\nВведите цену в шекелях ({'в месяц' if deal=='rent' else 'полная стоимость'})",
+            f"Step 9/15: Price\n\nEnter price in shekels ({'per month' if deal=='rent' else 'total price'})",
+            f"שלב 9/15: מחיר\n\nהזן מחיר בשקלים ({'לחודש' if deal=='rent' else 'מחיר מלא'})"
         )
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ADD_PRICE
@@ -623,7 +652,7 @@ class ListingHandler:
         context.user_data["add_listing"]["price"] = price
         context.user_data["add_state"] = ADD_PARKING
         await update.message.reply_text(_confirmed(context, "Цена", "Price", "מחיר", f"{price:,} ₪"), parse_mode="HTML")
-        text = _step_text(context, "Шаг 9/14: Парковка", "Step 9/14: Parking", "שלב 9/14: חניה")
+        text = _step_text(context, "Шаг 10/15: Парковка", "Step 10/15: Parking", "שלב 10/15: חניה")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_yes_no_keyboard(context, "add_parking"), parse_mode="HTML")
         return ADD_PARKING
 
@@ -637,7 +666,7 @@ class ListingHandler:
                            "Yes" if has_parking else "No",
                            "יש" if has_parking else "אין")
         await query.edit_message_text(_confirmed(context, "Парковка", "Parking", "חניה", label), parse_mode="HTML")
-        text = _step_text(context, "Шаг 10/14: Бассейн", "Step 10/14: Pool", "שלב 10/14: בריכה")
+        text = _step_text(context, "Шаг 11/15: Бассейн", "Step 11/15: Pool", "שלב 11/15: בריכה")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_yes_no_keyboard(context, "add_pool"), parse_mode="HTML")
         return ADD_POOL
 
@@ -651,7 +680,7 @@ class ListingHandler:
                            "Yes" if has_pool else "No",
                            "יש" if has_pool else "אין")
         await query.edit_message_text(_confirmed(context, "Бассейн", "Pool", "בריכה", label), parse_mode="HTML")
-        text = _step_text(context, "Шаг 11/14: Мамад/Миклат", "Step 11/14: Mamad/Miklat", "שלב 11/14: ממ\"ד/מקלט")
+        text = _step_text(context, "Шаг 12/15: Мамад/Миклат", "Step 12/15: Mamad/Miklat", "שלב 12/15: ממ\"ד/מקלט")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_shelter_keyboard(context), parse_mode="HTML")
         return ADD_SHELTER
 
@@ -665,7 +694,7 @@ class ListingHandler:
         lang = get_lang(context)
         label = labels[shelter][lang]
         await query.edit_message_text(_confirmed(context, "Мамад/Миклат", "Mamad/Miklat", "ממ\"ד/מקלט", label), parse_mode="HTML")
-        text = _step_text(context, "Шаг 12/14: Лифт", "Step 12/14: Elevator", "שלב 12/14: מעלית")
+        text = _step_text(context, "Шаг 13/15: Лифт", "Step 13/15: Elevator", "שלב 13/15: מעלית")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_yes_no_keyboard(context, "add_elevator"), parse_mode="HTML")
         return ADD_ELEVATOR
 
@@ -679,9 +708,9 @@ class ListingHandler:
                            "Yes" if has_elevator else "No",
                            "יש" if has_elevator else "אין")
         await query.edit_message_text(_confirmed(context, "Лифт", "Elevator", "מעלית", label), parse_mode="HTML")
-        text = _step_text(context, "Шаг 13/14: Инфраструктура\n\nВыберите что есть рядом:",
-                          "Step 13/14: Infrastructure\n\nSelect what's nearby:",
-                          "שלב 13/14: תשתיות\n\nבחר מה קרוב:")
+        text = _step_text(context, "Шаг 14/15: Инфраструктура\n\nВыберите что есть рядом:",
+                          "Step 14/15: Infrastructure\n\nSelect what's nearby:",
+                          "שלב 14/15: תשתיות\n\nבחר מה קרוב:")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_infra_keyboard(context, []), parse_mode="HTML")
         return ADD_INFRASTRUCTURE
 
@@ -697,9 +726,9 @@ class ListingHandler:
             infra_str = ", ".join(selected) if selected else _step_text(context, "Не выбрано", "None selected", "לא נבחר")
             await query.edit_message_text(_confirmed(context, "Инфраструктура", "Infrastructure", "תשתיות", infra_str), parse_mode="HTML")
             text = _step_text(context,
-                "Шаг 14/14: Описание\n\nНапишите описание объявления (особенности квартиры, район, условия):",
-                "Step 14/14: Description\n\nWrite a description (apartment features, neighborhood, terms):",
-                "שלב 14/14: תיאור\n\nכתב תיאור (מאפייני הדירה, שכונה, תנאים):"
+                "Шаг 15/15: Описание\n\nНапишите описание объявления (особенности квартиры, район, условия):",
+                "Step 15/15: Description\n\nWrite a description (apartment features, neighborhood, terms):",
+                "שלב 15/15: תיאור\n\nכתב תיאור (מאפייני הדירה, שכונה, תנאים):"
             )
             await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_back_kb(context), parse_mode="HTML")
             return ADD_DESCRIPTION
@@ -832,6 +861,7 @@ class ListingHandler:
 
 {'Тип' if lang=='ru' else 'Type' if lang=='en' else 'סוג'}: {deal_label} · {ptype_label}
 {'Город' if lang=='ru' else 'City' if lang=='en' else 'עיר'}: {d.get('city','')}
+{'Адрес' if lang=='ru' else 'Address' if lang=='en' else 'כתובת'}: {d.get('address', '—')}
 {'Комнат' if lang=='ru' else 'Rooms' if lang=='en' else 'חדרים'}: {d.get('rooms','')}
 {'Этаж' if lang=='ru' else 'Floor' if lang=='en' else 'קומה'}: {d.get('floor','')}
 {'Площадь' if lang=='ru' else 'Area' if lang=='en' else 'שטח'}: {d.get('area_sqm','')} м²

@@ -102,11 +102,15 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
     else:
         proximity_str = ""
 
+    addr_label = {"ru": "Адрес", "en": "Address", "he": "כתובת"}.get(lang, "Address")
+    address = listing.get("address", "")
+    address_str = f"\n🏠 <b>{addr_label}:</b> {address}" if address else ""
+
     return (
         f"{header}{photo} <b>{listing.get('title','—')}</b>\n\n"
         f"{deal_emoji} <b>{deal_label}</b>  |  {prop_type}\n"
         f"💰 <b>{price_str}</b>{price_fairness_str}\n\n"
-        f"📍 <b>{city_label}:</b> {listing.get('city','—')}{f' ({district_name})' if district_name else ''}\n"
+        f"📍 <b>{city_label}:</b> {listing.get('city','—')}{f' ({district_name})' if district_name else ''}{address_str}\n"
         f"🏘 <b>{hood_label}:</b> {listing.get('neighborhood','—')}\n"
         f"🚪 <b>{rooms_label}:</b> {listing.get('rooms','—')}  |  🏗 <b>{floor_label}:</b> {listing.get('floor','—')}\n"
         f"📐 <b>{area_label}:</b> {listing.get('area_sqm','—')} {sqm_label}\n\n"
