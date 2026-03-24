@@ -1237,9 +1237,164 @@ class ListingHandler:
             f"✅ המודעה פורסמה!\n\nID: #{listing_id}\nמשתמשים כבר יכולים למצוא אותה דרך החיפוש.\n\n{bonus_msg}"
         )
         await query.edit_message_text(text)
+
+        # ── Welcome message (Telegram + Email) ────────────────────────────
+        lang = get_lang(context)
+        try:
+            await _send_welcome_message(context, update.effective_user.id, d, listing_id, lang)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Welcome message failed: {e}")
+
         return ConversationHandler.END
 
     async def cancel(self, update, context):
         if update.callback_query:
             await update.callback_query.answer()
         return ConversationHandler.END
+
+
+# ── Welcome message after listing published ────────────────────────────────────
+
+async def _send_welcome_message(context, user_id: int, listing: dict, listing_id: int, lang: str):
+    """Send Telegram + Email welcome after listing is published."""
+    import database as db
+
+    deal_label = {
+        "rent":       {"ru": "Аренда",       "en": "Rent",       "he": "שכירות"},
+        "buy":        {"ru": "Продажа",       "en": "Sale",       "he": "מכירה"},
+        "sublet":     {"ru": "Сублет",        "en": "Sublet",     "he": "סאבלט"},
+        "commercial": {"ru": "Коммерческая",  "en": "Commercial", "he": "מסחרי"},
+    }.get(listing.get("deal_type","rent"), {}).get(lang, listing.get("deal_type",""))
+
+    name = listing.get("owner_name") or ""
+    city = listing.get("city","")
+    price = listing.get("price",0)
+
+    tg_text = {
+        "ru": (
+            f"🏠 <b>FlatFinderIL</b>\n\n"
+            f"{'Привет, ' + name + '! ' if name else ''}Ваше объявление успешно опубликовано!\n\n"
+            f"📋 ID: <b>#{listing_id}</b>\n"
+            f"📍 {city} · {deal_label} · {price:,} ₪\n\n"
+            f"Пользователи уже могут найти его через поиск. Мы уведомим вас о просмотрах и запросах контакта.\n\n"
+            f"Удачи в поиске! 🤝"
+        ),
+        "en": (
+            f"🏠 <b>FlatFinderIL</b>\n\n"
+            f"{'Hi ' + name + '! ' if name else ''}Your listing has been published!\n\n"
+            f"📋 ID: <b>#{listing_id}</b>\n"
+            f"📍 {city} · {deal_label} · {price:,} ₪\n\n"
+            f"Users can already find it through search. We will notify you about views and contact requests.\n\n"
+            f"Good luck! 🤝"
+        ),
+        "he": (
+            f"🏠 <b>FlatFinderIL</b>\n\n"
+            f"{'שלום ' + name + '! ' if name else ''}המודעה שלך פורסמה בהצלחה!\n\n"
+            f"📋 מזהה: <b>#{listing_id}</b>\n"
+            f"📍 {city} · {deal_label} · {price:,} ₪\n\n"
+            f"משתמשים כבר יכולים למצוא אותה דרך החיפוש. נעדכן אותך על צפיות ובקשות קשר.\n\n"
+            f"בהצלחה! 🤝"
+        ),
+    }.get(lang, "")
+
+    # Send Telegram message
+    try:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=tg_text,
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Telegram welcome send failed: {e}")
+
+    # Send Email if agent has one
+    email = db.get_agent_email(user_id)
+    if not email:
+        return
+
+    subject = {
+        "ru": f"🏠 Ваше объявление #{listing_id} опубликовано — FlatFinderIL",
+        "en": f"🏠 Your listing #{listing_id} is live — FlatFinderIL",
+        "he": f"🏠 המודעה שלך #{listing_id} פורסמה — FlatFinderIL",
+    }.get(lang, f"🏠 Listing #{listing_id} published — FlatFinderIL")
+
+    greeting = {"ru": f"{'Здравствуйте, ' + name + '!' if name else 'Здравствуйте!'}", "en": f"{'Hi ' + name + '!' if name else 'Hello!'}", "he": f"{'שלום, ' + name + '!' if name else 'שלום!'}"}[lang]
+    body_ru = f"Ваше объявление успешно опубликовано на платформе FlatFinderIL и уже доступно для поиска."
+    body_en = f"Your listing has been successfully published on FlatFinderIL and is now available for search."
+    body_he = f"המודעה שלך פורסמה בהצלחה בפלטפורמת FlatFinderIL וזמינה לחיפוש."
+    body = {"ru": body_ru, "en": body_en, "he": body_he}.get(lang, body_en)
+
+    rtl_style = 'direction:rtl;text-align:right;' if lang == "he" else ''
+
+    html = f"""<!DOCTYPE html><html lang="{lang}">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f5f5f0;font-family:-apple-system,sans-serif">
+<div style="max-width:580px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+  <div style="background:#2AABEE;padding:22px 26px">
+    <div style="font-size:20px;font-weight:700;color:#fff">🏠 FlatFinderIL</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.85);margin-top:4px">{{"ru":"Поиск недвижимости в Израиле","en":"Real Estate Search in Israel","he":"חיפוש נדל\"ן בישראל"}}[lang]</div>
+  </div>
+  <div style="padding:24px 26px;{rtl_style}">
+    <p style="font-size:16px;font-weight:600;margin-bottom:12px">{greeting}</p>
+    <p style="font-size:14px;color:#444;margin-bottom:20px">{body}</p>
+    <div style="background:#f8f8f4;border-radius:10px;padding:16px 20px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:12px;color:#888">ID</span>
+        <span style="font-size:13px;font-weight:600">#{listing_id}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:12px;color:#888">{{"ru":"Город","en":"City","he":"עיר"}}[lang]</span>
+        <span style="font-size:13px">{city}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:12px;color:#888">{{"ru":"Тип","en":"Type","he":"סוג"}}[lang]</span>
+        <span style="font-size:13px">{deal_label}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="font-size:12px;color:#888">{{"ru":"Цена","en":"Price","he":"מחיר"}}[lang]</span>
+        <span style="font-size:13px;font-weight:600;color:#2AABEE">{price:,} ₪</span>
+      </div>
+    </div>
+    <p style="font-size:13px;color:#666">{{"ru":"Вы будете получать уведомления о просмотрах каждую неделю на этот адрес.","en":"You will receive weekly view reports to this email address.","he":"תקבל/י עדכונים שבועיים על צפיות לכתובת דוא\"ל זו."}}[lang]</p>
+  </div>
+  <div style="background:#f8f8f4;padding:14px 26px;text-align:center;border-top:1px solid #e0e0da">
+    <p style="font-size:11px;color:#aaa;margin:0">FlatFinderIL · Israel Real Estate</p>
+  </div>
+</div>
+</body></html>"""
+
+    # Fix the f-string dict access (rendered above as literal)
+    html = html.replace('{"ru":"Поиск недвижимости в Израиле","en":"Real Estate Search in Israel","he":"חיפוש נדל\\"ן בישראל"}[lang]',
+                        {"ru":"Поиск недвижимости в Израиле","en":"Real Estate Search in Israel","he":'חיפוש נדל"ן בישראל'}.get(lang,""))
+    html = html.replace('{"ru":"Город","en":"City","he":"עיר"}[lang]', {"ru":"Город","en":"City","he":"עיר"}.get(lang,""))
+    html = html.replace('{"ru":"Тип","en":"Type","he":"סוג"}[lang]', {"ru":"Тип","en":"Type","he":"סוג"}.get(lang,""))
+    html = html.replace('{"ru":"Цена","en":"Price","he":"מחיר"}[lang]', {"ru":"Цена","en":"Price","he":"מחיר"}.get(lang,""))
+    html = html.replace('{"ru":"Вы будете получать уведомления о просмотрах каждую неделю на этот адрес.","en":"You will receive weekly view reports to this email address.","he":"תקבל/י עדכונים שבועיים על צפיות לכתובת דוא\\"ל זו."}[lang]',
+                        {"ru":"Вы будете получать уведомления о просмотрах каждую неделю на этот адрес.",
+                         "en":"You will receive weekly view reports to this email address.",
+                         "he":'תקבל/י עדכונים שבועיים על צפיות לכתובת דוא"ל זו.'}.get(lang,""))
+
+    import os, json, urllib.request
+    resend_key = os.environ.get("RESEND_API_KEY","")
+    if not resend_key:
+        return
+    payload = json.dumps({
+        "from": "FlatFinderIL <onboarding@resend.dev>",
+        "to": [email],
+        "subject": subject,
+        "html": html,
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Email welcome send failed: {e}")
