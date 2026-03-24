@@ -577,53 +577,80 @@
       "date_added": "2026-03-16",
       "active": true
     },
-    "1253": {
-      "title": "TEST listing",
+    "1257": {
+      "title": "Аренда: 3 комн., Тель-Авив",
+      "deal_type": "rent",
       "property_type": "apartment",
       "city": "Тель-Авив",
       "district": "tel_aviv",
-      "rooms": "2",
-      "price": 5000,
-      "deal_type": "rent",
-      "parking": 0,
+      "neighborhood": "Центр",
+      "address": "ул. Дизенгоф 99",
+      "map_url": "https://maps.google.com/?q=%D1%83%D0%BB.%20%D0%94%D0%B8%D0%B7%D0%B5%D0%BD%D0%B3%D0%BE%D1%84%2099%2C%20%D0%A2%D0%B5%D0%BB%D1%8C-%D0%90%D0%B2%D0%B8%D0%B2%2C%20Israel",
+      "rooms": "3",
+      "floor": "4",
+      "area_sqm": 85,
+      "price": 7500,
+      "parking": 1,
       "pool": false,
-      "infrastructure": [],
-      "description": "test",
-      "contact": "@test",
-      "photos": [],
-      "user_id": 999999,
-      "id": 1253,
-      "date_added": "2026-03-23",
-      "active": true,
-      "views": 0,
-      "view_requests": 0
-    },
-    "1255": {
-      "title": "Test listing",
-      "property_type": "apartment",
-      "city": "Тель-Авив",
-      "district": "tel_aviv",
-      "neighborhood": "Test",
-      "rooms": "2",
-      "floor": "1",
-      "area_sqm": 60,
-      "price": 5000,
-      "deal_type": "rent",
-      "parking": 0,
-      "pool": false,
-      "shelter": false,
-      "elevator": false,
-      "infrastructure": [],
-      "description": "Test description",
-      "contact": "@test",
-      "photos": [],
-      "date_added": "2026-03-23",
+      "shelter": true,
+      "elevator": "yes",
+      "infrastructure": [
+        "mall",
+        "school"
+      ],
+      "description": "Светлая квартира с балконом",
+      "contact": "@agent1",
+      "owner_name": "Иван",
+      "owner_phone": "0501234567",
+      "photos": [
+        "🏠"
+      ],
+      "user_id": 999,
+      "source": "upload",
+      "date_added": "2026-03-24",
       "active": true,
       "views": 0,
       "view_requests": 0,
-      "owner_name": "Test User",
-      "owner_phone": "0500000000",
-      "id": 1255
+      "lat": 32.0853,
+      "lng": 34.7818,
+      "id": 1257
+    },
+    "1258": {
+      "title": "Продажа: 5 комн., Хайфа",
+      "deal_type": "buy",
+      "property_type": "house",
+      "city": "Хайфа",
+      "district": "haifa",
+      "neighborhood": "",
+      "address": "ул. Хагалиль 12",
+      "map_url": "https://maps.google.com/?q=%D1%83%D0%BB.%20%D0%A5%D0%B0%D0%B3%D0%B0%D0%BB%D0%B8%D0%BB%D1%8C%2012%2C%20%D0%A5%D0%B0%D0%B9%D1%84%D0%B0%2C%20Israel",
+      "rooms": "5",
+      "floor": "1",
+      "area_sqm": 150,
+      "price": 2500000,
+      "parking": 2,
+      "pool": true,
+      "shelter": true,
+      "elevator": "no",
+      "infrastructure": [
+        "park"
+      ],
+      "description": "Частный дом с садом",
+      "contact": "@agent2",
+      "owner_name": "Мария",
+      "owner_phone": "0521234567",
+      "photos": [
+        "🏠"
+      ],
+      "user_id": 999,
+      "source": "upload",
+      "date_added": "2026-03-24",
+      "active": true,
+      "views": 0,
+      "view_requests": 0,
+      "lat": 32.794,
+      "lng": 34.9896,
+      "id": 1258
     }
   },
   "favorites": {
@@ -633,13 +660,14 @@
     ]
   },
   "user_listings": {
-    "999999": [
-      1253
-    ],
     "123456": [],
-    "99999": []
+    "99999": [],
+    "999": [
+      1257,
+      1258
+    ]
   },
-  "next_id": 1257,
+  "next_id": 1259,
   "_updated": "2026-03-17",
   "subscriptions": {
     "99999": [
@@ -715,5 +743,13 @@
       }
     ]
   },
-  "deal_next_id": 1
+  "deal_next_id": 1,
+  "services": {},
+  "services_next_id": 1,
+  "crm_contacts": {},
+  "crm_contact_next_id": 1,
+  "crm_deals": {},
+  "crm_deal_next_id": 1,
+  "crm_notes": {},
+  "paid_subscriptions": {}
 }
