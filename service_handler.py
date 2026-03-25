@@ -518,10 +518,35 @@ class ServiceHandler:
         svc["lang"] = get_lang(context)
         db.add_service(svc)
         lang = get_lang(context)
+        svc_name = svc.get("name") or svc.get("company") or ""
+        svc_type = svc.get("service_type") or svc.get("type") or ""
+        type_label = {
+            "movers":   {"ru":"Перевозчики","en":"Movers","he":"הובלות"},
+            "packers":  {"ru":"Упаковщики","en":"Packers","he":"אריזה"},
+            "cleaning": {"ru":"Уборка","en":"Cleaning","he":"ניקיון"},
+        }.get(svc_type, {}).get(lang, svc_type)
+
         text = _t(context,
-            "✅ <b>Услуга опубликована!</b>\n\nДругие пользователи увидят ваше объявление.",
-            "✅ <b>Service published!</b>\n\nOther users will see your listing.",
-            "✅ <b>השירות פורסם!</b>\n\nמשתמשים אחרים יראו את המודעה שלך."
+            f"🚚 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
+            f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваша услуга успешно размещена на платформе.\n\n"
+            f"📋 <b>Категория:</b> {type_label or 'Услуга'}\n\n"
+            f"Клиенты уже могут найти вас через раздел 🔧 <b>Услуги</b>. "
+            f"Каждую неделю вы будете получать отчёт о просмотрах.\n\n"
+            f"Желаем много заявок! 💼",
+
+            f"🚚 <b>FlatFinderIL — Service Published!</b>\n\n"
+            f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your service is now live on the platform.\n\n"
+            f"📋 <b>Category:</b> {type_label or 'Service'}\n\n"
+            f"Clients can already find you through the 🔧 <b>Services</b> section. "
+            f"You will receive a weekly views report.\n\n"
+            f"Wishing you many clients! 💼",
+
+            f"🚚 <b>FlatFinderIL — השירות פורסם!</b>\n\n"
+            f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} השירות שלך פעיל בפלטפורמה.\n\n"
+            f"📋 <b>קטגוריה:</b> {type_label or 'שירות'}\n\n"
+            f"לקוחות כבר יכולים למצוא אותך בסעיף 🔧 <b>שירותים</b>. "
+            f"כל שבוע תקבל/י דוח על צפיות.\n\n"
+            f"!בהצלחה עם הלקוחות 💼"
         )
         await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ConversationHandler.END

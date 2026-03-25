@@ -1271,32 +1271,75 @@ async def _send_welcome_message(context, user_id: int, listing: dict, listing_id
     city = listing.get("city","")
     price = listing.get("price",0)
 
-    tg_text = {
-        "ru": (
-            f"🏠 <b>FlatFinderIL</b>\n\n"
-            f"{'Привет, ' + name + '! ' if name else ''}Ваше объявление успешно опубликовано!\n\n"
-            f"📋 ID: <b>#{listing_id}</b>\n"
-            f"📍 {city} · {deal_label} · {price:,} ₪\n\n"
-            f"Пользователи уже могут найти его через поиск. Мы уведомим вас о просмотрах и запросах контакта.\n\n"
-            f"Удачи в поиске! 🤝"
-        ),
-        "en": (
-            f"🏠 <b>FlatFinderIL</b>\n\n"
-            f"{'Hi ' + name + '! ' if name else ''}Your listing has been published!\n\n"
-            f"📋 ID: <b>#{listing_id}</b>\n"
-            f"📍 {city} · {deal_label} · {price:,} ₪\n\n"
-            f"Users can already find it through search. We will notify you about views and contact requests.\n\n"
-            f"Good luck! 🤝"
-        ),
-        "he": (
-            f"🏠 <b>FlatFinderIL</b>\n\n"
-            f"{'שלום ' + name + '! ' if name else ''}המודעה שלך פורסמה בהצלחה!\n\n"
-            f"📋 מזהה: <b>#{listing_id}</b>\n"
-            f"📍 {city} · {deal_label} · {price:,} ₪\n\n"
-            f"משתמשים כבר יכולים למצוא אותה דרך החיפוש. נעדכן אותך על צפיות ובקשות קשר.\n\n"
-            f"בהצלחה! 🤝"
-        ),
-    }.get(lang, "")
+    is_agent = listing.get("seller_type") == "agent"
+
+    if is_agent:
+        tg_text = {
+            "ru": (
+                f"🏢 <b>FlatFinderIL — Объявление опубликовано!</b>\n\n"
+                f"{'Здравствуйте, ' + name + '!' if name else 'Здравствуйте!'} Ваше объявление уже доступно для поиска тысячам пользователей.\n\n"
+                f"📋 ID: <b>#{listing_id}</b>\n"
+                f"📍 <b>{city}</b> · {deal_label} · <b>{price:,} ₪</b>\n\n"
+                f"<b>Что дальше?</b>\n"
+                f"• Раз в неделю вы получите отчёт о просмотрах на email\n"
+                f"• Заинтересованные покупатели свяжутся с вами напрямую\n"
+                f"• Управляйте объявлением в разделе 📋 <b>Мои объявления</b>\n\n"
+                f"Желаем успешной сделки! 🤝"
+            ),
+            "en": (
+                f"🏢 <b>FlatFinderIL — Listing Published!</b>\n\n"
+                f"{'Hello, ' + name + '!' if name else 'Hello!'} Your listing is now live and searchable by thousands of users.\n\n"
+                f"📋 ID: <b>#{listing_id}</b>\n"
+                f"📍 <b>{city}</b> · {deal_label} · <b>{price:,} ₪</b>\n\n"
+                f"<b>What's next?</b>\n"
+                f"• You'll receive a weekly views report to your email\n"
+                f"• Interested buyers will contact you directly\n"
+                f"• Manage your listing in 📋 <b>My Listings</b>\n\n"
+                f"Wishing you a successful deal! 🤝"
+            ),
+            "he": (
+                f"🏢 <b>FlatFinderIL — המודעה פורסמה!</b>\n\n"
+                f"{'שלום, ' + name + '!' if name else 'שלום!'} המודעה שלך פעילה ומאות משתמשים יכולים למצוא אותה.\n\n"
+                f"📋 מזהה: <b>#{listing_id}</b>\n"
+                f"📍 <b>{city}</b> · {deal_label} · <b>{price:,} ₪</b>\n\n"
+                f"<b>מה הלאה?</b>\n"
+                f"• תקבל/י דוח שבועי על צפיות לאימייל שלך\n"
+                f"• קונים מתעניינים יפנו אליך ישירות\n"
+                f"• נהל/י את המודעה תחת 📋 <b>המודעות שלי</b>\n\n"
+                f"בהצלחה בעסקה! 🤝"
+            ),
+        }.get(lang, "")
+    else:
+        tg_text = {
+            "ru": (
+                f"🏠 <b>FlatFinderIL — Объявление опубликовано!</b>\n\n"
+                f"{'Привет, ' + name + '!' if name else 'Привет!'} Ваше объявление успешно размещено!\n\n"
+                f"📋 ID: <b>#{listing_id}</b>\n"
+                f"📍 <b>{city}</b> · {deal_label} · <b>{price:,} ₪</b>\n\n"
+                f"Пользователи уже находят его в поиске. Как только кто-то захочет связаться — "
+                f"мы пришлём вам уведомление.\n\n"
+                f"Управляйте объявлением через 📋 <b>Мои объявления</b>.\n\n"
+                f"Удачи! 🙌"
+            ),
+            "en": (
+                f"🏠 <b>FlatFinderIL — Listing Published!</b>\n\n"
+                f"{'Hi, ' + name + '!' if name else 'Hi!'} Your listing is now live!\n\n"
+                f"📋 ID: <b>#{listing_id}</b>\n"
+                f"📍 <b>{city}</b> · {deal_label} · <b>{price:,} ₪</b>\n\n"
+                f"Users can already find your listing in search. We'll notify you as soon as someone wants to get in touch.\n\n"
+                f"Manage your listing under 📋 <b>My Listings</b>.\n\n"
+                f"Good luck! 🙌"
+            ),
+            "he": (
+                f"🏠 <b>FlatFinderIL — המודעה פורסמה!</b>\n\n"
+                f"{'היי, ' + name + '!' if name else 'היי!'} המודעה שלך עלתה לאוויר!\n\n"
+                f"📋 מזהה: <b>#{listing_id}</b>\n"
+                f"📍 <b>{city}</b> · {deal_label} · <b>{price:,} ₪</b>\n\n"
+                f"משתמשים כבר יכולים למצוא את המודעה שלך. נשלח לך התראה כשמישהו ירצה ליצור קשר.\n\n"
+                f"נהל/י את המודעה תחת 📋 <b>המודעות שלי</b>.\n\n"
+                f"!בהצלחה 🙌"
+            ),
+        }.get(lang, "")
 
     # Send Telegram message
     try:
@@ -1315,66 +1358,129 @@ async def _send_welcome_message(context, user_id: int, listing: dict, listing_id
         return
 
     subject = {
-        "ru": f"🏠 Ваше объявление #{listing_id} опубликовано — FlatFinderIL",
-        "en": f"🏠 Your listing #{listing_id} is live — FlatFinderIL",
-        "he": f"🏠 המודעה שלך #{listing_id} פורסמה — FlatFinderIL",
+        "ru": f"🏠 Объявление #{listing_id} опубликовано — FlatFinderIL",
+        "en": f"🏠 Listing #{listing_id} is live — FlatFinderIL",
+        "he": f"🏠 המודעה #{listing_id} פורסמה — FlatFinderIL",
     }.get(lang, f"🏠 Listing #{listing_id} published — FlatFinderIL")
 
-    greeting = {"ru": f"{'Здравствуйте, ' + name + '!' if name else 'Здравствуйте!'}", "en": f"{'Hi ' + name + '!' if name else 'Hello!'}", "he": f"{'שלום, ' + name + '!' if name else 'שלום!'}"}[lang]
-    body_ru = f"Ваше объявление успешно опубликовано на платформе FlatFinderIL и уже доступно для поиска."
-    body_en = f"Your listing has been successfully published on FlatFinderIL and is now available for search."
-    body_he = f"המודעה שלך פורסמה בהצלחה בפלטפורמת FlatFinderIL וזמינה לחיפוש."
-    body = {"ru": body_ru, "en": body_en, "he": body_he}.get(lang, body_en)
+    greeting = {
+        "ru": f"{'Здравствуйте, ' + name + '!' if name else 'Здравствуйте!'}",
+        "en": f"{'Hello, ' + name + '!' if name else 'Hello!'}",
+        "he": f"{'שלום, ' + name + '!' if name else 'שלום!'}",
+    }[lang]
 
-    rtl_style = 'direction:rtl;text-align:right;' if lang == "he" else ''
+    if is_agent:
+        body_text = {
+            "ru": (f"Ваше объявление успешно опубликовано на платформе <b>FlatFinderIL</b> и уже отображается "
+                   f"в результатах поиска. Тысячи пользователей ищут недвижимость прямо сейчас — "
+                   f"ваше предложение уже среди них.<br><br>"
+                   f"Каждую неделю вы будете получать отчёт о просмотрах на этот email."),
+            "en": (f"Your listing has been published on <b>FlatFinderIL</b> and is already appearing "
+                   f"in search results. Thousands of users are searching for properties right now — "
+                   f"your listing is among them.<br><br>"
+                   f"You will receive a weekly views report to this email address."),
+            "he": (f"המודעה שלך פורסמה בהצלחה ב-<b>FlatFinderIL</b> ומופיעה כעת בתוצאות החיפוש. "
+                   f"אלפי משתמשים מחפשים נכסים ממש עכשיו — ההצעה שלך כבר ביניהם.<br><br>"
+                   f"כל שבוע תקבל/י דוח על מספר הצפיות לכתובת אימייל זו."),
+        }.get(lang, "")
+    else:
+        body_text = {
+            "ru": (f"Ваше объявление успешно опубликовано на платформе <b>FlatFinderIL</b>. "
+                   f"Пользователи уже могут найти его в поиске по всему Израилю.<br><br>"
+                   f"Как только кто-то захочет связаться с вами — вы получите уведомление в Telegram."),
+            "en": (f"Your listing has been published on <b>FlatFinderIL</b>. "
+                   f"Users can now find it in search results across Israel.<br><br>"
+                   f"As soon as someone wants to contact you, you'll receive a notification in Telegram."),
+            "he": (f"המודעה שלך פורסמה ב-<b>FlatFinderIL</b>. "
+                   f"משתמשים יכולים כעת למצוא אותה בתוצאות החיפוש ברחבי ישראל.<br><br>"
+                   f"ברגע שמישהו ירצה ליצור איתך קשר, תקבל/י התראה בטלגרם."),
+        }.get(lang, "")
+    body = body_text
 
-    html = f"""<!DOCTYPE html><html lang="{lang}">
-<head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f5f5f0;font-family:-apple-system,sans-serif">
-<div style="max-width:580px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-  <div style="background:#2AABEE;padding:22px 26px">
-    <div style="font-size:20px;font-weight:700;color:#fff">🏠 FlatFinderIL</div>
-    <div style="font-size:12px;color:rgba(255,255,255,.85);margin-top:4px">{{"ru":"Поиск недвижимости в Израиле","en":"Real Estate Search in Israel","he":"חיפוש נדל\"ן בישראל"}}[lang]</div>
+    rtl = 'direction:rtl;text-align:right;' if lang == "he" else ''
+    header_icon = "🏢" if is_agent else "🏠"
+    platform_sub = {"ru":"Поиск недвижимости в Израиле","en":"Real Estate Search in Israel","he":'חיפוש נדל"ן בישראל'}.get(lang,"")
+    lbl_id    = {"ru":"Номер объявления","en":"Listing ID","he":"מזהה מודעה"}.get(lang,"ID")
+    lbl_city  = {"ru":"Город","en":"City","he":"עיר"}.get(lang,"City")
+    lbl_type  = {"ru":"Тип сделки","en":"Deal type","he":"סוג עסקה"}.get(lang,"Type")
+    lbl_price = {"ru":"Цена","en":"Price","he":"מחיר"}.get(lang,"Price")
+    badge_agent   = {"ru":"🏢 Агент","en":"🏢 Agent","he":"🏢 סוכן"}.get(lang,"")
+    badge_private = {"ru":"👤 Частное лицо","en":"👤 Private","he":"👤 פרטי"}.get(lang,"")
+    seller_badge  = badge_agent if is_agent else badge_private
+
+    if is_agent:
+        tips_html = {
+            "ru": ("<li>Раз в неделю вам придёт отчёт о просмотрах</li>"
+                   "<li>Управляйте объявлением в разделе <b>Мои объявления</b> в боте</li>"
+                   "<li>Загружайте несколько объявлений сразу через CSV в кабинете агента</li>"),
+            "en": ("<li>You'll receive a weekly views report to this address</li>"
+                   "<li>Manage your listing in <b>My Listings</b> in the bot</li>"
+                   "<li>Upload multiple listings at once via CSV in your agent cabinet</li>"),
+            "he": ("<li>תקבל/י דוח שבועי על צפיות לכתובת זו</li>"
+                   "<li>נהל/י את המודעה תחת <b>המודעות שלי</b> בבוט</li>"
+                   "<li>העלה/י מספר מודעות בבת אחת דרך CSV בלוח הסוכן</li>"),
+        }.get(lang, "")
+    else:
+        tips_html = {
+            "ru": ("<li>Вы получите уведомление когда кто-то захочет связаться</li>"
+                   "<li>Управляйте объявлением в разделе <b>Мои объявления</b> в боте</li>"),
+            "en": ("<li>You'll be notified when someone wants to contact you</li>"
+                   "<li>Manage your listing in <b>My Listings</b> in the bot</li>"),
+            "he": ("<li>תקבל/י התראה כשמישהו ירצה ליצור קשר</li>"
+                   "<li>נהל/י את המודעה תחת <b>המודעות שלי</b> בבוט</li>"),
+        }.get(lang, "")
+
+    html = f"""<!DOCTYPE html>
+<html lang="{lang}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+<div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.10)">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#2AABEE 0%,#1a8cc8 100%);padding:28px 32px">
+    <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:-.3px">{header_icon} FlatFinderIL</div>
+    <div style="font-size:12px;color:rgba(255,255,255,.82);margin-top:5px">{platform_sub}</div>
   </div>
-  <div style="padding:24px 26px;{rtl_style}">
-    <p style="font-size:16px;font-weight:600;margin-bottom:12px">{greeting}</p>
-    <p style="font-size:14px;color:#444;margin-bottom:20px">{body}</p>
-    <div style="background:#f8f8f4;border-radius:10px;padding:16px 20px;margin-bottom:20px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:12px;color:#888">ID</span>
-        <span style="font-size:13px;font-weight:600">#{listing_id}</span>
+
+  <!-- Body -->
+  <div style="padding:28px 32px;{rtl}">
+    <p style="font-size:18px;font-weight:700;color:#1a1a2e;margin:0 0 10px">{greeting}</p>
+    <p style="font-size:14px;color:#444;line-height:1.65;margin:0 0 24px">{body}</p>
+
+    <!-- Listing card -->
+    <div style="background:#f7f9fc;border:1px solid #e2e8f0;border-radius:10px;padding:18px 22px;margin-bottom:24px">
+      <div style="font-size:11px;font-weight:700;color:#2AABEE;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">
+        ✅ {"Детали объявления" if lang=="ru" else ("פרטי המודעה" if lang=="he" else "Listing details")}
       </div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:12px;color:#888">{{"ru":"Город","en":"City","he":"עיר"}}[lang]</span>
-        <span style="font-size:13px">{city}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-        <span style="font-size:12px;color:#888">{{"ru":"Тип","en":"Type","he":"סוג"}}[lang]</span>
-        <span style="font-size:13px">{deal_label}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between">
-        <span style="font-size:12px;color:#888">{{"ru":"Цена","en":"Price","he":"מחיר"}}[lang]</span>
-        <span style="font-size:13px;font-weight:600;color:#2AABEE">{price:,} ₪</span>
-      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <tr><td style="font-size:12px;color:#888;padding:5px 0;width:45%">{lbl_id}</td>
+            <td style="font-size:13px;font-weight:700;color:#1a1a2e;padding:5px 0">#{listing_id}</td></tr>
+        <tr><td style="font-size:12px;color:#888;padding:5px 0">{lbl_city}</td>
+            <td style="font-size:13px;color:#333;padding:5px 0">{city}</td></tr>
+        <tr><td style="font-size:12px;color:#888;padding:5px 0">{lbl_type}</td>
+            <td style="font-size:13px;color:#333;padding:5px 0">{deal_label}</td></tr>
+        <tr><td style="font-size:12px;color:#888;padding:5px 0">{lbl_price}</td>
+            <td style="font-size:14px;font-weight:700;color:#2AABEE;padding:5px 0">{price:,} ₪</td></tr>
+        <tr><td style="font-size:12px;color:#888;padding:5px 0">{"Тип" if lang=="ru" else ("סוג מוכר" if lang=="he" else "Seller")}</td>
+            <td style="font-size:12px;padding:5px 0"><span style="background:#e8f4fd;color:#2AABEE;border-radius:20px;padding:2px 10px;font-weight:600">{seller_badge}</span></td></tr>
+      </table>
     </div>
-    <p style="font-size:13px;color:#666">{{"ru":"Вы будете получать уведомления о просмотрах каждую неделю на этот адрес.","en":"You will receive weekly view reports to this email address.","he":"תקבל/י עדכונים שבועיים על צפיות לכתובת דוא\"ל זו."}}[lang]</p>
+
+    <!-- Tips -->
+    <div style="background:#f0fdf4;border-left:3px solid #27AE60;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:24px">
+      <div style="font-size:12px;font-weight:700;color:#27AE60;margin-bottom:8px">
+        {"Что дальше?" if lang=="ru" else ("מה הלאה?" if lang=="he" else "What's next?")}
+      </div>
+      <ul style="margin:0;padding-left:18px;font-size:13px;color:#444;line-height:1.7">{tips_html}</ul>
+    </div>
   </div>
-  <div style="background:#f8f8f4;padding:14px 26px;text-align:center;border-top:1px solid #e0e0da">
-    <p style="font-size:11px;color:#aaa;margin:0">FlatFinderIL · Israel Real Estate</p>
+
+  <!-- Footer -->
+  <div style="background:#f7f9fc;padding:16px 32px;border-top:1px solid #e2e8f0;text-align:center">
+    <p style="font-size:11px;color:#aaa;margin:0">FlatFinderIL · Israel Real Estate · @FlatFinderIL_bot</p>
   </div>
 </div>
 </body></html>"""
-
-    # Fix the f-string dict access (rendered above as literal)
-    html = html.replace('{"ru":"Поиск недвижимости в Израиле","en":"Real Estate Search in Israel","he":"חיפוש נדל\\"ן בישראל"}[lang]',
-                        {"ru":"Поиск недвижимости в Израиле","en":"Real Estate Search in Israel","he":'חיפוש נדל"ן בישראל'}.get(lang,""))
-    html = html.replace('{"ru":"Город","en":"City","he":"עיר"}[lang]', {"ru":"Город","en":"City","he":"עיר"}.get(lang,""))
-    html = html.replace('{"ru":"Тип","en":"Type","he":"סוג"}[lang]', {"ru":"Тип","en":"Type","he":"סוג"}.get(lang,""))
-    html = html.replace('{"ru":"Цена","en":"Price","he":"מחיר"}[lang]', {"ru":"Цена","en":"Price","he":"מחיר"}.get(lang,""))
-    html = html.replace('{"ru":"Вы будете получать уведомления о просмотрах каждую неделю на этот адрес.","en":"You will receive weekly view reports to this email address.","he":"תקבל/י עדכונים שבועיים על צפיות לכתובת דוא\\"ל זו."}[lang]',
-                        {"ru":"Вы будете получать уведомления о просмотрах каждую неделю на этот адрес.",
-                         "en":"You will receive weekly view reports to this email address.",
-                         "he":'תקבל/י עדכונים שבועיים על צפיות לכתובת דוא"ל זו.'}.get(lang,""))
 
     import os, json, urllib.request
     resend_key = os.environ.get("RESEND_API_KEY","")
