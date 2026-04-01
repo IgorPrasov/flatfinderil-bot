@@ -20,7 +20,7 @@ def _save_stats(data):
     with open(STATS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def track_member(user_id: int):
+def track_member(user_id: int, first_name: str = None, last_name: str = None, username: str = None):
     """Record that user clicked 'Join' button."""
     data = _load_stats()
     uid = str(user_id)
@@ -28,7 +28,9 @@ def track_member(user_id: int):
     members = data.setdefault("members", {})
     if uid not in members:
         members[uid] = {"joined": today}
-        _save_stats(data)
+    _save_stats(data)
+    # Also store user info so they appear in users list
+    track_user(user_id, first_name=first_name, last_name=last_name, username=username)
 
 def get_member_count() -> int:
     data = _load_stats()
@@ -425,13 +427,16 @@ def get_analytics(date_from: str = None, date_to: str = None):
                 "last_name": u.get("last_name", ""),
                 "username": u.get("username", ""),
                 "phone": u.get("phone", ""),
-                "first_seen": u.get("first_seen", ""),
+                "first_seen": u.get("first_seen", u.get("last_seen", "")),
                 "last_seen": u.get("last_seen", ""),
                 "lang": u.get("lang", "ru"),
                 "searches": u.get("searches", 0),
                 "subscribed": u.get("subscribed", False),
             }
-            for uid, u in data["users"].items()
+            for uid, u in {
+                **{uid: {"first_seen": m.get("joined",""), "last_seen": m.get("joined","")} for uid, m in members.items()},
+                **data["users"],
+            }.items()
         ], key=lambda x: x["last_seen"], reverse=True),
         "languages": [
             {"name": k.upper(), "value": round(v/total_users*100) if total_users else 0, "count": v}

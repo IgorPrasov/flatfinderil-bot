@@ -73,7 +73,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "join":
         user = update.effective_user
         context.user_data["joined"] = True
-        track_member(user.id)
+        track_member(user.id, first_name=user.first_name, last_name=user.last_name, username=user.username)
         # Proceed to language selection or main menu
         if "lang" not in context.user_data:
             await query.edit_message_text(t("choose_language", context), reply_markup=language_keyboard())
@@ -95,6 +95,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if lang in LANGUAGES:
             context.user_data["lang"] = lang
             user = update.effective_user
+            track_user(user.id, lang, first_name=user.first_name, last_name=user.last_name, username=user.username)
             await query.edit_message_text(
                 format_welcome(user.first_name, context),
                 reply_markup=main_menu_keyboard(context),
