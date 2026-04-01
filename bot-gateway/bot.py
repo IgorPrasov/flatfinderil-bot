@@ -3,10 +3,14 @@ import logging
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
-    MessageHandler, filters,
+    MessageHandler, PreCheckoutQueryHandler, filters,
 )
 from config import BOT_TOKEN
-from handlers import start, handle_menu, my_listings, handle_unknown, agent_cabinet, refer_command, handle_edit_text
+from handlers import (
+    start, handle_menu, my_listings, handle_unknown, agent_cabinet,
+    refer_command, handle_edit_text,
+    handle_pre_checkout, handle_successful_payment,
+)
 from search_handler import SearchHandler
 from listing_handler import ListingHandler
 from commercial_handler import CommercialHandler
@@ -110,6 +114,8 @@ def main():
     app.add_handler(search.get_conversation_handler())
     app.add_handler(listing.get_conversation_handler())
     app.add_handler(CallbackQueryHandler(handle_menu))
+    app.add_handler(PreCheckoutQueryHandler(handle_pre_checkout))
+    app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, handle_successful_payment))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_text))
 
     # Start background notification tasks

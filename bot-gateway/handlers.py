@@ -1,5 +1,8 @@
-from telegram import Update
+import os
+from telegram import Update, LabeledPrice
 from telegram.ext import ContextTypes
+
+PAYMENT_PROVIDER_TOKEN = os.environ.get("PAYMENT_PROVIDER_TOKEN", "")
 from keyboards import (
     main_menu_keyboard, back_to_menu_keyboard,
     results_navigation_keyboard, language_keyboard, join_keyboard,
@@ -158,17 +161,41 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML",
             )
         elif plan_key in PLANS:
-            user_id = update.effective_user.id
-            expiry = activate_subscription(user_id, plan_key)
             lang = get_lang(context)
             plan = PLANS[plan_key]
-            plan_name = plan[f"name_{lang}"] if f"name_{lang}" in plan else plan["name_ru"]
-            expiry_str = expiry.strftime("%d.%m.%Y")
-            await query.edit_message_text(
-                t("sub_activated", context, plan=plan_name, expiry=expiry_str),
-                reply_markup=back_to_menu_keyboard(context),
-                parse_mode="HTML"
-            )
+            plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
+            price_agorot = int(plan["price"] * 100)  # ILS → agorot
+
+            if not PAYMENT_PROVIDER_TOKEN:
+                # Fallback: activate without payment (dev/trial mode)
+                user_id = update.effective_user.id
+                expiry = activate_subscription(user_id, plan_key)
+                expiry_str = expiry.strftime("%d.%m.%Y")
+                await query.edit_message_text(
+                    t("sub_activated", context, plan=plan_name, expiry=expiry_str),
+                    reply_markup=back_to_menu_keyboard(context),
+                    parse_mode="HTML",
+                )
+            else:
+                descriptions = {
+                    "ru": f"Доступ к FlatFinderIL на {plan['days']} дней",
+                    "en": f"FlatFinderIL access for {plan['days']} days",
+                    "he": f"גישה ל-FlatFinderIL למשך {plan['days']} ימים",
+                }
+                desc = descriptions.get(lang, descriptions["ru"])
+                await query.message.reply_invoice(
+                    title=f"FlatFinderIL — {plan_name}",
+                    description=desc,
+                    payload=f"{plan_key}:{update.effective_user.id}",
+                    provider_token=PAYMENT_PROVIDER_TOKEN,
+                    currency="ILS",
+                    prices=[LabeledPrice(plan_name, price_agorot)],
+                    need_name=False,
+                    need_phone_number=False,
+                    need_email=False,
+                    protect_content=False,
+                )
+                await query.answer()
 
     elif data == "favorites":
         user_id = update.effective_user.id
@@ -792,3 +819,50 @@ async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
         t("unknown_cmd", context),
         reply_markup=back_to_menu_keyboard(context)
     )
+
+
+# ── Telegram Payments ─────────────────────────────────────────────────────────
+
+async def handle_pre_checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обязательный ответ на pre-checkout запрос в течение 10 секунд."""
+    query = update.pre_checkout_query
+    # Validate payload format: "plan_key:user_id"
+    try:
+        plan_key, uid_str = query.invoice_payload.split(":", 1)
+        if plan_key not in PLANS:
+            await query.answer(ok=False, error_message="Неверный план подписки.")
+            return
+    except Exception:
+        await query.answer(ok=False, error_message="Ошибка платежа.")
+        return
+    await query.answer(ok=True)
+
+
+async def handle_successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Активирует подписку после успешной оплаты."""
+    payment = update.message.successful_payment
+    user_id = update.effective_user.id
+    lang = context.user_data.get("lang", "ru")
+
+    try:
+        plan_key, _ = payment.invoice_payload.split(":", 1)
+        expiry = activate_subscription(user_id, plan_key)
+        track_subscription(user_id, plan_key)
+
+        plan = PLANS[plan_key]
+        plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
+        expiry_str = expiry.strftime("%d.%m.%Y")
+
+        msgs = {
+            "ru": f"✅ <b>Оплата прошла успешно!</b>\n\nПодписка <b>{plan_name}</b> активна до <b>{expiry_str}</b>.\n\nСпасибо за оплату! 🏠",
+            "en": f"✅ <b>Payment successful!</b>\n\n<b>{plan_name}</b> subscription active until <b>{expiry_str}</b>.\n\nThank you! 🏠",
+            "he": f"✅ <b>התשלום בוצע בהצלחה!</b>\n\nמנוי <b>{plan_name}</b> פעיל עד <b>{expiry_str}</b>.\n\nתודה! 🏠",
+        }
+        await update.message.reply_text(
+            msgs.get(lang, msgs["ru"]),
+            reply_markup=back_to_menu_keyboard(context),
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        await update.message.reply_text("✅ Оплата получена! Свяжитесь с поддержкой для активации.")
+
