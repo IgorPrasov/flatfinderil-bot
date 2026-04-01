@@ -7,3 +7,4 @@ config.py.save
 *.save
 stats.json
 owners_db.json
+listings_db.json
