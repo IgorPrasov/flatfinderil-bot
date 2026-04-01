@@ -190,9 +190,9 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     provider_token=PAYMENT_PROVIDER_TOKEN,
                     currency="ILS",
                     prices=[LabeledPrice(plan_name, price_agorot)],
-                    need_name=False,
+                    need_name=True,
                     need_phone_number=False,
-                    need_email=False,
+                    need_email=True,
                     protect_content=False,
                 )
                 await query.answer()
@@ -838,6 +838,85 @@ async def handle_pre_checkout(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer(ok=True)
 
 
+def _send_payment_receipt(email: str, buyer_name: str, plan_name_he: str, amount_ils: float,
+                           days: int, expiry_str: str, charge_id: str):
+    """Отправляет квитанцию (קבלה) на иврите через Resend API."""
+    import requests as _req
+    resend_key = os.environ.get("RESEND_API_KEY", "")
+    if not resend_key or not email:
+        return
+    date_he = datetime.now().strftime("%d/%m/%Y")
+    amount_str = f"₪{amount_ils:.2f}"
+    html = f"""<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head><meta charset="UTF-8"><style>
+  body{{font-family:Arial,sans-serif;direction:rtl;background:#f5f5f0;margin:0;padding:20px}}
+  .wrap{{max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)}}
+  .head{{background:#2AABEE;padding:28px 32px;text-align:center;color:#fff}}
+  .head h1{{margin:0;font-size:22px;letter-spacing:.5px}}
+  .head p{{margin:6px 0 0;font-size:13px;opacity:.85}}
+  .body{{padding:28px 32px}}
+  .label{{font-size:11px;color:#999;margin-bottom:2px;text-transform:uppercase}}
+  .value{{font-size:15px;color:#222;margin-bottom:18px;font-weight:500}}
+  .divider{{border:none;border-top:1px solid #eee;margin:20px 0}}
+  .total-row{{display:flex;justify-content:space-between;align-items:center;background:#f0faf5;padding:14px 18px;border-radius:8px;margin-top:8px}}
+  .total-label{{font-size:14px;color:#333;font-weight:600}}
+  .total-amount{{font-size:22px;font-weight:700;color:#4CAF8A}}
+  .footer{{background:#f8f8f4;padding:16px 32px;text-align:center;font-size:11px;color:#aaa}}
+  .badge{{display:inline-block;background:#4CAF8A22;color:#4CAF8A;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;margin-top:4px}}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>🏠 FlatFinderIL</h1>
+    <p>קבלה על תשלום</p>
+  </div>
+  <div class="body">
+    <div class="label">מספר קבלה</div>
+    <div class="value" style="font-family:monospace;font-size:13px;color:#888">{charge_id}</div>
+
+    <div class="label">תאריך</div>
+    <div class="value">{date_he}</div>
+
+    <div class="label">שם הלקוח</div>
+    <div class="value">{buyer_name or '—'}</div>
+
+    <div class="label">כתובת דואר אלקטרוני</div>
+    <div class="value" style="direction:ltr;text-align:right">{email}</div>
+
+    <hr class="divider">
+
+    <div class="label">שירות</div>
+    <div class="value">גישה ל-FlatFinderIL — {plan_name_he} ({days} ימים)</div>
+
+    <div class="label">תוקף המנוי עד</div>
+    <div class="value"><span class="badge">✅ {expiry_str}</span></div>
+
+    <div class="total-row">
+      <span class="total-label">סה"כ שולם</span>
+      <span class="total-amount">{amount_str}</span>
+    </div>
+  </div>
+  <div class="footer">FlatFinderIL · תשלום בוצע דרך Telegram Payments · תודה שבחרת בנו!</div>
+</div>
+</body></html>"""
+
+    try:
+        _req.post(
+            "https://api.resend.com/emails",
+            json={
+                "from": "FlatFinderIL <onboarding@resend.dev>",
+                "to": [email],
+                "subject": f"קבלה על תשלום — FlatFinderIL {date_he}",
+                "html": html,
+            },
+            headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+            timeout=10,
+        )
+    except Exception:
+        pass
+
+
 async def handle_successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Активирует подписку после успешной оплаты."""
     payment = update.message.successful_payment
@@ -851,12 +930,32 @@ async def handle_successful_payment(update: Update, context: ContextTypes.DEFAUL
 
         plan = PLANS[plan_key]
         plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
+        plan_name_he = plan.get("name_he") or plan["name_ru"]
         expiry_str = expiry.strftime("%d.%m.%Y")
+        amount_ils = plan.get("price", 0)
+        charge_id = payment.telegram_payment_charge_id or "—"
+
+        # Extract email/name from order_info
+        order_info = payment.order_info
+        buyer_email = order_info.email if order_info else None
+        buyer_name = order_info.name if order_info else None
+        if not buyer_name:
+            u = update.effective_user
+            buyer_name = " ".join(filter(None, [u.first_name, u.last_name]))
+
+        # Send Hebrew receipt asynchronously (non-blocking)
+        if buyer_email:
+            import threading
+            threading.Thread(
+                target=_send_payment_receipt,
+                args=(buyer_email, buyer_name, plan_name_he, amount_ils, plan.get("days", 7), expiry_str, charge_id),
+                daemon=True,
+            ).start()
 
         msgs = {
-            "ru": f"✅ <b>Оплата прошла успешно!</b>\n\nПодписка <b>{plan_name}</b> активна до <b>{expiry_str}</b>.\n\nСпасибо за оплату! 🏠",
-            "en": f"✅ <b>Payment successful!</b>\n\n<b>{plan_name}</b> subscription active until <b>{expiry_str}</b>.\n\nThank you! 🏠",
-            "he": f"✅ <b>התשלום בוצע בהצלחה!</b>\n\nמנוי <b>{plan_name}</b> פעיל עד <b>{expiry_str}</b>.\n\nתודה! 🏠",
+            "ru": f"✅ <b>Оплата прошла успешно!</b>\n\nПодписка <b>{plan_name}</b> активна до <b>{expiry_str}</b>.\n\n{'📧 Квитанция отправлена на ' + buyer_email if buyer_email else ''}\n\nСпасибо за оплату! 🏠",
+            "en": f"✅ <b>Payment successful!</b>\n\n<b>{plan_name}</b> subscription active until <b>{expiry_str}</b>.\n\n{'📧 Receipt sent to ' + buyer_email if buyer_email else ''}\n\nThank you! 🏠",
+            "he": f"✅ <b>התשלום בוצע בהצלחה!</b>\n\nמנוי <b>{plan_name}</b> פעיל עד <b>{expiry_str}</b>.\n\n{'📧 קבלה נשלחה ל-' + buyer_email if buyer_email else ''}\n\nתודה! 🏠",
         }
         await update.message.reply_text(
             msgs.get(lang, msgs["ru"]),
