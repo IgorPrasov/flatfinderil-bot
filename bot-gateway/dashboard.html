@@ -211,6 +211,14 @@ canvas{max-width:100%}
       <div class="card-body"><div class="channel-grid" id="channels-grid"></div></div>
     </div>
     <div class="card">
+      <div class="card-title">🧹 Очистка базы</div>
+      <div class="card-body">
+        <p style="color:#aaa;font-size:13px;margin:0 0 12px">Удалить из базы объявления-запросы ("ищу квартиру") и рекламу услуг, попавшие из Telegram-каналов.</p>
+        <button id="btn-cleanup-spam" onclick="cleanupSpam()" style="background:#e74c3c;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px">Удалить спам из базы</button>
+        <span id="cleanup-result" style="margin-left:12px;font-size:13px;color:#aaa"></span>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-title">👤 Объявления добавленные пользователями</div>
       <div class="card-body">
         <table style="width:100%;border-collapse:collapse;font-size:13px" id="user-added-table">
@@ -540,6 +548,24 @@ function setDateCustom(){
   });
   _activePreset = "custom";
   loadData(from, to);
+}
+
+async function cleanupSpam(){
+  const btn = document.getElementById("btn-cleanup-spam");
+  const res = document.getElementById("cleanup-result");
+  btn.disabled = true;
+  btn.textContent = "Удаляю...";
+  res.textContent = "";
+  try{
+    const r = await fetch("/admin/cleanup-spam", {method:"POST"});
+    const j = await r.json();
+    if(j.error){ res.style.color="#e74c3c"; res.textContent = "Ошибка: "+j.error; }
+    else{ res.style.color="#4CAF8A"; res.textContent = `Удалено: ${j.removed} объявлений`; loadData(); }
+  }catch(e){
+    res.style.color="#e74c3c"; res.textContent = "Ошибка соединения";
+  }
+  btn.disabled = false;
+  btn.textContent = "Удалить спам из базы";
 }
 
 async function loadData(dateFrom, dateTo){
