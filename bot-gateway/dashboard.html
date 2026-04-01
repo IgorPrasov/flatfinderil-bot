@@ -108,6 +108,7 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('cabinets')">🗂 Кабинеты</button>
     <button class="nav-btn" onclick="showTab('sellers')">🏢 Агент / Частные</button>
     <button class="nav-btn" onclick="showTab('emails')">📧 Email рассылка</button>
+    <button class="nav-btn" onclick="showTab('owners')">📋 Владельцы</button>
     <button class="nav-btn" onclick="showTab('crm')">👥 CRM</button>
     <button class="nav-btn" onclick="showTab('engage')">💬 Вовлечённость</button>
     <button class="nav-btn" onclick="showTab('money')">💰 Доход</button>
@@ -351,6 +352,32 @@ canvas{max-width:100%}
       <h3>📅 Следующая рассылка</h3>
       <p id="next-report-date" style="font-size:15px;font-weight:600;color:#2a7a52"></p>
       <p style="font-size:12px;color:#888">Каждое воскресенье в 10:00 по израильскому времени (UTC+3)</p>
+    </div>
+  </div>
+
+  <!-- Владельцы -->
+  <div class="tab" id="tab-owners">
+    <div class="kpi-row" id="kpi-owners"></div>
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        📋 База владельцев из Telegram-каналов
+        <input id="owners-search" oninput="filterOwners()" placeholder="Поиск по имени, @username, телефону..." style="padding:5px 10px;border-radius:6px;border:1px solid #ddd;font-size:13px;width:280px">
+      </div>
+      <div class="card-body" style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px" id="owners-table">
+          <thead><tr style="color:#aaa;border-bottom:1px solid #eee">
+            <th style="padding:6px 8px;text-align:left">Имя</th>
+            <th style="padding:6px 8px;text-align:left">@Username</th>
+            <th style="padding:6px 8px;text-align:left">Телефон</th>
+            <th style="padding:6px 8px;text-align:left">Каналы</th>
+            <th style="padding:6px 8px;text-align:center">Объявлений</th>
+            <th style="padding:6px 8px;text-align:left">Первый пост</th>
+            <th style="padding:6px 8px;text-align:left">Последний пост</th>
+          </tr></thead>
+          <tbody id="owners-tbody"></tbody>
+        </table>
+        <div id="owners-empty" style="text-align:center;color:#aaa;padding:24px;display:none">Нет данных. Запустите парсер для сбора контактов.</div>
+      </div>
     </div>
   </div>
 
@@ -713,6 +740,17 @@ function render(){
   const langFlag2 = l => ({"ru":"🇷🇺","en":"🇬🇧","he":"🇮🇱"}[l]||"🌐");
   window._usersList = D.users_list || [];
   renderUsersTable(window._usersList);
+
+  // Owners (contacts from channels)
+  const ow = D.owners || {};
+  const owStats = ow.stats || {};
+  window._ownersList = ow.list || [];
+  document.getElementById("kpi-owners").innerHTML=
+    kpi("📋","Всего контактов",n(owStats.total||0),"из каналов",TG)+
+    kpi("📞","С телефоном",n(owStats.with_phone||0),"",GREEN)+
+    kpi("💬","С @username",n(owStats.with_username||0),"",BLUE)+
+    kpi("👤","С именем",n(owStats.with_name||0),"",PURPLE);
+  renderOwnersTable(window._ownersList);
 
   // Langs cards
   document.getElementById("langs-cards").innerHTML=`<div style="display:flex;gap:12px">`+
@@ -1175,6 +1213,49 @@ function filterUsers(){
     (u.last_name||"").toLowerCase().includes(q) ||
     (u.username||"").toLowerCase().includes(q) ||
     (u.phone||"").includes(q)
+  ) : list);
+}
+
+function renderOwnersTable(list){
+  const tbody = document.getElementById("owners-tbody");
+  const empty = document.getElementById("owners-empty");
+  if(!tbody) return;
+  if(!list || !list.length){
+    tbody.innerHTML="";
+    if(empty) empty.style.display="block";
+    return;
+  }
+  if(empty) empty.style.display="none";
+  tbody.innerHTML = list.slice(0,500).map((o,i)=>{
+    const name = [o.first_name, o.last_name].filter(Boolean).join(" ") || '<span style="color:#ccc">—</span>';
+    const uname = o.username
+      ? `<a href="https://t.me/${o.username}" target="_blank" style="color:#2AABEE;text-decoration:none">@${o.username}</a>`
+      : '<span style="color:#ccc">—</span>';
+    const phone = o.phone
+      ? `<a href="tel:${o.phone}" style="color:#4CAF8A;text-decoration:none;font-family:monospace">${o.phone}</a>`
+      : '<span style="color:#ccc">—</span>';
+    const channels = (o.channels||[]).map(c=>`<span style="background:#e8f4fd;color:#2AABEE;padding:1px 6px;border-radius:4px;font-size:11px">@${c}</span>`).join(" ");
+    return `<tr style="border-bottom:1px solid #f0f0ea;${i%2?'background:#fafaf8':''}">
+      <td style="padding:7px 10px;font-size:13px">${name}</td>
+      <td style="padding:7px 10px;font-size:12px">${uname}</td>
+      <td style="padding:7px 10px;font-size:12px">${phone}</td>
+      <td style="padding:7px 10px;font-size:11px">${channels||'<span style="color:#ccc">—</span>'}</td>
+      <td style="padding:7px 10px;text-align:center;font-weight:600;color:#2AABEE">${o.listings_count||0}</td>
+      <td style="padding:7px 10px;color:#bbb;font-size:11px">${o.first_seen||'—'}</td>
+      <td style="padding:7px 10px;color:#666;font-size:11px">${o.last_seen||'—'}</td>
+    </tr>`;
+  }).join("");
+}
+
+function filterOwners(){
+  const q = (document.getElementById("owners-search")?.value||"").toLowerCase().trim();
+  const list = window._ownersList || [];
+  renderOwnersTable(q ? list.filter(o=>
+    (o.first_name||"").toLowerCase().includes(q) ||
+    (o.last_name||"").toLowerCase().includes(q) ||
+    (o.username||"").toLowerCase().includes(q) ||
+    (o.phone||"").includes(q) ||
+    (o.channels||[]).some(c=>c.toLowerCase().includes(q))
   ) : list);
 }
 

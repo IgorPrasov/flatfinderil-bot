@@ -408,6 +408,15 @@ def get_analytics(date_from: str = None, date_to: str = None):
         "unknown": len(listings) - len(agent_listings) - len(private_listings),
     }
 
+    # ── Owners / contacts from channels ──────────────────────────────────────
+    try:
+        import owners_db as _owners_db
+        owners_list = _owners_db.get_all_owners()
+        owners_stats = _owners_db.get_stats()
+    except Exception:
+        owners_list = []
+        owners_stats = {"total": 0, "with_phone": 0, "with_username": 0, "with_name": 0}
+
     return {
         "period": {"from": _df, "to": _dt, "days": (datetime.strptime(_dt,"%Y-%m-%d")-datetime.strptime(_df,"%Y-%m-%d")).days+1},
         "users": {
@@ -540,5 +549,9 @@ def get_analytics(date_from: str = None, date_to: str = None):
             "top_by_rating": top_by_rating[:6],
             "top_favorites": top_favorites,
             "sub_cities": [{"city": c, "count": n} for c, n in sub_city_counter.most_common(6)],
+        },
+        "owners": {
+            "stats": owners_stats,
+            "list": owners_list[:500],
         },
     }

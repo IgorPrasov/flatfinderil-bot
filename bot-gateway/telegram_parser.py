@@ -653,10 +653,12 @@ def scrape_channel_web(channel: str, limit: int = 100) -> list:
 
 def parse_channel_web(channel: str, limit: int = 50) -> int:
     """Parse one channel via web scraping. Returns count of newly added listings."""
+    import owners_db
     added = 0
     messages = scrape_channel_web(channel, limit)
     for _post_id, text, source_url in messages:
         if url_exists(source_url):
+            owners_db.upsert_from_text(text, channel, source_url)
             continue
         if not is_listing(text):
             continue
@@ -684,12 +686,15 @@ def parse_channel_web(channel: str, limit: int = 50) -> int:
             "source_url": source_url,
         }
         db.add_listing(listing)
+        owners_db.upsert_from_text(text, channel, source_url)
         added += 1
     return added
 
 # ─── telethon (optional, requires SESSION_STRING) ───────────────────────────
 
 async def parse_channel_telethon(client, channel: str, limit: int = 50) -> int:
+    import owners_db
+    from telethon.tl.types import User
     added = 0
     try:
         async for message in client.iter_messages(channel, limit=limit):
@@ -697,10 +702,28 @@ async def parse_channel_telethon(client, channel: str, limit: int = 50) -> int:
                 continue
             text = message.text
             source_url = f"https://t.me/{channel}/{message.id}"
+
+            # ── Collect sender info (works for groups, not broadcast channels) ──
+            try:
+                sender = message.sender
+                if sender and isinstance(sender, User) and not sender.bot:
+                    owners_db.upsert_from_sender(
+                        user_id=sender.id,
+                        username=sender.username,
+                        first_name=sender.first_name,
+                        last_name=sender.last_name,
+                        phone=getattr(sender, "phone", None),
+                        channel=channel,
+                    )
+            except Exception:
+                pass
+
             if url_exists(source_url):
+                owners_db.upsert_from_text(text, channel, source_url)
                 continue
             if not is_listing(text):
                 continue
+
             city = detect_city(text) or "Израиль"
             deal_type = extract_deal_type(text)
             prop_type = extract_property_type(text)
@@ -725,6 +748,7 @@ async def parse_channel_telethon(client, channel: str, limit: int = 50) -> int:
                 "source_url": source_url,
             }
             db.add_listing(listing)
+            owners_db.upsert_from_text(text, channel, source_url)
             added += 1
     except Exception as e:
         print(f"  Ошибка Telethon @{channel}: {e}")
