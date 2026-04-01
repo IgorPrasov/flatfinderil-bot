@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FlatFinderIL — Back-office</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#f5f5f0;--white:#fff;--border:#e0e0da;
+      --blue:#2AABEE;--green:#4CAF8A;--gold:#EF9F27;--red:#E24B4A;--purple:#7F77DD;
+      --text:#222;--sub:#666;--muted:#aaa;
+      --sidebar:220px;
+    }
+    body{background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+         color:var(--text);display:flex;min-height:100vh}
+
+    /* ── Sidebar ── */
+    #sidebar{width:var(--sidebar);background:var(--white);border-right:1px solid var(--border);
+             display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;
+             overflow-y:auto;z-index:10}
+    .sb-logo{padding:20px 18px 14px;border-bottom:1px solid var(--border)}
+    .sb-logo h2{font-size:15px;font-weight:700;color:var(--blue)}
+    .sb-logo span{font-size:11px;color:var(--muted)}
+    .sb-stats{padding:12px 18px;border-bottom:1px solid var(--border)}
+    .sb-stat{display:flex;justify-content:space-between;align-items:center;
+             padding:4px 0;font-size:12px;color:var(--sub)}
+    .sb-stat b{font-size:13px;color:var(--text)}
+    .sb-nav{padding:10px 0;flex:1}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;
+              font-size:13px;font-weight:500;color:var(--sub);cursor:pointer;
+              border-left:3px solid transparent;transition:all .15s}
+    .nav-item:hover{background:#f8f8f4;color:var(--text)}
+    .nav-item.active{border-left-color:var(--blue);background:#f0f8ff;color:var(--blue)}
+    .nav-item .icon{font-size:16px;width:20px;text-align:center}
+    .sb-footer{padding:14px 18px;border-top:1px solid var(--border)}
+    .logout-btn{width:100%;padding:8px;background:#fff4f4;color:var(--red);border:1px solid #fdd;
+                border-radius:6px;font-size:12px;cursor:pointer;font-weight:600}
+    .logout-btn:hover{background:#ffecec}
+
+    /* ── Main ── */
+    #main{margin-left:var(--sidebar);flex:1;padding:24px;max-width:calc(100vw - var(--sidebar))}
+    .page-title{font-size:20px;font-weight:700;margin-bottom:18px}
+
+    /* ── Toolbar ── */
+    .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+    .toolbar input,.toolbar select{padding:8px 12px;border:1.5px solid var(--border);
+      border-radius:8px;font-size:13px;outline:none;background:var(--white)}
+    .toolbar input:focus,.toolbar select:focus{border-color:var(--blue)}
+    .btn{padding:8px 16px;border:none;border-radius:8px;font-size:13px;font-weight:600;
+         cursor:pointer;transition:all .15s}
+    .btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#1a9de0}
+    .btn-success{background:var(--green);color:#fff}.btn-success:hover{background:#3a9f7a}
+    .btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#c33}
+    .btn-sm{padding:5px 10px;font-size:11px}
+    .btn-ghost{background:#f0f0ec;color:var(--sub)}.btn-ghost:hover{background:#e0e0da}
+
+    /* ── Table ── */
+    .table-wrap{background:var(--white);border-radius:10px;border:1px solid var(--border);overflow:hidden}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    thead{background:#f8f8f4}
+    th{padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);
+       border-bottom:2px solid var(--border);white-space:nowrap}
+    td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#fafaf7}
+    .edit-input{padding:4px 8px;border:1.5px solid var(--blue);border-radius:5px;
+                font-size:12px;width:100%;outline:none}
+
+    /* ── Badges ── */
+    .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+    .badge-green{background:#eafaf1;color:var(--green)}
+    .badge-red{background:#fff0f0;color:var(--red)}
+    .badge-blue{background:#e8f4fd;color:var(--blue)}
+    .badge-gold{background:#fff8e7;color:var(--gold)}
+    .badge-purple{background:#f3f2ff;color:var(--purple)}
+
+    /* ── KPI row ── */
+    .kpi-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+    .kpi{background:var(--white);border:1px solid var(--border);border-radius:10px;
+         padding:14px 18px;min-width:120px;flex:1}
+    .kpi-val{font-size:26px;font-weight:700}
+    .kpi-label{font-size:11px;color:var(--muted);margin-top:2px}
+
+    /* ── Modal ── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;
+                   display:none;align-items:center;justify-content:center}
+    .modal-overlay.open{display:flex}
+    .modal{background:var(--white);border-radius:12px;padding:28px;width:500px;
+           max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.15)}
+    .modal h3{font-size:16px;font-weight:700;margin-bottom:18px}
+    .field{margin-bottom:14px}
+    .field label{display:block;font-size:11px;font-weight:600;color:var(--sub);margin-bottom:5px}
+    .field input,.field select,.field textarea{width:100%;padding:9px 12px;
+      border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue)}
+    .modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+
+    /* ── Pagination ── */
+    .pagination{display:flex;gap:8px;align-items:center;margin-top:14px;justify-content:flex-end}
+    .page-btn{padding:5px 12px;border:1.5px solid var(--border);border-radius:6px;
+              background:var(--white);cursor:pointer;font-size:12px}
+    .page-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+    /* ── Tabs ── */
+    .sub-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:18px}
+    .sub-tab{padding:8px 16px;font-size:13px;font-weight:500;color:var(--muted);
+             cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
+    .sub-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+    /* ── Toast ── */
+    #toast{position:fixed;bottom:20px;right:20px;background:#222;color:#fff;padding:10px 18px;
+           border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;z-index:200}
+    #toast.show{opacity:1}
+
+    /* ── Loading ── */
+    .loading{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+    .empty{text-align:center;padding:30px;color:var(--muted);font-size:13px}
+
+    /* ── Detail panel ── */
+    .detail-panel{position:fixed;top:0;right:-480px;width:480px;height:100vh;background:var(--white);
+                  box-shadow:-4px 0 20px rgba(0,0,0,.12);z-index:50;transition:right .3s;
+                  overflow-y:auto;display:flex;flex-direction:column}
+    .detail-panel.open{right:0}
+    .detail-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;
+                   align-items:center;justify-content:space-between;position:sticky;top:0;
+                   background:var(--white);z-index:1}
+    .detail-header h3{font-size:15px;font-weight:700}
+    .close-btn{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:4px 8px}
+    .detail-body{padding:20px;flex:1}
+    .detail-section{margin-bottom:20px}
+    .detail-section h4{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;
+                       letter-spacing:.5px;margin-bottom:10px;padding-bottom:6px;
+                       border-bottom:1px solid var(--border)}
+    .detail-row{display:flex;justify-content:space-between;align-items:flex-start;
+                padding:5px 0;border-bottom:1px solid #f8f8f4}
+    .detail-row:last-child{border-bottom:none}
+    .detail-label{font-size:12px;color:var(--sub);min-width:100px}
+    .detail-value{font-size:12px;color:var(--text);text-align:right;max-width:260px;word-break:break-word}
+    .detail-desc{font-size:13px;color:#444;line-height:1.5;padding:10px;
+                 background:#f8f8f4;border-radius:8px;margin-top:6px}
+    tr.clickable{cursor:pointer}
+    tr.clickable:hover td{background:#f0f8ff!important}
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside id="sidebar">
+  <div class="sb-logo">
+    <h2>🏠 FlatFinderIL</h2>
+    <span>Back-office</span>
+  </div>
+  <div class="sb-stats" id="sb-stats">
+    <div class="sb-stat"><span>Объявлений</span><b id="st-listings">—</b></div>
+    <div class="sb-stat"><span>Пользователей</span><b id="st-users">—</b></div>
+    <div class="sb-stat"><span>Услуг</span><b id="st-services">—</b></div>
+    <div class="sb-stat"><span>Email подписок</span><b id="st-emails">—</b></div>
+    <div class="sb-stat"><span>CRM контактов</span><b id="st-crm">—</b></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-item active" onclick="showTab('listings')"><span class="icon">🏠</span>Объявления</div>
+    <div class="nav-item" onclick="showTab('users')"><span class="icon">👤</span>Пользователи</div>
+    <div class="nav-item" onclick="showTab('services')"><span class="icon">🚚</span>Услуги</div>
+    <div class="nav-item" onclick="showTab('crm')"><span class="icon">👥</span>CRM</div>
+    <div class="nav-item" onclick="showTab('emails')"><span class="icon">✉️</span>Email рассылки</div>
+  </nav>
+  <div class="sb-footer">
+    <button class="logout-btn" onclick="logout()">🚪 Выйти</button>
+  </div>
+</aside>
+
+<!-- Main content -->
+<main id="main">
+
+  <!-- ── Listings ── -->
+  <div id="tab-listings" class="tab-page">
+    <div class="page-title">🏠 Объявления</div>
+    <div class="toolbar">
+      <input id="fl-q" placeholder="🔍 Поиск..." oninput="debounce(loadListings,400)()">
+      <select id="fl-city" onchange="loadListings()"><option value="">Все города</option></select>
+      <select id="fl-deal" onchange="loadListings()">
+        <option value="">Все сделки</option>
+        <option value="rent">Аренда</option>
+        <option value="buy">Продажа</option>
+        <option value="sublet">Сублет</option>
+        <option value="commercial">Коммерческая</option>
+      </select>
+      <select id="fl-active" onchange="loadListings()">
+        <option value="">Все</option>
+        <option value="true">Активные</option>
+        <option value="false">Неактивные</option>
+      </select>
+    </div>
+    <div class="kpi-row" id="kpi-listings"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>ID</th><th>Заголовок</th><th>Город</th><th>Тип</th>
+          <th>Комнат</th><th>Цена ₪</th><th>Продавец</th>
+          <th>Статус</th><th>Просм.</th><th>Дата</th><th>Действия</th>
+        </tr></thead>
+        <tbody id="tbl-listings"><tr><td colspan="11" class="loading">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pag-listings"></div>
+  </div>
+
+  <!-- ── Users ── -->
+  <div id="tab-users" class="tab-page" style="display:none">
+    <div class="page-title">👤 Пользователи / Агенты</div>
+    <div class="kpi-row" id="kpi-users"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>User ID</th><th>Имя</th><th>Телефон</th><th>Email</th>
+          <th>Объявлений</th><th>Активных</th><th>Язык</th><th>Действия</th>
+        </tr></thead>
+        <tbody id="tbl-users"><tr><td colspan="8" class="loading">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Services ── -->
+  <div id="tab-services" class="tab-page" style="display:none">
+    <div class="page-title">🚚 Поставщики услуг</div>
+    <div class="toolbar">
+      <select id="fs-type" onchange="loadServices()">
+        <option value="">Все типы</option>
+        <option value="moving">🚚 Перевозки</option>
+        <option value="packing">📦 Упаковка</option>
+        <option value="cleaning">🧹 Клининг</option>
+      </select>
+      <select id="fs-active" onchange="loadServices()">
+        <option value="">Все</option>
+        <option value="true">Активные</option>
+        <option value="false">Неактивные</option>
+      </select>
+    </div>
+    <div class="kpi-row" id="kpi-services"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>ID</th><th>Тип</th><th>Город</th><th>Регион</th>
+          <th>Цена</th><th>Телефон</th><th>Email</th><th>Статус</th><th>Действия</th>
+        </tr></thead>
+        <tbody id="tbl-services"><tr><td colspan="9" class="loading">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CRM ── -->
+  <div id="tab-crm" class="tab-page" style="display:none">
+    <div class="page-title">👥 CRM</div>
+    <div class="sub-tabs">
+      <div class="sub-tab active" onclick="showCrmTab('contacts')">Контакты</div>
+      <div class="sub-tab" onclick="showCrmTab('deals')">Сделки</div>
+    </div>
+    <div id="crm-contacts">
+      <div class="toolbar">
+        <select id="fc-type" onchange="loadCrmContacts()">
+          <option value="">Все типы</option>
+          <option value="agent">🏘 Агент</option>
+          <option value="mover">🚚 Перевозчик</option>
+          <option value="packer">📦 Упаковщик</option>
+          <option value="cleaner">🧹 Клининг</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="openAddContact()">+ Добавить</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Имя</th><th>Тип</th><th>Телефон</th><th>Telegram</th>
+            <th>Город</th><th>Сделок</th><th>Заметок</th><th>Действия</th>
+          </tr></thead>
+          <tbody id="tbl-contacts"><tr><td colspan="8" class="loading">Загрузка...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="crm-deals" style="display:none">
+      <div class="toolbar">
+        <select id="fd-status" onchange="loadCrmDeals()">
+          <option value="">Все статусы</option>
+          <option value="new">🆕 Новая</option>
+          <option value="in_progress">⏳ В работе</option>
+          <option value="done">✅ Завершена</option>
+          <option value="cancelled">❌ Отменена</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Контакт</th><th>Описание</th><th>Сумма</th>
+            <th>Статус</th><th>Дата</th><th>Действия</th>
+          </tr></thead>
+          <tbody id="tbl-deals"><tr><td colspan="6" class="loading">Загрузка...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Email ── -->
+  <div id="tab-emails" class="tab-page" style="display:none">
+    <div class="page-title">✉️ Email рассылки</div>
+    <div class="toolbar">
+      <button class="btn btn-success" onclick="sendAllReports()">📨 Отправить всем сейчас</button>
+    </div>
+    <div class="kpi-row" id="kpi-emails"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>User ID</th><th>Email</th><th>Тип</th><th>Язык</th>
+          <th>Объявлений/Услуг</th><th>Следующий отчёт</th><th>Действия</th>
+        </tr></thead>
+        <tbody id="tbl-emails"><tr><td colspan="7" class="loading">Загрузка...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- Modal: Add CRM contact -->
+<div class="modal-overlay" id="modal-contact">
+  <div class="modal">
+    <h3>Добавить контакт CRM</h3>
+    <div class="field"><label>Тип</label>
+      <select id="m-ctype">
+        <option value="agent">🏘 Агент</option>
+        <option value="mover">🚚 Перевозчик</option>
+        <option value="packer">📦 Упаковщик</option>
+        <option value="cleaner">🧹 Клининг</option>
+      </select></div>
+    <div class="field"><label>Имя</label><input id="m-cname" placeholder="Имя контакта"></div>
+    <div class="field"><label>Телефон</label><input id="m-cphone" placeholder="+972..."></div>
+    <div class="field"><label>Telegram</label><input id="m-ctg" placeholder="@username"></div>
+    <div class="field"><label>Город</label><input id="m-ccity" placeholder="Тель-Авив"></div>
+    <div class="field"><label>Заметки</label><textarea id="m-cnotes" rows="3" placeholder="..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-contact')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveContact()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Panel -->
+<div class="detail-panel" id="detail-panel">
+  <div class="detail-header">
+    <h3 id="detail-title">Детали</h3>
+    <button class="close-btn" onclick="closeDetail()">✕</button>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+</div>
+<div id="detail-overlay" onclick="closeDetail()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.2);z-index:49"></div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+const API = '/backoffice/api';
+let currentTab = 'listings';
+let listingsPage = 1;
+
+// ── API helper ────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = {method, headers: {'Content-Type':'application/json'}};
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  if (r.status === 401) { location.href = '/backoffice/login'; return null; }
+  return r.json();
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+function toast(msg, ok=true) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = ok ? '#222' : '#c33';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Sidebar stats ──────────────────────────────────────────────────────────────
+async function loadStats() {
+  const d = await api('GET','/stats');
+  if (!d) return;
+  document.getElementById('st-listings').textContent = d.active_listings + '/' + d.total_listings;
+  document.getElementById('st-users').textContent = d.total_users;
+  document.getElementById('st-services').textContent = d.active_services + '/' + d.total_services;
+  document.getElementById('st-emails').textContent = d.email_subscribers;
+  document.getElementById('st-crm').textContent = d.total_crm_contacts;
+}
+
+// ── Tab navigation ─────────────────────────────────────────────────────────────
+function showTab(name) {
+  currentTab = name;
+  document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).style.display = 'block';
+  document.querySelectorAll('.nav-item').forEach(el => {
+    if (el.textContent.toLowerCase().includes(
+      {listings:'объявл',users:'польз',services:'услуг',crm:'crm',emails:'email'}[name]||name
+    )) el.classList.add('active');
+  });
+  if (name === 'listings') loadListings();
+  else if (name === 'users') loadUsers();
+  else if (name === 'services') loadServices();
+  else if (name === 'crm') { loadCrmContacts(); loadCrmDeals(); }
+  else if (name === 'emails') loadEmails();
+}
+
+// ── Debounce ───────────────────────────────────────────────────────────────────
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+const DEAL_LABELS = {rent:'Аренда',buy:'Продажа',sublet:'Сублет',commercial:'Коммерческая'};
+const SVC_LABELS  = {moving:'🚚 Перевозки',packing:'📦 Упаковка',cleaning:'🧹 Клининг'};
+const STATUS_LABELS = {new:'🆕 Новая',in_progress:'⏳ В работе',done:'✅ Завершена',cancelled:'❌ Отменена'};
+const SELLER_LABELS = {agent:'🏢 Агент',private:'👤 Частное'};
+const LANG_LABELS = {ru:'🇷🇺 RU',en:'🇬🇧 EN',he:'🇮🇱 HE'};
+function badge(txt, color='blue') { return `<span class="badge badge-${color}">${txt}</span>`; }
+function nextSunday() {
+  const d = new Date(); const day = d.getDay(); const diff = (7 - day) % 7 || 7;
+  d.setDate(d.getDate() + diff); return d.toLocaleDateString('ru-RU');
+}
+
+// ── LISTINGS ──────────────────────────────────────────────────────────────────
+async function loadListings() {
+  const q      = document.getElementById('fl-q').value;
+  const city   = document.getElementById('fl-city').value;
+  const deal   = document.getElementById('fl-deal').value;
+  const active = document.getElementById('fl-active').value;
+  let url = `/listings?page=${listingsPage}&per_page=50`;
+  if (q)      url += '&q=' + encodeURIComponent(q);
+  if (city)   url += '&city=' + encodeURIComponent(city);
+  if (deal)   url += '&deal_type=' + deal;
+  if (active) url += '&active=' + active;
+
+  const d = await api('GET', url);
+  if (!d) return;
+  const tbody = document.getElementById('tbl-listings');
+
+  // KPI
+  document.getElementById('kpi-listings').innerHTML =
+    `<div class="kpi"><div class="kpi-val" style="color:var(--blue)">${d.total}</div><div class="kpi-label">найдено</div></div>`;
+
+  // Populate city filter once
+  if (!document.getElementById('fl-city').dataset.loaded) {
+    const cities = [...new Set(d.items.map(l => l.city).filter(Boolean))].sort();
+    cities.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      document.getElementById('fl-city').appendChild(o);
+    });
+    document.getElementById('fl-city').dataset.loaded = '1';
+  }
+
+  if (!d.items.length) {
+    tbody.innerHTML = '<tr><td colspan="11" class="empty">Объявлений не найдено</td></tr>';
+    return;
+  }
+  tbody.innerHTML = d.items.map(l => {
+    const statusBadge = l.active ? badge('Активно','green') : badge('Скрыто','red');
+    const sellerBadge = l.seller_type ? badge(SELLER_LABELS[l.seller_type]||l.seller_type,'purple') : '';
+    const deal = DEAL_LABELS[l.deal_type] || l.deal_type || '—';
+    return `<tr id="row-${l.id}" class="clickable" onclick="showListing(${l.id})">
+      <td><small>${l.id}</small></td>
+      <td><b>${esc(l.title||'—')}</b></td>
+      <td>${esc(l.city||'—')}</td>
+      <td>${deal}</td>
+      <td>${l.rooms||'—'}</td>
+      <td>${(l.price||0).toLocaleString()}</td>
+      <td>${sellerBadge}</td>
+      <td>${statusBadge}</td>
+      <td>${l.views||0}</td>
+      <td><small>${l.date_added||'—'}</small></td>
+      <td onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm" onclick="editListing(${l.id})">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleListing(${l.id},${l.active})">${l.active?'🙈':'👁'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteListing(${l.id})">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  const totalPages = Math.ceil(d.total / d.per_page);
+  const pag = document.getElementById('pag-listings');
+  pag.innerHTML = '';
+  if (totalPages > 1) {
+    for (let i = 1; i <= Math.min(totalPages, 10); i++) {
+      const btn = document.createElement('button');
+      btn.className = 'page-btn' + (i === listingsPage ? ' active' : '');
+      btn.textContent = i;
+      btn.onclick = () => { listingsPage = i; loadListings(); };
+      pag.appendChild(btn);
+    }
+  }
+}
+
+async function toggleListing(id, currentActive) {
+  const d = await api('PATCH', `/listings/${id}/toggle`);
+  if (d?.ok) { toast(currentActive ? '🙈 Скрыто' : '✅ Активировано'); loadListings(); loadStats(); }
+}
+
+async function deleteListing(id) {
+  if (!confirm(`Удалить объявление #${id}?`)) return;
+  const d = await api('DELETE', `/listings/${id}`);
+  if (d?.ok) { toast('🗑 Удалено'); loadListings(); loadStats(); }
+  else toast('Ошибка удаления', false);
+}
+
+function editListing(id) {
+  // Inline edit: turn row cells into inputs
+  const row = document.getElementById('row-' + id);
+  if (!row || row.dataset.editing) return;
+  row.dataset.editing = '1';
+  const cells = row.querySelectorAll('td');
+  // Save originals
+  const orig = { title: cells[1].querySelector('b')?.textContent || cells[1].textContent,
+                 city: cells[2].textContent, rooms: cells[4].textContent,
+                 price: cells[5].textContent.replace(/[,\s]/g,'') };
+  cells[1].innerHTML = `<input class="edit-input" value="${esc(orig.title)}" id="ei-title-${id}">`;
+  cells[2].innerHTML = `<input class="edit-input" value="${esc(orig.city)}" id="ei-city-${id}" style="width:90px">`;
+  cells[4].innerHTML = `<input class="edit-input" value="${orig.rooms}" id="ei-rooms-${id}" style="width:60px">`;
+  cells[5].innerHTML = `<input class="edit-input" value="${orig.price}" id="ei-price-${id}" style="width:80px">`;
+  cells[10].innerHTML = `
+    <button class="btn btn-success btn-sm" onclick="saveListing(${id})">💾</button>
+    <button class="btn btn-ghost btn-sm" onclick="loadListings()">✕</button>`;
+}
+
+async function saveListing(id) {
+  const fields = {
+    title:  document.getElementById(`ei-title-${id}`)?.value,
+    city:   document.getElementById(`ei-city-${id}`)?.value,
+    rooms:  document.getElementById(`ei-rooms-${id}`)?.value,
+    price:  parseInt(document.getElementById(`ei-price-${id}`)?.value) || 0,
+  };
+  const d = await api('PATCH', `/listings/${id}`, fields);
+  if (d?.ok) { toast('✅ Сохранено'); loadListings(); }
+  else toast('Ошибка сохранения', false);
+}
+
+// ── USERS ─────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const d = await api('GET', '/users');
+  if (!d) return;
+  document.getElementById('kpi-users').innerHTML =
+    `<div class="kpi"><div class="kpi-val" style="color:var(--blue)">${d.total}</div><div class="kpi-label">пользователей</div></div>
+     <div class="kpi"><div class="kpi-val" style="color:var(--green)">${d.items.filter(u=>u.email).length}</div><div class="kpi-label">с email</div></div>
+     <div class="kpi"><div class="kpi-val" style="color:var(--gold)">${d.items.reduce((s,u)=>s+u.active_listings,0)}</div><div class="kpi-label">активных объявл.</div></div>`;
+  const tbody = document.getElementById('tbl-users');
+  if (!d.items.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Пользователей нет</td></tr>'; return; }
+  tbody.innerHTML = d.items.map(u => `<tr class="clickable" onclick="showUser('${u.user_id}')">
+    <td><small>${u.user_id}</small></td>
+    <td><b>${esc(u.owner_name||'—')}</b></td>
+    <td>${u.owner_phone ? `<a href="tel:${u.owner_phone}" onclick="event.stopPropagation()">${u.owner_phone}</a>` : '—'}</td>
+    <td>${u.email ? `<a href="mailto:${u.email}" onclick="event.stopPropagation()">${u.email}</a>` : badge('Нет','red')}</td>
+    <td>${u.total_listings}</td>
+    <td>${u.active_listings}</td>
+    <td>${LANG_LABELS[u.lang]||u.lang||'—'}</td>
+    <td onclick="event.stopPropagation()"><button class="btn btn-primary btn-sm" onclick="showUser('${u.user_id}')">👁 Детали</button></td>
+  </tr>`).join('');
+}
+
+
+// ── SERVICES ──────────────────────────────────────────────────────────────────
+async function loadServices() {
+  const stype  = document.getElementById('fs-type').value;
+  const active = document.getElementById('fs-active').value;
+  let url = '/services';
+  const params = [];
+  if (stype)  params.push('type=' + stype);
+  if (active) params.push('active=' + active);
+  if (params.length) url += '?' + params.join('&');
+  const d = await api('GET', url);
+  if (!d) return;
+  document.getElementById('kpi-services').innerHTML =
+    `<div class="kpi"><div class="kpi-val" style="color:var(--blue)">${d.total}</div><div class="kpi-label">поставщиков</div></div>
+     <div class="kpi"><div class="kpi-val" style="color:var(--green)">${d.items.filter(s=>s.email).length}</div><div class="kpi-label">с email</div></div>`;
+  const tbody = document.getElementById('tbl-services');
+  if (!d.items.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">Поставщиков нет</td></tr>'; return; }
+  tbody.innerHTML = d.items.map(s => {
+    const statusBadge = s.active!==false ? badge('Активно','green') : badge('Скрыто','red');
+    const phone = s.owner_phone || s.phone || '';
+    return `<tr class="clickable" onclick="showService('${s.id}')">
+      <td><small>${s.id||'—'}</small></td>
+      <td>${SVC_LABELS[s.service_type]||s.service_type||'—'}</td>
+      <td>${esc(s.city||'—')}</td>
+      <td>${esc(s.region||'—')}</td>
+      <td>${(s.price||0).toLocaleString()} ₪</td>
+      <td>${phone ? `<a href="tel:${phone}" onclick="event.stopPropagation()">${phone}</a>` : '—'}</td>
+      <td>${s.email ? `<a href="mailto:${s.email}" onclick="event.stopPropagation()">${s.email}</a>` : '—'}</td>
+      <td>${statusBadge}</td>
+      <td onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm" onclick="toggleService('${s.id}',${s.active!==false})">${s.active!==false?'🙈':'👁'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteService('${s.id}')">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleService(id, currentActive) {
+  const d = await api('PATCH', `/services/${id}/toggle`);
+  if (d?.ok) { toast(currentActive ? '🙈 Скрыто' : '✅ Активировано'); loadServices(); loadStats(); }
+}
+
+async function deleteService(id) {
+  if (!confirm(`Удалить поставщика ${id}?`)) return;
+  const d = await api('DELETE', `/services/${id}`);
+  if (d?.ok) { toast('🗑 Удалено'); loadServices(); loadStats(); }
+}
+
+// ── CRM ───────────────────────────────────────────────────────────────────────
+function showCrmTab(name) {
+  document.querySelectorAll('.sub-tab').forEach((el,i) => {
+    el.classList.toggle('active', ['contacts','deals'][i] === name);
+  });
+  document.getElementById('crm-contacts').style.display = name==='contacts'?'block':'none';
+  document.getElementById('crm-deals').style.display    = name==='deals'?'block':'none';
+}
+
+async function loadCrmContacts() {
+  const stype = document.getElementById('fc-type').value;
+  let url = '/crm/contacts';
+  if (stype) url += '?type=' + stype;
+  const d = await api('GET', url);
+  if (!d) return;
+  const tbody = document.getElementById('tbl-contacts');
+  if (!d.items.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Контактов нет</td></tr>'; return; }
+  const TYPE_LABELS = {agent:'🏘 Агент',mover:'🚚 Перевозчик',packer:'📦 Упаковщик',cleaner:'🧹 Клининг'};
+  tbody.innerHTML = d.items.map(c => `<tr>
+    <td><b>${esc(c.name||'—')}</b></td>
+    <td>${TYPE_LABELS[c.contact_type]||c.contact_type||'—'}</td>
+    <td>${esc(c.phone||'—')}</td>
+    <td>${esc(c.telegram||'—')}</td>
+    <td>${esc(c.city||'—')}</td>
+    <td>—</td><td>—</td>
+    <td>
+      <button class="btn btn-danger btn-sm" onclick="deleteContact('${c.id}')">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+
+async function loadCrmDeals() {
+  const status = document.getElementById('fd-status').value;
+  let url = '/crm/deals';
+  if (status) url += '?status=' + status;
+  const d = await api('GET', url);
+  if (!d) return;
+  const tbody = document.getElementById('tbl-deals');
+  if (!d.items.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">Сделок нет</td></tr>'; return; }
+  tbody.innerHTML = d.items.map(deal => {
+    const statusBadge = STATUS_LABELS[deal.status] || deal.status;
+    const badgeColor = {new:'blue',in_progress:'gold',done:'green',cancelled:'red'}[deal.status]||'blue';
+    return `<tr>
+      <td>${esc(deal.contact_name||deal.contact_id||'—')}</td>
+      <td>${esc((deal.description||'').slice(0,40))}</td>
+      <td>${(deal.amount||0).toLocaleString()} ₪</td>
+      <td>${badge(statusBadge, badgeColor)}</td>
+      <td><small>${deal.date||'—'}</small></td>
+      <td>
+        <select onchange="updateDealStatus('${deal.id}',this.value)" style="font-size:11px;padding:3px 6px;border-radius:5px;border:1px solid var(--border)">
+          ${['new','in_progress','done','cancelled'].map(s=>`<option value="${s}" ${s===deal.status?'selected':''}>${STATUS_LABELS[s]}</option>`).join('')}
+        </select>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function updateDealStatus(id, status) {
+  const d = await api('PATCH', `/crm/deals/${id}`, {status});
+  if (d?.ok) toast('✅ Статус обновлён');
+}
+
+async function deleteContact(id) {
+  if (!confirm('Удалить контакт?')) return;
+  const d = await api('DELETE', `/crm/contacts/${id}`);
+  if (d?.ok) { toast('🗑 Удалено'); loadCrmContacts(); }
+}
+
+function openAddContact() { document.getElementById('modal-contact').classList.add('open'); }
+function closeModal(id)   { document.getElementById(id).classList.remove('open'); }
+
+async function saveContact() {
+  const body = {
+    contact_type: document.getElementById('m-ctype').value,
+    name:    document.getElementById('m-cname').value,
+    phone:   document.getElementById('m-cphone').value,
+    telegram:document.getElementById('m-ctg').value,
+    city:    document.getElementById('m-ccity').value,
+    notes:   document.getElementById('m-cnotes').value,
+  };
+  const d = await api('POST', '/crm/contacts', body);
+  if (d?.ok) { toast('✅ Контакт добавлен'); closeModal('modal-contact'); loadCrmContacts(); loadStats(); }
+  else toast('Ошибка', false);
+}
+
+// ── EMAIL ─────────────────────────────────────────────────────────────────────
+async function loadEmails() {
+  const d = await api('GET', '/email-subscribers');
+  if (!d) return;
+  const agents = d.items.filter(i => i.subscriber_type === 'agent').length;
+  const svcs   = d.items.length - agents;
+  document.getElementById('kpi-emails').innerHTML =
+    `<div class="kpi"><div class="kpi-val" style="color:var(--blue)">${d.total}</div><div class="kpi-label">подписчиков</div></div>
+     <div class="kpi"><div class="kpi-val" style="color:var(--green)">${agents}</div><div class="kpi-label">агентов</div></div>
+     <div class="kpi"><div class="kpi-val" style="color:var(--gold)">${svcs}</div><div class="kpi-label">поставщиков</div></div>
+     <div class="kpi"><div class="kpi-val" style="color:var(--purple)">${nextSunday()}</div><div class="kpi-label">следующая рассылка</div></div>`;
+  const tbody = document.getElementById('tbl-emails');
+  if (!d.items.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Подписчиков нет — добавьте email через бот</td></tr>'; return; }
+  const TYPE_BADGES = {agent:badge('🏢 Агент','blue'),moving:badge('🚚 Перевозки','gold'),
+    packing:badge('📦 Упаковка','purple'),cleaning:badge('🧹 Клининг','green')};
+  tbody.innerHTML = d.items.map(s => `<tr>
+    <td><small>${s.user_id}</small></td>
+    <td><a href="mailto:${s.email}">${s.email}</a></td>
+    <td>${TYPE_BADGES[s.subscriber_type]||badge(s.subscriber_type,'blue')}</td>
+    <td>${LANG_LABELS[s.lang]||s.lang||'—'}</td>
+    <td>${s.total_listings||s.total_services||0}</td>
+    <td><small>${nextSunday()}</small></td>
+    <td><button class="btn btn-primary btn-sm" onclick="sendOneReport('${s.user_id}')">📨 Отправить</button></td>
+  </tr>`).join('');
+}
+
+async function sendAllReports() {
+  if (!confirm('Отправить отчёты всем подписчикам прямо сейчас?')) return;
+  const d = await api('POST', '/email-subscribers/send-now');
+  if (d?.queued) toast('📨 Отчёты поставлены в очередь — отправка началась!');
+}
+
+async function sendOneReport(uid) {
+  const d = await api('POST', `/email-subscribers/${uid}/send-now`);
+  if (d?.ok) toast('✅ Отчёт отправлен!');
+  else toast('Ошибка отправки', false);
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+async function logout() {
+  await fetch('/backoffice/api/logout', {method:'POST'});
+  location.href = '/backoffice/login';
+}
+
+// ── Detail Panel ──────────────────────────────────────────────────────────────
+function openDetail(title, html) {
+  document.getElementById('detail-title').textContent = title;
+  document.getElementById('detail-body').innerHTML = html;
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('detail-overlay').style.display = 'block';
+}
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('detail-overlay').style.display = 'none';
+}
+function dr(label, value) {
+  if (!value && value !== 0) return '';
+  return `<div class="detail-row"><span class="detail-label">${label}</span><span class="detail-value">${value}</span></div>`;
+}
+
+async function showListing(id) {
+  const l = await api('GET', `/listings/${id}`);
+  if (!l || l.error) return;
+  const deal = DEAL_LABELS[l.deal_type] || l.deal_type || '—';
+  const seller = SELLER_LABELS[l.seller_type] || '—';
+  const statusBadge = l.active ? badge('Активно','green') : badge('Скрыто','red');
+  const html = `
+    <div class="detail-section">
+      <h4>Основное</h4>
+      ${dr('ID', '#' + l.id)}
+      ${dr('Заголовок', esc(l.title||'—'))}
+      ${dr('Статус', statusBadge)}
+      ${dr('Продавец', seller)}
+      ${dr('Тип сделки', deal)}
+      ${dr('Тип жилья', l.property_type||'—')}
+      ${dr('Просмотры', (l.views||0) + ' 👁')}
+    </div>
+    <div class="detail-section">
+      <h4>Адрес</h4>
+      ${dr('Город', esc(l.city||'—'))}
+      ${dr('Район', esc(l.neighborhood||'—'))}
+      ${dr('Адрес', l.address ? `<a href="https://maps.google.com/?q=${encodeURIComponent((l.address||'')+' '+(l.city||''))}" target="_blank">${esc(l.address)} 📍</a>` : '—')}
+      ${l.map_url ? dr('Карта', `<a href="${l.map_url}" target="_blank">Открыть карту 🗺</a>`) : ''}
+    </div>
+    <div class="detail-section">
+      <h4>Параметры</h4>
+      ${dr('Комнат', l.rooms||'—')}
+      ${dr('Этаж', l.floor||'—')}
+      ${dr('Площадь', l.area_sqm ? l.area_sqm + ' м²' : '—')}
+      ${dr('Цена', l.price ? l.price.toLocaleString() + ' ₪' : '—')}
+      ${dr('Парковка', l.parking > 0 ? '✅ ' + l.parking + ' мест' : '❌')}
+      ${dr('Бассейн', l.pool ? '✅ Есть' : '❌ Нет')}
+      ${dr('Убежище', l.shelter ? '✅ Есть' : '❌ Нет')}
+      ${dr('Лифт', l.elevator ? '✅ Есть' : '❌ Нет')}
+    </div>
+    <div class="detail-section">
+      <h4>Контакт</h4>
+      ${dr('Имя', esc(l.owner_name||'—'))}
+      ${dr('Телефон', l.owner_phone ? `<a href="tel:${l.owner_phone}">${l.owner_phone}</a>` : '—')}
+      ${dr('Telegram/контакт', l.contact ? esc(l.contact) : '—')}
+      ${dr('Добавлено', l.date_added||'—')}
+      ${dr('User ID', l.user_id||'—')}
+    </div>
+    ${l.description ? `<div class="detail-section"><h4>Описание</h4><div class="detail-desc">${esc(l.description)}</div></div>` : ''}
+    <div class="detail-section">
+      <h4>Действия</h4>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="toggleListing(${l.id},${l.active})">${l.active?'🙈 Скрыть':'👁 Показать'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteListing(${l.id});closeDetail()">🗑 Удалить</button>
+      </div>
+    </div>`;
+  openDetail(`🏠 Объявление #${l.id}`, html);
+}
+
+async function showUser(uid) {
+  const d = await api('GET', `/users/${uid}`);
+  if (!d || d.error) return;
+  const p = d.profile || {};
+  const listingsHtml = d.listings.length
+    ? d.listings.slice(0,5).map(l => `
+        <div style="padding:8px;background:#f8f8f4;border-radius:6px;margin-bottom:6px;cursor:pointer"
+             onclick="closeDetail();setTimeout(()=>showListing(${l.id}),300)">
+          <b>${esc(l.title||'—')}</b> · ${esc(l.city||'—')} · ${(l.price||0).toLocaleString()} ₪
+          <span style="float:right;font-size:11px;color:#888">${l.active?'✅':'❌'}</span>
+        </div>`).join('')
+    : '<p style="color:#aaa;font-size:12px">Объявлений нет</p>';
+  const html = `
+    <div class="detail-section">
+      <h4>Профиль</h4>
+      ${dr('User ID', uid)}
+      ${dr('Имя', esc(p.owner_name||'—'))}
+      ${dr('Телефон', p.owner_phone ? `<a href="tel:${p.owner_phone}">${p.owner_phone}</a>` : '—')}
+      ${dr('Email', p.email ? `<a href="mailto:${p.email}">${p.email}</a>` : '—')}
+      ${dr('Язык', LANG_LABELS[p.lang]||p.lang||'—')}
+      ${dr('Seller type', SELLER_LABELS[p.seller_type]||p.seller_type||'—')}
+    </div>
+    <div class="detail-section">
+      <h4>Объявления (${d.listings.length})</h4>
+      ${listingsHtml}
+    </div>`;
+  openDetail(`👤 Пользователь ${uid}`, html);
+}
+
+async function showService(sid) {
+  const d = await api('GET', '/services');
+  if (!d) return;
+  const s = d.items.find(x => x.id === sid || String(x.id) === String(sid));
+  if (!s) return;
+  const stype = SVC_LABELS[s.service_type] || s.service_type || '—';
+  const html = `
+    <div class="detail-section">
+      <h4>Поставщик услуг</h4>
+      ${dr('ID', s.id)}
+      ${dr('Тип', stype)}
+      ${dr('Регион', esc(s.region||'—'))}
+      ${dr('Город', esc(s.city||'—'))}
+      ${dr('Цена', s.price ? s.price.toLocaleString() + ' ₪' : '—')}
+      ${dr('Статус', s.active!==false ? badge('Активно','green') : badge('Скрыто','red'))}
+      ${dr('Дата', s.date_added||'—')}
+    </div>
+    <div class="detail-section">
+      <h4>Контакты</h4>
+      ${dr('Имя', esc(s.owner_name||s.contact_name||'—'))}
+      ${dr('Телефон', s.owner_phone||s.phone ? `<a href="tel:${s.owner_phone||s.phone}">${s.owner_phone||s.phone}</a>` : '—')}
+      ${dr('Telegram', s.telegram||s.contact ? esc(s.telegram||s.contact) : '—')}
+      ${dr('Email', s.email ? `<a href="mailto:${s.email}">${s.email}</a>` : '—')}
+      ${dr('User ID', s.user_id||'—')}
+    </div>
+    ${s.description ? `<div class="detail-section"><h4>Описание</h4><div class="detail-desc">${esc(s.description)}</div></div>` : ''}
+    <div class="detail-section">
+      <h4>Действия</h4>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="toggleService('${s.id}',${s.active!==false})">${s.active!==false?'🙈 Скрыть':'👁 Показать'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteService('${s.id}');closeDetail()">🗑 Удалить</button>
+      </div>
+    </div>`;
+  openDetail(`🚚 ${stype} — ${s.city||''}`, html);
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadStats();
+setInterval(loadStats, 30000);
+loadListings();
+</script>
+</body>
+</html>
