@@ -644,7 +644,7 @@ function render(){
 
   document.getElementById("kpi-listings").innerHTML=
     kpi("📋","Всего в базе",n(D.listings.total),"",TG)+
-    kpi("📱","Из Telegram",n(D.listings.telegram),"каналов: "+D.listings.sources.length,GREEN)+
+    kpi("📱","Из Telegram",n(D.listings.telegram),"каналов: "+(D.listings.channels_total||D.listings.sources.length),GREEN)+
     kpi("➕","За период",n(D.listings.added_period||0),periodSub,PURPLE);
 
   document.getElementById("kpi-money").innerHTML=

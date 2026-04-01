@@ -495,12 +495,64 @@ def extract_rooms(text):
                 pass
     return "3"
 
+def is_ad_or_spam(text):
+    """Returns True if the post is an ad, service promo, or seeking-apartment request (not a listing)."""
+    t = text.lower()
+    # People looking for apartments (not offering)
+    seeking_patterns = [
+        r'ищ[ауеуёемюю]\s+квартир',
+        r'ищ[ауеуёемюю]\s+жиль',
+        r'ищ[ауеуёемюю]\s+комнат',
+        r'ищ[ауеуёемюю]\s+студи',
+        r'нужна\s+квартир',
+        r'нужно\s+жиль',
+        r'снять\s+квартир[ую]',  # "хочу снять квартиру" context
+        r'looking\s+for\s+(an?\s+)?apart',
+        r'looking\s+for\s+(an?\s+)?flat',
+        r'מחפש[תת]?\s+דירה',
+        r'מחפש[תת]?\s+חדר',
+        r'семья?\s+ищет',
+        r'пара\s+ищет',
+        r'срочно\s+ищу',
+        r'ищем\s+квартир',
+    ]
+    for p in seeking_patterns:
+        if re.search(p, t):
+            return True
+    # Real estate service promotions / agent ads
+    service_patterns = [
+        r'услуги\s+(риелтор|маклер|агент|по\s+поиск)',
+        r'помог[уу]\s+найти\s+квартир',
+        r'подбер[уё]\s+(вам\s+)?квартир',
+        r'агентство\s+недвижимост',
+        r'наша\s+компания',
+        r'наши\s+услуги',
+        r'риелтор\s+в',
+        r'маклер\s+в',
+        r'работаю\s+(риелтор|маклер|агент)',
+        r'займусь\s+поиском',
+        r'база\s+квартир',
+        r'подписывайтесь',
+        r'подпишитесь',
+        r'наш\s+канал',
+        r'наш\s+бот',
+        r'реклама',
+        r'@\w+\s+(риелтор|маклер)',
+    ]
+    for p in service_patterns:
+        if re.search(p, t):
+            return True
+    return False
+
+
 def is_listing(text):
     if len(text) < 40:
         return False
+    if is_ad_or_spam(text):
+        return False
     keywords = [
         # Аренда (ru)
-        "аренда", "аренд", "сдам", "сдаю", "сдается", "сдаётся", "снять", "снимаю",
+        "аренда", "аренд", "сдам", "сдаю", "сдается", "сдаётся",
         "субаренда", "саблет", "сублет",
         # Продажа (ru)
         "продает", "продаёт", "продаж", "продам", "продается", "продаётся",
@@ -511,7 +563,7 @@ def is_listing(text):
         # Цена / символы
         "цена", "₪", "nis", "ils",
         # English
-        "rent", "for rent", "for sale", "lease",
+        "for rent", "for sale", "lease",
     ]
     t_lower = text.lower()
     return any(w in t_lower for w in keywords)
