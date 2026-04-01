@@ -112,6 +112,7 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('crm')">👥 CRM</button>
     <button class="nav-btn" onclick="showTab('engage')">💬 Вовлечённость</button>
     <button class="nav-btn" onclick="showTab('money')">💰 Доход</button>
+    <button class="nav-btn" onclick="showTab('payments')">💳 Платежи</button>
   </div>
 </div>
 
@@ -441,6 +442,30 @@ canvas{max-width:100%}
       <div class="card-body"><div class="forecast-grid" id="forecast-grid"></div></div>
     </div>
   </div>
+
+  <!-- PAYMENTS -->
+  <div class="tab" id="tab-payments">
+    <div class="kpi-row" id="kpi-payments"></div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div class="card-title" style="margin:0">История платежей</div>
+        <input id="payments-search" oninput="filterPayments()" type="text" placeholder="Поиск по имени / плану..." style="margin-left:auto;padding:4px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;width:220px">
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:#f7f7f7">
+            <th style="padding:8px 12px;text-align:left;font-weight:500;color:#666">Дата</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:500;color:#666">Время</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:500;color:#666">Пользователь</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:500;color:#666">@Username</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:500;color:#666">План</th>
+            <th style="padding:8px 12px;text-align:right;font-weight:500;color:#666">Сумма ₪</th>
+          </tr></thead>
+          <tbody id="payments-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -484,6 +509,7 @@ const DEMO={
     recent_deals:[],
   },
   income:{current:1712},
+  payments_log:[],
   total_searches:19847,
   engagement:{
     total_views:8340,
@@ -752,6 +778,18 @@ function render(){
     kpi("💬","С @username",n(owStats.with_username||0),"",BLUE)+
     kpi("👤","С именем",n(owStats.with_name||0),"",PURPLE);
   renderOwnersTable(window._ownersList);
+
+  // Payments
+  const plog = D.payments_log || [];
+  window._paymentsList = plog;
+  const ptotal = plog.reduce((s,p)=>s+(p.amount||0),0);
+  const PLAN_NAMES = {week:"1 неделя",two_weeks:"2 недели",month:"1 месяц"};
+  document.getElementById("kpi-payments").innerHTML=
+    kpi("💳","Всего платежей",n(plog.length),"транзакций",TG)+
+    kpi("💰","Сумма",`${ptotal.toFixed(2)} ₪`,"все время",GREEN)+
+    kpi("📅","Средний чек",plog.length?`${(ptotal/plog.length).toFixed(2)} ₪`:"—","",GOLD)+
+    kpi("🗓","За 7 дней",n(plog.filter(p=>p.date>=new Date(Date.now()-7*864e5).toISOString().slice(0,10)).length),"платежей",PURPLE);
+  renderPaymentsTable(window._paymentsList);
 
   // Langs cards
   document.getElementById("langs-cards").innerHTML=`<div style="display:flex;gap:12px">`+
@@ -1260,6 +1298,43 @@ function filterOwners(){
     (o.username||"").toLowerCase().includes(q) ||
     (o.phone||"").includes(q) ||
     (o.channels||[]).some(c=>c.toLowerCase().includes(q))
+  ) : list);
+}
+
+function renderPaymentsTable(list){
+  const PLAN_NAMES = {week:"1 неделя",two_weeks:"2 недели",month:"1 месяц"};
+  const PLAN_COLORS = {week:TG,two_weeks:GOLD,month:PURPLE};
+  const tbody = document.getElementById("payments-table-body");
+  if(!tbody) return;
+  if(!list || !list.length){
+    tbody.innerHTML=`<tr><td colspan="6" style="padding:20px;text-align:center;color:#999">Платежей пока нет</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.slice(0,200).map((p,i)=>{
+    const name = p.first_name || '<span style="color:#ccc">—</span>';
+    const uname = p.username ? `<a href="https://t.me/${p.username}" target="_blank" style="color:#2AABEE;text-decoration:none">@${p.username}</a>` : '<span style="color:#ccc">—</span>';
+    const plan = PLAN_NAMES[p.plan] || p.plan || '—';
+    const color = PLAN_COLORS[p.plan] || '#666';
+    return `<tr style="border-bottom:1px solid #f0f0ea;${i%2?'background:#fafaf8':''}">
+      <td style="padding:7px 12px;color:#666;font-size:12px">${p.date||'—'}</td>
+      <td style="padding:7px 12px;color:#999;font-size:11px">${p.time||'—'}</td>
+      <td style="padding:7px 12px;font-size:13px">${name}</td>
+      <td style="padding:7px 12px;font-size:12px">${uname}</td>
+      <td style="padding:7px 12px"><span style="background:${color}22;color:${color};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500">${plan}</span></td>
+      <td style="padding:7px 12px;text-align:right;font-weight:600;color:#4CAF8A">${(p.amount||0).toFixed(2)} ₪</td>
+    </tr>`;
+  }).join("");
+}
+
+function filterPayments(){
+  const q = (document.getElementById("payments-search")?.value||"").toLowerCase().trim();
+  const PLAN_NAMES = {week:"1 неделя",two_weeks:"2 недели",month:"1 месяц"};
+  const list = window._paymentsList || [];
+  renderPaymentsTable(q ? list.filter(p=>
+    (p.first_name||"").toLowerCase().includes(q) ||
+    (p.username||"").toLowerCase().includes(q) ||
+    (PLAN_NAMES[p.plan]||p.plan||"").toLowerCase().includes(q) ||
+    (p.date||"").includes(q)
   ) : list);
 }
 

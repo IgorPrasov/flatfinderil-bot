@@ -81,12 +81,26 @@ def track_search(user_id: int, filters: dict):
         data["daily"][today]["users"].append(uid)
     _save_stats(data)
 
+_PLAN_PRICES = {"week": 19.90, "two_weeks": 29.90, "month": 39.90}
+
 def track_subscription(user_id: int, plan: str):
     data = _load_stats()
     uid = str(user_id)
-    data["subscriptions"][uid] = {"plan": plan, "date": datetime.now().strftime("%Y-%m-%d")}
+    now = datetime.now()
+    data["subscriptions"][uid] = {"plan": plan, "date": now.strftime("%Y-%m-%d")}
     if uid in data["users"]:
         data["users"][uid]["subscribed"] = True
+    log = data.setdefault("payments_log", [])
+    u = data["users"].get(uid, {})
+    log.append({
+        "user_id": uid,
+        "first_name": u.get("first_name", ""),
+        "username": u.get("username", ""),
+        "plan": plan,
+        "amount": _PLAN_PRICES.get(plan, 0),
+        "date": now.strftime("%Y-%m-%d"),
+        "time": now.strftime("%H:%M"),
+    })
     _save_stats(data)
 
 def get_analytics(date_from: str = None, date_to: str = None):
@@ -554,4 +568,9 @@ def get_analytics(date_from: str = None, date_to: str = None):
             "stats": owners_stats,
             "list": owners_list[:500],
         },
+        "payments_log": sorted(
+            data.get("payments_log", []),
+            key=lambda x: x.get("date","") + x.get("time",""),
+            reverse=True
+        )[:200],
     }
