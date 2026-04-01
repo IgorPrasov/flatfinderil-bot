@@ -369,9 +369,9 @@ canvas{max-width:100%}
             <th style="padding:6px 8px;text-align:left">Имя</th>
             <th style="padding:6px 8px;text-align:left">@Username</th>
             <th style="padding:6px 8px;text-align:left">Телефон</th>
+            <th style="padding:6px 8px;text-align:left">WhatsApp</th>
             <th style="padding:6px 8px;text-align:left">Каналы</th>
             <th style="padding:6px 8px;text-align:center">Объявлений</th>
-            <th style="padding:6px 8px;text-align:left">Первый пост</th>
             <th style="padding:6px 8px;text-align:left">Последний пост</th>
           </tr></thead>
           <tbody id="owners-tbody"></tbody>
@@ -748,6 +748,7 @@ function render(){
   document.getElementById("kpi-owners").innerHTML=
     kpi("📋","Всего контактов",n(owStats.total||0),"из каналов",TG)+
     kpi("📞","С телефоном",n(owStats.with_phone||0),"",GREEN)+
+    kpi("💚","WhatsApp",n(owStats.with_whatsapp||0),"",GREEN)+
     kpi("💬","С @username",n(owStats.with_username||0),"",BLUE)+
     kpi("👤","С именем",n(owStats.with_name||0),"",PURPLE);
   renderOwnersTable(window._ownersList);
@@ -1234,14 +1235,17 @@ function renderOwnersTable(list){
     const phone = o.phone
       ? `<a href="tel:${o.phone}" style="color:#4CAF8A;text-decoration:none;font-family:monospace">${o.phone}</a>`
       : '<span style="color:#ccc">—</span>';
+    const wa = o.whatsapp
+      ? `<a href="https://wa.me/${o.whatsapp.replace(/\D/g,'')}" target="_blank" style="color:#25D366;text-decoration:none;font-family:monospace">💚 ${o.whatsapp}</a>`
+      : '<span style="color:#ccc">—</span>';
     const channels = (o.channels||[]).map(c=>`<span style="background:#e8f4fd;color:#2AABEE;padding:1px 6px;border-radius:4px;font-size:11px">@${c}</span>`).join(" ");
     return `<tr style="border-bottom:1px solid #f0f0ea;${i%2?'background:#fafaf8':''}">
       <td style="padding:7px 10px;font-size:13px">${name}</td>
       <td style="padding:7px 10px;font-size:12px">${uname}</td>
       <td style="padding:7px 10px;font-size:12px">${phone}</td>
+      <td style="padding:7px 10px;font-size:12px">${wa}</td>
       <td style="padding:7px 10px;font-size:11px">${channels||'<span style="color:#ccc">—</span>'}</td>
       <td style="padding:7px 10px;text-align:center;font-weight:600;color:#2AABEE">${o.listings_count||0}</td>
-      <td style="padding:7px 10px;color:#bbb;font-size:11px">${o.first_seen||'—'}</td>
       <td style="padding:7px 10px;color:#666;font-size:11px">${o.last_seen||'—'}</td>
     </tr>`;
   }).join("");

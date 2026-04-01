@@ -54,8 +54,25 @@ def upsert_from_sender(user_id: int, username=None, first_name=None,
     _save(data)
 
 
+def _detect_whatsapp(text: str, phone: str) -> bool:
+    """Check if the given phone number is mentioned near a WhatsApp keyword."""
+    t_lower = text.lower()
+    wa_keywords = ["whatsapp", "watsapp", "вотсап", "ватсап", "ватсапп",
+                   "вацап", "wa:", "wa.", "📲", "💬"]
+    # Find position of the phone in text
+    idx = text.find(phone.lstrip("+0"))
+    if idx == -1:
+        # Try without country code prefix
+        short = re.sub(r'^(\+972|972)', '0', phone)
+        idx = text.find(short)
+    if idx == -1:
+        return False
+    window = t_lower[max(0, idx - 80): idx + 30]
+    return any(kw in window for kw in wa_keywords)
+
+
 def upsert_from_text(text: str, channel: str = None, source_url: str = None):
-    """Извлечь телефоны и @username из текста объявления и сохранить."""
+    """Извлечь телефоны, WhatsApp и @username из текста объявления и сохранить."""
     today = datetime.now().strftime("%Y-%m-%d")
     data = _load()
     changed = False
@@ -82,6 +99,9 @@ def upsert_from_text(text: str, channel: str = None, source_url: str = None):
             o.setdefault("source_urls", [])
             if len(o["source_urls"]) < 10 and source_url not in o["source_urls"]:
                 o["source_urls"].append(source_url)
+        # Mark as WhatsApp if keyword found nearby
+        if _detect_whatsapp(text, phone):
+            o["whatsapp"] = phone
         changed = True
 
     # ── @username упоминания в тексте ─────────────────────────────────────────
@@ -115,11 +135,13 @@ def get_all_owners(sort_by: str = "listings_count") -> list:
 def get_stats() -> dict:
     owners = get_all_owners()
     with_phone = sum(1 for o in owners if o.get("phone"))
+    with_whatsapp = sum(1 for o in owners if o.get("whatsapp"))
     with_username = sum(1 for o in owners if o.get("username"))
     with_name = sum(1 for o in owners if o.get("first_name"))
     return {
         "total": len(owners),
         "with_phone": with_phone,
+        "with_whatsapp": with_whatsapp,
         "with_username": with_username,
         "with_name": with_name,
     }
