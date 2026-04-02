@@ -190,7 +190,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     provider_token=PAYMENT_PROVIDER_TOKEN,
                     currency="ILS",
                     prices=[LabeledPrice(plan_name, price_agorot)],
-                    need_name=True,
+                    need_name=False,
                     need_phone_number=False,
                     need_email=True,
                     protect_content=False,
