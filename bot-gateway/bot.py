@@ -114,8 +114,10 @@ def main():
     app.add_handler(search.get_conversation_handler())
     app.add_handler(listing.get_conversation_handler())
     app.add_handler(CallbackQueryHandler(handle_menu))
-    app.add_handler(PreCheckoutQueryHandler(handle_pre_checkout))
-    app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, handle_successful_payment))
+    # Payment handlers in group=-1 so they run BEFORE any ConversationHandler
+    # (prevents a mid-conversation state from swallowing the pre_checkout_query)
+    app.add_handler(PreCheckoutQueryHandler(handle_pre_checkout), group=-1)
+    app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, handle_successful_payment), group=-1)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_text))
 
     # Start background notification tasks
