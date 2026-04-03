@@ -1,6 +1,9 @@
 import os
+import logging
 from telegram import Update, LabeledPrice
 from telegram.ext import ContextTypes
+
+logger = logging.getLogger(__name__)
 
 PAYMENT_PROVIDER_TOKEN = os.environ.get("PAYMENT_PROVIDER_TOKEN", "")
 from keyboards import (
@@ -192,7 +195,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     prices=[LabeledPrice(plan_name, price_agorot)],
                     need_name=False,
                     need_phone_number=False,
-                    need_email=True,
+                    need_email=False,
                     protect_content=False,
                 )
                 await query.answer()
@@ -826,15 +829,18 @@ async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_pre_checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обязательный ответ на pre-checkout запрос в течение 10 секунд."""
     query = update.pre_checkout_query
-    # Validate payload format: "plan_key:user_id"
+    logger.info(f"[PAYMENT] pre_checkout_query uid={update.effective_user.id} payload={query.invoice_payload!r} amount={query.total_amount} currency={query.currency}")
     try:
         plan_key, uid_str = query.invoice_payload.split(":", 1)
         if plan_key not in PLANS:
+            logger.warning(f"[PAYMENT] Unknown plan: {plan_key!r}")
             await query.answer(ok=False, error_message="Неверный план подписки.")
             return
-    except Exception:
+    except Exception as e:
+        logger.error(f"[PAYMENT] pre_checkout error: {e}")
         await query.answer(ok=False, error_message="Ошибка платежа.")
         return
+    logger.info(f"[PAYMENT] pre_checkout answered ok=True for plan={plan_key}")
     await query.answer(ok=True)
 
 
@@ -922,6 +928,7 @@ async def handle_successful_payment(update: Update, context: ContextTypes.DEFAUL
     payment = update.message.successful_payment
     user_id = update.effective_user.id
     lang = context.user_data.get("lang", "ru")
+    logger.info(f"[PAYMENT] successful_payment uid={user_id} amount={payment.total_amount} currency={payment.currency} payload={payment.invoice_payload!r}")
 
     try:
         plan_key, _ = payment.invoice_payload.split(":", 1)
