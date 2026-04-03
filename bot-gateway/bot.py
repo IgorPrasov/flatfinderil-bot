@@ -100,6 +100,13 @@ def main():
     commercial = CommercialHandler()
     services = ServiceHandler()
     crm = CRMHandler()
+    # ── Debug: log every incoming update type (remove after payments are confirmed working) ──
+    async def _debug_all_updates(update: Update, context) -> None:
+        update_types = [k for k in update.to_dict().keys() if k != "update_id"]
+        logger.info(f"[DEBUG_UPDATE] id={update.update_id} types={update_types}")
+    from telegram.ext import TypeHandler
+    app.add_handler(TypeHandler(Update, _debug_all_updates), group=-2)
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("search", search.start_search))
     app.add_handler(CommandHandler("listings", my_listings))

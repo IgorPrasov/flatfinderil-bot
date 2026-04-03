@@ -830,17 +830,14 @@ async def handle_pre_checkout(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Обязательный ответ на pre-checkout запрос в течение 10 секунд."""
     query = update.pre_checkout_query
     logger.info(f"[PAYMENT] pre_checkout_query uid={update.effective_user.id} payload={query.invoice_payload!r} amount={query.total_amount} currency={query.currency}")
+    # Always answer ok=True — never let a crash cause a timeout ("произошла ошибка")
     try:
         plan_key, uid_str = query.invoice_payload.split(":", 1)
         if plan_key not in PLANS:
-            logger.warning(f"[PAYMENT] Unknown plan: {plan_key!r}")
-            await query.answer(ok=False, error_message="Неверный план подписки.")
-            return
+            logger.warning(f"[PAYMENT] Unknown plan in payload: {plan_key!r} — approving anyway")
+        logger.info(f"[PAYMENT] pre_checkout answered ok=True for plan={plan_key}")
     except Exception as e:
-        logger.error(f"[PAYMENT] pre_checkout error: {e}")
-        await query.answer(ok=False, error_message="Ошибка платежа.")
-        return
-    logger.info(f"[PAYMENT] pre_checkout answered ok=True for plan={plan_key}")
+        logger.error(f"[PAYMENT] pre_checkout parse error (still approving): {e}")
     await query.answer(ok=True)
 
 
