@@ -10,6 +10,7 @@ from handlers import (
     start, handle_menu, my_listings, handle_unknown, agent_cabinet,
     refer_command, handle_edit_text,
     handle_pre_checkout, handle_successful_payment,
+    cmd_testpay,
 )
 from search_handler import SearchHandler
 from listing_handler import ListingHandler
@@ -115,6 +116,7 @@ def main():
     app.add_handler(CommandHandler("cabinet", agent_cabinet))
     app.add_handler(CommandHandler("refer", refer_command))
     app.add_handler(CommandHandler("testemail", cmd_testemail))
+    app.add_handler(CommandHandler("testpay", cmd_testpay))
     app.add_handler(commercial.get_conversation_handler())
     app.add_handler(services.get_conversation_handler())
     app.add_handler(crm.get_conversation_handler())

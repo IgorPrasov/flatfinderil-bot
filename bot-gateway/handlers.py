@@ -969,3 +969,56 @@ async def handle_successful_payment(update: Update, context: ContextTypes.DEFAUL
     except Exception as e:
         await update.message.reply_text("✅ Оплата получена! Свяжитесь с поддержкой для активации.")
 
+
+# ── Admin test command ─────────────────────────────────────────────────────────
+
+ADMIN_USERNAMES = {"IgorPr"}  # only these users can run /testpay
+
+async def cmd_testpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Simulate a successful payment (admin only). Usage: /testpay [plan] [email]
+    Plans: week, two_weeks, month. Example: /testpay week test@example.com"""
+    user = update.effective_user
+    if not user or (user.username or "").lower() not in {u.lower() for u in ADMIN_USERNAMES}:
+        return  # silently ignore
+
+    args = context.args or []
+    plan_key = args[0] if args else "week"
+    test_email = args[1] if len(args) > 1 else None
+
+    if plan_key not in PLANS:
+        await update.message.reply_text(f"❌ Неверный план. Варианты: {', '.join(PLANS.keys())}")
+        return
+
+    lang = context.user_data.get("lang", "ru")
+    expiry = activate_subscription(user.id, plan_key)
+    track_subscription(user.id, plan_key)
+
+    plan = PLANS[plan_key]
+    plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
+    plan_name_he = plan.get("name_he") or plan["name_ru"]
+    expiry_str = expiry.strftime("%d.%m.%Y")
+    amount_ils = plan.get("price", 0)
+    charge_id = f"TEST-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    buyer_name = " ".join(filter(None, [user.first_name, user.last_name])) or "Test User"
+
+    logger.info(f"[TESTPAY] uid={user.id} plan={plan_key} email={test_email} expiry={expiry_str}")
+
+    if test_email:
+        import threading
+        threading.Thread(
+            target=_send_payment_receipt,
+            args=(test_email, buyer_name, plan_name_he, amount_ils, plan.get("days", 7), expiry_str, charge_id),
+            daemon=True,
+        ).start()
+
+    await update.message.reply_text(
+        f"✅ <b>[TEST] Симуляция платежа</b>\n\n"
+        f"План: <b>{plan_name}</b>\n"
+        f"Активна до: <b>{expiry_str}</b>\n"
+        f"Charge ID: <code>{charge_id}</code>\n"
+        f"{'📧 Квитанция отправлена на ' + test_email if test_email else '📧 Email не указан — квитанция не отправлена'}\n\n"
+        f"Запись в дашборд добавлена ✓",
+        parse_mode="HTML",
+        reply_markup=back_to_menu_keyboard(context),
+    )
+
