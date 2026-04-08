@@ -145,7 +145,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
 
-    elif data.startswith("sub_"):
+    elif data.startswith("sub_") and not data.startswith("sub_crypto"):
         plan_key = data.replace("sub_", "")
         if plan_key == "search_alert":
             await query.edit_message_text(
