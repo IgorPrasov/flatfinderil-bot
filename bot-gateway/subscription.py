@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 import database as db
 
-# Тестовый период — бесплатно для всех до 15 апреля 2026
-TRIAL_END_DATE = datetime(2026, 4, 15)
+# Тестовый период — бесплатно для всех до 15 мая 2026
+TRIAL_END_DATE = datetime(2026, 5, 15)
 
 # Лимит бесплатного поиска после окончания триала
 FREE_SEARCH_LIMIT = 3
@@ -105,11 +105,11 @@ def get_status_text(user_id: int, lang: str) -> str:
     if is_trial_active():
         days = days_left_trial()
         if lang == "ru":
-            return f"🎁 Тестовый период активен ещё {days} дн. (до 15 апреля)"
+            return f"🎁 Тестовый период активен ещё {days} дн. (до 15 мая)"
         elif lang == "en":
-            return f"🎁 Trial period active for {days} more days (until April 15)"
+            return f"🎁 Trial period active for {days} more days (until May 15)"
         else:
-            return f"🎁 תקופת ניסיון פעילה עוד {days} ימים (עד 15 באפריל)"
+            return f"🎁 תקופת ניסיון פעילה עוד {days} ימים (עד 15 במאי)"
 
     main_expiry = get_expiry(user_id, "main")
     alert_expiry = get_expiry(user_id, "search_alert")
