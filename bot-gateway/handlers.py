@@ -188,19 +188,31 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "he": f"גישה ל-FlatFinderIL למשך {plan['days']} ימים",
                 }
                 desc = descriptions.get(lang, descriptions["ru"])
-                await query.message.reply_invoice(
-                    title=f"FlatFinderIL — {plan_name}",
-                    description=desc,
-                    payload=f"{plan_key}:{update.effective_user.id}",
-                    provider_token=PAYMENT_PROVIDER_TOKEN,
-                    currency="ILS",
-                    prices=[LabeledPrice(plan_name, price_agorot)],
-                    need_name=False,
-                    need_phone_number=False,
-                    need_email=False,
-                    protect_content=False,
-                )
-                await query.answer()
+                try:
+                    await query.message.reply_invoice(
+                        title=f"FlatFinderIL — {plan_name}",
+                        description=desc,
+                        payload=f"{plan_key}:{update.effective_user.id}",
+                        provider_token=PAYMENT_PROVIDER_TOKEN,
+                        currency="ILS",
+                        prices=[LabeledPrice(plan_name, price_agorot)],
+                        need_name=False,
+                        need_phone_number=False,
+                        need_email=False,
+                        protect_content=False,
+                    )
+                except Exception as inv_err:
+                    logger.error(f"[PAYMENT] reply_invoice failed: {inv_err}")
+                    err_msgs = {
+                        "ru": "⚠️ Не удалось создать счёт для оплаты картой. Попробуйте позже или воспользуйтесь оплатой криптовалютой.",
+                        "en": "⚠️ Could not create payment invoice. Please try later or use crypto payment.",
+                        "he": "⚠️ לא ניתן ליצור חשבונית. נסה שוב מאוחר יותר או השתמש בתשלום קריפטו.",
+                    }
+                    await query.edit_message_text(
+                        err_msgs.get(lang, err_msgs["ru"]),
+                        reply_markup=subscription_keyboard(context),
+                        parse_mode="HTML",
+                    )
 
     # ── Crypto payments ──────────────────────────────────────────────────
     elif data == "sub_crypto":
