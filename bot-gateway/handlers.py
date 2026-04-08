@@ -972,14 +972,16 @@ async def handle_successful_payment(update: Update, context: ContextTypes.DEFAUL
 
 # ── Admin test command ─────────────────────────────────────────────────────────
 
-ADMIN_USERNAMES = {"IgorPr"}  # only these users can run /testpay
+ADMIN_USERNAMES = {"IgorPr", "IgorPrasov", "alinatsarenko"}  # only these users can run /testpay
 
 async def cmd_testpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Simulate a successful payment (admin only). Usage: /testpay [plan] [email]
     Plans: week, two_weeks, month. Example: /testpay week test@example.com"""
     user = update.effective_user
+    logger.info(f"[TESTPAY] called by uid={user.id if user else None} username={user.username if user else None!r}")
     if not user or (user.username or "").lower() not in {u.lower() for u in ADMIN_USERNAMES}:
-        return  # silently ignore
+        await update.message.reply_text(f"⛔ Нет доступа. Username: @{user.username if user else '?'}")
+        return
 
     args = context.args or []
     plan_key = args[0] if args else "week"
