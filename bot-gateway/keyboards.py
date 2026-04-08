@@ -306,8 +306,29 @@ def subscription_keyboard(ctx):
         [InlineKeyboardButton(t("btn_sub_two_weeks", ctx),    callback_data="sub_two_weeks")],
         [InlineKeyboardButton(t("btn_sub_month", ctx),        callback_data="sub_month")],
         [InlineKeyboardButton(t("btn_sub_search_alert", ctx), callback_data="sub_search_alert")],
+        [InlineKeyboardButton("₿ Оплатить криптовалютой",     callback_data="sub_crypto")],
         [InlineKeyboardButton(t("btn_back_menu", ctx),        callback_data="back_to_menu")],
     ])
+
+
+def crypto_plan_keyboard(ctx):
+    """Plan selection for crypto payment."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("1 неделя — $5.50 USDT",   callback_data="crypto_plan_week")],
+        [InlineKeyboardButton("2 недели — $8.00 USDT",   callback_data="crypto_plan_two_weeks")],
+        [InlineKeyboardButton("1 месяц — $11.00 USDT",   callback_data="crypto_plan_month")],
+        [InlineKeyboardButton("◀ Назад",                  callback_data="subscription")],
+    ])
+
+
+def crypto_asset_keyboard(plan_key: str):
+    """Currency selection for crypto payment."""
+    assets = [("USDT (Tether)", "USDT"), ("TON (Toncoin)", "TON"),
+              ("BTC (Bitcoin)", "BTC"),  ("ETH (Ethereum)", "ETH")]
+    rows = [[InlineKeyboardButton(label, callback_data=f"crypto_pay_{plan_key}_{asset}")]
+            for label, asset in assets]
+    rows.append([InlineKeyboardButton("◀ Назад", callback_data="sub_crypto")])
+    return InlineKeyboardMarkup(rows)
 
 
 def paywall_keyboard(ctx):

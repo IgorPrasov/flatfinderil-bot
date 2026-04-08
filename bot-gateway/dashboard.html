@@ -459,7 +459,8 @@ canvas{max-width:100%}
             <th style="padding:8px 12px;text-align:left;font-weight:500;color:#666">Пользователь</th>
             <th style="padding:8px 12px;text-align:left;font-weight:500;color:#666">@Username</th>
             <th style="padding:8px 12px;text-align:left;font-weight:500;color:#666">План</th>
-            <th style="padding:8px 12px;text-align:right;font-weight:500;color:#666">Сумма ₪</th>
+            <th style="padding:8px 12px;text-align:left;font-weight:500;color:#666">Тип оплаты</th>
+            <th style="padding:8px 12px;text-align:right;font-weight:500;color:#666">Сумма</th>
           </tr></thead>
           <tbody id="payments-table-body"></tbody>
         </table>
@@ -509,7 +510,13 @@ const DEMO={
     recent_deals:[],
   },
   income:{current:1712},
-  payments_log:[],
+  payments_log:[
+    {user_id:"101",first_name:"Игорь",username:"IgorPr",plan:"week",amount:19.90,payment_type:"card",date:"2026-04-09",time:"11:24"},
+    {user_id:"102",first_name:"Алина",username:"alina_t",plan:"month",amount:39.90,payment_type:"card",date:"2026-04-08",time:"09:15"},
+    {user_id:"103",first_name:"David",username:"david_il",plan:"week",amount:0,payment_type:"crypto",crypto_asset:"USDT",crypto_amount:"5.50",date:"2026-04-08",time:"14:33"},
+    {user_id:"104",first_name:"Михаил",username:"misha_tlv",plan:"two_weeks",amount:29.90,payment_type:"card",date:"2026-04-07",time:"18:02"},
+    {user_id:"105",first_name:"Sarah",username:"sarah_haifa",plan:"month",amount:0,payment_type:"crypto",crypto_asset:"TON",crypto_amount:"11.00",date:"2026-04-07",time:"21:45"},
+  ],
   total_searches:19847,
   engagement:{
     total_views:8340,
@@ -784,11 +791,15 @@ function render(){
   window._paymentsList = plog;
   const ptotal = plog.reduce((s,p)=>s+(p.amount||0),0);
   const PLAN_NAMES = {week:"1 неделя",two_weeks:"2 недели",month:"1 месяц"};
+  const cardPayments   = plog.filter(p=>p.payment_type!=="crypto");
+  const cryptoPayments = plog.filter(p=>p.payment_type==="crypto");
+  const ptotalCard = cardPayments.reduce((s,p)=>s+(p.amount||0),0);
+  const week7ago = new Date(Date.now()-7*864e5).toISOString().slice(0,10);
   document.getElementById("kpi-payments").innerHTML=
     kpi("💳","Всего платежей",n(plog.length),"транзакций",TG)+
-    kpi("💰","Сумма",`${ptotal.toFixed(2)} ₪`,"все время",GREEN)+
-    kpi("📅","Средний чек",plog.length?`${(ptotal/plog.length).toFixed(2)} ₪`:"—","",GOLD)+
-    kpi("🗓","За 7 дней",n(plog.filter(p=>p.date>=new Date(Date.now()-7*864e5).toISOString().slice(0,10)).length),"платежей",PURPLE);
+    kpi("💰","Карты",`${ptotalCard.toFixed(2)} ₪`,"все время",GREEN)+
+    kpi("₿","Крипто",n(cryptoPayments.length),"транзакций","#F7931A")+
+    kpi("📅","За 7 дней",n(plog.filter(p=>p.date>=week7ago).length),"платежей",PURPLE);
   renderPaymentsTable(window._paymentsList);
 
   // Langs cards
@@ -1307,7 +1318,7 @@ function renderPaymentsTable(list){
   const tbody = document.getElementById("payments-table-body");
   if(!tbody) return;
   if(!list || !list.length){
-    tbody.innerHTML=`<tr><td colspan="6" style="padding:20px;text-align:center;color:#999">Платежей пока нет</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="7" style="padding:20px;text-align:center;color:#999">Платежей пока нет</td></tr>`;
     return;
   }
   tbody.innerHTML = list.slice(0,200).map((p,i)=>{
@@ -1315,13 +1326,21 @@ function renderPaymentsTable(list){
     const uname = p.username ? `<a href="https://t.me/${p.username}" target="_blank" style="color:#2AABEE;text-decoration:none">@${p.username}</a>` : '<span style="color:#ccc">—</span>';
     const plan = PLAN_NAMES[p.plan] || p.plan || '—';
     const color = PLAN_COLORS[p.plan] || '#666';
+    const isCrypto = p.payment_type === "crypto";
+    const payTypeBadge = isCrypto
+      ? `<span style="background:#F7931A22;color:#F7931A;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">₿ ${p.crypto_asset||'Крипто'}</span>`
+      : `<span style="background:#2AABEE22;color:#2AABEE;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600">💳 Карта</span>`;
+    const amountCell = isCrypto
+      ? `<span style="font-weight:600;color:#F7931A">${p.crypto_amount||'?'} ${p.crypto_asset||''}</span>`
+      : `<span style="font-weight:600;color:#4CAF8A">${(p.amount||0).toFixed(2)} ₪</span>`;
     return `<tr style="border-bottom:1px solid #f0f0ea;${i%2?'background:#fafaf8':''}">
       <td style="padding:7px 12px;color:#666;font-size:12px">${p.date||'—'}</td>
       <td style="padding:7px 12px;color:#999;font-size:11px">${p.time||'—'}</td>
       <td style="padding:7px 12px;font-size:13px">${name}</td>
       <td style="padding:7px 12px;font-size:12px">${uname}</td>
       <td style="padding:7px 12px"><span style="background:${color}22;color:${color};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500">${plan}</span></td>
-      <td style="padding:7px 12px;text-align:right;font-weight:600;color:#4CAF8A">${(p.amount||0).toFixed(2)} ₪</td>
+      <td style="padding:7px 12px">${payTypeBadge}</td>
+      <td style="padding:7px 12px;text-align:right">${amountCell}</td>
     </tr>`;
   }).join("");
 }

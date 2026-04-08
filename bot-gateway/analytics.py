@@ -83,7 +83,13 @@ def track_search(user_id: int, filters: dict):
 
 _PLAN_PRICES = {"week": 19.90, "two_weeks": 29.90, "month": 39.90}
 
-def track_subscription(user_id: int, plan: str):
+_CRYPTO_PRICES_USD = {"week": 5.50, "two_weeks": 8.00, "month": 11.00}
+
+def track_subscription(user_id: int, plan: str, payment_type: str = "card",
+                        crypto_asset: str = None, crypto_amount: str = None):
+    """Track a subscription activation.
+    payment_type: 'card' | 'crypto'
+    """
     data = _load_stats()
     uid = str(user_id)
     now = datetime.now()
@@ -92,15 +98,21 @@ def track_subscription(user_id: int, plan: str):
         data["users"][uid]["subscribed"] = True
     log = data.setdefault("payments_log", [])
     u = data["users"].get(uid, {})
-    log.append({
+    entry = {
         "user_id": uid,
         "first_name": u.get("first_name", ""),
         "username": u.get("username", ""),
         "plan": plan,
         "amount": _PLAN_PRICES.get(plan, 0),
+        "payment_type": payment_type,
         "date": now.strftime("%Y-%m-%d"),
         "time": now.strftime("%H:%M"),
-    })
+    }
+    if payment_type == "crypto" and crypto_asset:
+        entry["crypto_asset"] = crypto_asset
+        entry["crypto_amount"] = crypto_amount or str(_CRYPTO_PRICES_USD.get(plan, 0))
+        entry["amount"] = 0  # ILS amount unknown for crypto
+    log.append(entry)
     _save_stats(data)
 
 def get_analytics(date_from: str = None, date_to: str = None):

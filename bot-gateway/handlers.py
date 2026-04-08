@@ -15,7 +15,9 @@ from keyboards import (
     close_deal_select_keyboard, deal_confirm_price_keyboard,
     tenant_deal_confirm_keyboard, owner_deal_confirm_keyboard,
     search_alert_confirm_keyboard,
+    crypto_plan_keyboard, crypto_asset_keyboard,
 )
+import cryptopay
 from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
 from subscription import has_access, activate_subscription, get_status_text, is_trial_active, PLANS
@@ -199,6 +201,70 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     protect_content=False,
                 )
                 await query.answer()
+
+    # ── Crypto payments ──────────────────────────────────────────────────
+    elif data == "sub_crypto":
+        if not cryptopay.is_enabled():
+            await query.edit_message_text(
+                "⚠️ Крипто-платежи пока не настроены. Используйте оплату картой.",
+                reply_markup=subscription_keyboard(context),
+                parse_mode="HTML",
+            )
+        else:
+            await query.edit_message_text(
+                "₿ <b>Оплата криптовалютой</b>\n\n"
+                "Выберите тариф:\n"
+                "• Неделя — <b>$5.50</b>\n"
+                "• 2 недели — <b>$8.00</b>\n"
+                "• Месяц — <b>$11.00</b>\n\n"
+                "💡 Оплата через @CryptoBot — внутри Telegram",
+                reply_markup=crypto_plan_keyboard(context),
+                parse_mode="HTML",
+            )
+
+    elif data.startswith("crypto_plan_"):
+        plan_key = data.replace("crypto_plan_", "")
+        await query.edit_message_text(
+            f"₿ <b>Выберите валюту</b>\n\nТариф: <b>{plan_key.replace('_', ' ')}</b>",
+            reply_markup=crypto_asset_keyboard(plan_key),
+            parse_mode="HTML",
+        )
+
+    elif data.startswith("crypto_pay_"):
+        parts = data.split("_", 3)  # crypto_pay_PLAN_ASSET
+        if len(parts) == 4:
+            _, _, plan_key, asset = parts
+            user_id = update.effective_user.id
+            await query.answer("Создаём счёт...", show_alert=False)
+            invoice = cryptopay.create_invoice(plan_key, user_id, asset)
+            if invoice:
+                from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+                pay_url = invoice.get("pay_url", "")
+                inv_id  = invoice.get("invoice_id", "?")
+                amount  = invoice.get("amount", "?")
+                from subscription import PLANS
+                plan = PLANS.get(plan_key, {})
+                lang = get_lang(context)
+                plan_name = plan.get(f"name_{lang}") or plan.get("name_ru", plan_key)
+                await query.edit_message_text(
+                    f"₿ <b>Счёт создан!</b>\n\n"
+                    f"Тариф: <b>{plan_name}</b>\n"
+                    f"Сумма: <b>{amount} {asset}</b>\n"
+                    f"ID счёта: <code>{inv_id}</code>\n\n"
+                    f"Нажмите кнопку ниже для оплаты через @CryptoBot.\n"
+                    f"Подписка активируется автоматически после оплаты.",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton(f"💳 Оплатить {amount} {asset}", url=pay_url)],
+                        [InlineKeyboardButton("◀ Назад", callback_data="sub_crypto")],
+                    ]),
+                    parse_mode="HTML",
+                )
+            else:
+                await query.edit_message_text(
+                    "❌ Не удалось создать счёт. Попробуйте позже.",
+                    reply_markup=subscription_keyboard(context),
+                    parse_mode="HTML",
+                )
 
     elif data == "favorites":
         user_id = update.effective_user.id

@@ -155,6 +155,69 @@ def stale_listing_checker_loop():
             logger.error(f"stale_listing_checker_loop error: {e}")
 
 
+_crypto_seen_ids: set = set()
+
+
+def _check_crypto_payments_sync():
+    """Poll CryptoPay for newly paid invoices and activate subscriptions."""
+    global _crypto_seen_ids
+    try:
+        import cryptopay
+        if not cryptopay.is_enabled():
+            return
+        new_paid = cryptopay.get_paid_invoices_since(_crypto_seen_ids)
+        for inv in new_paid:
+            inv_id = inv.get("invoice_id")
+            _crypto_seen_ids.add(inv_id)
+            payload = inv.get("payload", "")
+            if not payload or ":" not in payload:
+                continue
+            plan_key, uid_str = payload.split(":", 1)
+            try:
+                user_id = int(uid_str)
+            except ValueError:
+                continue
+            from subscription import activate_subscription, PLANS
+            from analytics import track_subscription
+            asset = inv.get("asset", "USDT")
+            amount = inv.get("amount", "")
+            expiry = activate_subscription(user_id, plan_key)
+            track_subscription(user_id, plan_key, payment_type="crypto",
+                                crypto_asset=asset, crypto_amount=amount)
+            plan = PLANS.get(plan_key, {})
+            plan_name = plan.get("name_ru", plan_key)
+            expiry_str = expiry.strftime("%d.%m.%Y")
+            logger.info(f"[CRYPTOPAY] Payment confirmed uid={user_id} plan={plan_key} {amount} {asset}")
+            async def _notify(uid=user_id, pname=plan_name, exp=expiry_str, amt=amount, ast=asset):
+                if _bot_app:
+                    try:
+                        await _bot_app.bot.send_message(
+                            chat_id=uid,
+                            text=(f"✅ <b>Крипто-оплата получена!</b>\n\n"
+                                  f"Тариф: <b>{pname}</b>\n"
+                                  f"Активна до: <b>{exp}</b>\n"
+                                  f"Оплачено: {amt} {ast}\n\nСпасибо! 🏠"),
+                            parse_mode="HTML",
+                        )
+                    except Exception as e:
+                        logger.error(f"[CRYPTOPAY] notify error: {e}")
+            _run_coroutine(_notify())
+    except Exception as e:
+        logger.error(f"[CRYPTOPAY] check error: {e}")
+
+
+def crypto_payment_checker_loop():
+    logger.info("CryptoPay checker started")
+    time.sleep(30)  # initial delay
+    while True:
+        try:
+            _check_crypto_payments_sync()
+            time.sleep(60)  # poll every 60 seconds
+        except Exception as e:
+            logger.error(f"crypto_payment_checker_loop error: {e}")
+            time.sleep(60)
+
+
 def start_background_tasks(app):
     """Start all background notification threads."""
     set_bot_app(app)
@@ -167,5 +230,8 @@ def start_background_tasks(app):
 
     t3 = threading.Thread(target=stale_listing_checker_loop, daemon=True, name="stale-checker")
     t3.start()
+
+    t4 = threading.Thread(target=crypto_payment_checker_loop, daemon=True, name="crypto-checker")
+    t4.start()
 
     logger.info("Background notification tasks started")
