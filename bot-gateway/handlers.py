@@ -904,11 +904,12 @@ def _send_payment_receipt(email: str, buyer_name: str, plan_name_he: str, amount
 </div>
 </body></html>"""
 
+    from_addr = os.environ.get("RESEND_FROM", "FlatFinderIL <onboarding@resend.dev>")
     try:
-        _req.post(
+        resp = _req.post(
             "https://api.resend.com/emails",
             json={
-                "from": "FlatFinderIL <onboarding@resend.dev>",
+                "from": from_addr,
                 "to": [email],
                 "subject": f"קבלה על תשלום — FlatFinderIL {date_he}",
                 "html": html,
@@ -916,8 +917,11 @@ def _send_payment_receipt(email: str, buyer_name: str, plan_name_he: str, amount
             headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
             timeout=10,
         )
-    except Exception:
-        pass
+        import logging as _log
+        _log.getLogger(__name__).info(f"[EMAIL] Resend status={resp.status_code} body={resp.text[:200]}")
+    except Exception as e:
+        import logging as _log
+        _log.getLogger(__name__).error(f"[EMAIL] Resend error: {e}")
 
 
 async def handle_successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
