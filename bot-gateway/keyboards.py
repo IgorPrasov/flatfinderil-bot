@@ -382,6 +382,9 @@ def cabinet_listings_keyboard(ctx, listings):
             f"{active_mark} {title}",
             callback_data=f"cab_listing_{l['id']}"
         )])
+    # Crypto payment button
+    crypto_label = {"ru": "₿ Оплатить криптовалютой", "en": "₿ Pay with Crypto", "he": "₿ שלם בקריפטו"}.get(lang, "₿ Pay with Crypto")
+    keyboard.append([InlineKeyboardButton(crypto_label, callback_data="sub_crypto")])
     keyboard.append([InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")])
     return InlineKeyboardMarkup(keyboard)
 
@@ -399,10 +402,12 @@ def cabinet_listing_manage_keyboard(ctx, listing_id, active=True, deal_closed=Fa
     close_label  = {"ru": "✅ Сдано / Продано", "en": "✅ Deal closed",  "he": "✅ עסקה נסגרה"}.get(lang, "✅ Deal closed")
     back_label   = {"ru": "« К списку",          "en": "« Back to list", "he": "« חזרה"}.get(lang, "« Back")
 
+    crypto_label = {"ru": "₿ Оплатить криптовалютой", "en": "₿ Pay with Crypto", "he": "₿ שלם בקריפטו"}.get(lang, "₿ Pay with Crypto")
     rows = [
         [InlineKeyboardButton(edit_label,   callback_data=f"edit_listing_{listing_id}"),
          InlineKeyboardButton(delete_label, callback_data=f"confirm_delete_{listing_id}")],
         [InlineKeyboardButton(toggle_label, callback_data=f"toggle_active_{listing_id}")],
+        [InlineKeyboardButton(crypto_label, callback_data="sub_crypto")],
     ]
     if not deal_closed:
         rows.append([InlineKeyboardButton(close_label, callback_data=f"close_deal_{listing_id}")])
