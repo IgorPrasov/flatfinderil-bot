@@ -982,7 +982,7 @@ def _send_payment_receipt(email: str, buyer_name: str, plan_name_he: str, amount
 </div>
 </body></html>"""
 
-    from_addr = os.environ.get("RESEND_FROM", "FlatFinderIL <onboarding@resend.dev>")
+    from_addr = os.environ.get("RESEND_FROM", "FlatFinderIL <info@flatfinderil.com>")
     try:
         resp = _req.post(
             "https://api.resend.com/emails",
