@@ -172,6 +172,8 @@ class BackofficeHandler(BaseHTTPRequestHandler):
             return self._handle_crm(method, sub, cid, act)
         if resource == "email-subscribers":
             return self._handle_email_subs(method, rid)
+        if resource == "payments":
+            return self._handle_payments(method, rid)
 
         self._send_json({"error": "Not found"}, 404)
 
@@ -488,6 +490,33 @@ class BackofficeHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": ok})
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)})
+
+        else:
+            self._send_json({"error": "Not found"}, 404)
+
+
+    # ── Payments log ──────────────────────────────────────────────────────────
+
+    def _handle_payments(self, method, idx):
+        from analytics import _load_stats, _save_stats
+        if method == "GET":
+            data = _load_stats()
+            log = data.get("payments_log", [])
+            self._send_json({"total": len(log), "items": log})
+
+        elif method == "DELETE" and idx:
+            try:
+                i = int(idx)
+            except ValueError:
+                return self._send_json({"error": "Invalid index"}, 400)
+            data = _load_stats()
+            log = data.get("payments_log", [])
+            if i < 0 or i >= len(log):
+                return self._send_json({"error": "Index out of range"}, 404)
+            removed = log.pop(i)
+            data["payments_log"] = log
+            _save_stats(data)
+            self._send_json({"ok": True, "removed": removed})
 
         else:
             self._send_json({"error": "Not found"}, 404)
