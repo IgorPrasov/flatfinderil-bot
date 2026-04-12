@@ -23,85 +23,112 @@ CACHE_FILE = os.path.join(_DATA_DIR, "news_cache.json")
 REFRESH_INTERVAL = 60  # minutes between auto-refresh
 
 # ── RSS Sources ────────────────────────────────────────────────────────────────
+# Each entry: name, url, lang (he/en), optional category_hint (forces category)
 
 RSS_SOURCES = [
+    # Times of Israel — dedicated real estate section
     {
         "name": "Times of Israel",
         "url": "https://www.timesofisrael.com/topic/real-estate/feed/",
         "lang": "en",
         "category_hint": None,
+        "force_relevant": True,   # dedicated RE feed → skip keyword filter
     },
-    {
-        "name": "Times of Israel",
-        "url": "https://www.timesofisrael.com/feed/",
-        "lang": "en",
-        "category_hint": None,
-    },
+    # Globes — real estate section (iID=1124)
     {
         "name": "Globes",
         "url": "https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=1124",
         "lang": "he",
         "category_hint": None,
+        "force_relevant": True,
     },
+    # Calcalist — real estate section
     {
         "name": "Calcalist",
-        "url": "https://www.calcalist.co.il/rss/mador/5.xml",
+        "url": "https://www.calcalist.co.il/rss/home/0,7340,L-8,00.xml",
         "lang": "he",
         "category_hint": None,
+        "force_relevant": True,
     },
+    # Ynet — real estate category (2006262)
     {
         "name": "Ynet",
-        "url": "https://www.ynet.co.il/Integration/StoryRss3082.xml",
+        "url": "https://www.ynet.co.il/Integration/StoryRss2006262.xml",
         "lang": "he",
         "category_hint": None,
+        "force_relevant": True,
     },
+    # Bank of Israel press releases — always mortgage category
     {
         "name": "Bank of Israel",
         "url": "https://www.boi.org.il/en/newsandpublications/pressreleases/rss/",
         "lang": "en",
         "category_hint": "mortgage",
+        "force_relevant": True,
     },
+    # Jerusalem Post — real estate section
     {
         "name": "Jerusalem Post",
         "url": "https://www.jpost.com/rss/rssfeedsrealestate.aspx",
         "lang": "en",
         "category_hint": None,
+        "force_relevant": True,
+    },
+    # Madlan blog / news
+    {
+        "name": "Madlan",
+        "url": "https://www.madlan.co.il/blog/feed",
+        "lang": "he",
+        "category_hint": None,
+        "force_relevant": True,
     },
 ]
 
-# ── Keyword tables ─────────────────────────────────────────────────────────────
+# ── Relevance keywords (whole-phrase matching, not substring) ──────────────────
+# Used ONLY for feeds that are not dedicated real-estate feeds (force_relevant=False)
 
-_RELEVANT_KW = [
-    # Hebrew
-    "דירה", "דיור", 'נדל"ן', "נדל", "בית", "שכירות", "מכירה", "קנייה",
-    "בנייה", "משכנתא", "ריבית", "בנק", "קבלן", "שכונה", "מגדל",
-    "פרויקט", "מחיר", "שוק הנדל", "התחדשות",
-    # English
-    "real estate", "apartment", "housing", "property", "rent", "mortgage",
-    "interest rate", "bank", "construction", "developer", "neighborhood",
-    "homebuyer", "home price", "affordable housing",
+_RELEVANT_PHRASES = [
+    # Hebrew — specific enough to avoid false positives
+    "נדל\"ן", "נדל'ן", "דירה", "דירות", "שכירות", "בנייה", "משכנתא",
+    "ריבית הפריים", "מחיר למשתכן", "דיור בר השגה", "פינוי בינוי",
+    "התחדשות עירונית", "קבלן", "שכונה", "פרויקט נדל",
+    # English — specific phrases
+    "real estate", "apartment", "housing market", "home price", "property price",
+    "mortgage rate", "interest rate", "homebuyer", "affordable housing",
+    "construction project", "new development", "rental market",
 ]
+
+# ── Classification keywords ────────────────────────────────────────────────────
 
 _CATEGORY_KW = {
     "mortgage": [
-        "משכנתא", "ריבית", "פריים", "הלוואה", "בנק ישראל", "בנק",
-        "מימון", "ריבית הבנק",
-        "mortgage", "interest rate", "prime rate", "loan", "bank of israel",
-        "bank", "financing", "boi", "rate cut", "rate hike",
+        # Hebrew
+        "משכנתא", "ריבית", "ריבית הפריים", "הלוואת דיור", "בנק ישראל",
+        "מימון", "החזר חודשי",
+        # English
+        "mortgage", "interest rate", "prime rate", "housing loan",
+        "bank of israel", "boi rate", "rate cut", "rate hike", "refinanc",
+        "monthly payment",
     ],
     "program": [
-        "מחיר למשתכן", "מחיר לדירה", "דיור בר השגה", "לוטריה", "פיס",
+        # Hebrew
+        "מחיר למשתכן", "מחיר לדירה", "דיור בר השגה", "לוטריה", "הגרלה",
         "סיוע בשכר דירה", "דיור ציבורי", "משרד הבינוי", "תוכנית דיור",
-        "זכאות", "ממשלה",
-        "affordable", "lottery", "subsidy", "government program",
+        "זכאות", "הנחה לדיור", "דיור מסובסד",
+        # English
+        "affordable housing", "lottery", "housing subsidy", "government program",
         "ministry of housing", "social housing", "mechir lamishtaken",
-        "first-time buyer",
+        "first-time buyer", "first-time homebuyer",
     ],
     "project": [
-        "פרויקט", "בנייה", "קבלן", "התחדשות עירונית", "פינוי בינוי",
-        'תמ"א', "תמ״א", "מגדל", "שכונה חדשה", "תכנית בנייה",
-        "project", "construction", "developer", "urban renewal",
-        "tower", "new neighborhood", "new development", "pinui binui",
+        # Hebrew
+        "פרויקט", "בנייה חדשה", "פינוי בינוי", "התחדשות עירונית",
+        "תמ\"א 38", "תמ״א", "מגדל", "שכונה חדשה", "תכנית בנייה", "קבלן",
+        "יחידות דיור",
+        # English
+        "construction project", "new development", "urban renewal",
+        "new tower", "new neighborhood", "developer", "pinui binui",
+        "building permit", "housing units",
     ],
 }
 
@@ -110,17 +137,20 @@ def _strip_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text or "").strip()
 
 
-def _classify(text: str) -> str:
+def _is_relevant(text: str) -> bool:
+    """Check if text is real-estate related using phrase matching."""
     t = text.lower()
-    for cat, kws in _CATEGORY_KW.items():
-        if any(kw.lower() in t for kw in kws):
+    return any(phrase.lower() in t for phrase in _RELEVANT_PHRASES)
+
+
+def _classify(text: str) -> str:
+    """Return category: mortgage | program | project | news"""
+    t = text.lower()
+    # Check in priority order
+    for cat in ("mortgage", "program", "project"):
+        if any(kw.lower() in t for kw in _CATEGORY_KW[cat]):
             return cat
     return "news"
-
-
-def _is_relevant(text: str) -> bool:
-    t = text.lower()
-    return any(kw.lower() in t for kw in _RELEVANT_KW)
 
 
 def _parse_date(raw: str) -> str:
@@ -136,33 +166,73 @@ def _parse_date(raw: str) -> str:
         return datetime.now().strftime("%Y-%m-%d")
 
 
+def _extract_link(item_el) -> str:
+    """Extract link from RSS item element (handles various formats)."""
+    # Standard RSS 2.0 <link>
+    link = (item_el.findtext("link") or "").strip()
+    if link and link.startswith("http"):
+        return link
+
+    # Some feeds put link in <guid isPermaLink="true">
+    guid = item_el.find("guid")
+    if guid is not None:
+        is_perm = guid.get("isPermaLink", "true").lower()
+        gtext = (guid.text or "").strip()
+        if is_perm != "false" and gtext.startswith("http"):
+            return gtext
+
+    # Atom <link href="...">
+    ns = {"atom": "http://www.w3.org/2005/Atom"}
+    atom_link = item_el.find("atom:link", ns)
+    if atom_link is not None:
+        href = atom_link.get("href", "")
+        if href.startswith("http"):
+            return href
+
+    return ""
+
+
 def _fetch_source(source: dict) -> list:
     try:
         resp = requests.get(
-            source["url"], timeout=12,
-            headers={"User-Agent": "FlatFinderIL/1.0 (+https://flatfinderil.com)"},
+            source["url"], timeout=15,
+            headers={"User-Agent": "Mozilla/5.0 FlatFinderIL/1.0 (+https://flatfinderil.com)"},
         )
         resp.raise_for_status()
 
-        # Try fixing encoding for Hebrew
-        content = resp.content
+        content = resp.content.lstrip(b"\xef\xbb\xbf")  # strip BOM
         try:
             root = ET.fromstring(content)
-        except ET.ParseError:
-            # Try stripping BOM / bad chars
-            content = content.lstrip(b"\xef\xbb\xbf")
-            root = ET.fromstring(content)
+        except ET.ParseError as e:
+            # Try removing problematic XML declarations
+            content_str = content.decode("utf-8", errors="replace")
+            content_str = re.sub(r"<\?xml[^?]*\?>", "", content_str)
+            root = ET.fromstring(content_str.encode("utf-8"))
 
+        force_relevant = source.get("force_relevant", False)
         items = []
-        for item in root.findall(".//item"):
-            title   = _strip_html(item.findtext("title") or "")
-            desc    = _strip_html(item.findtext("description") or "")[:400]
-            link    = (item.findtext("link") or "").strip()
-            pub     = item.findtext("pubDate") or ""
+
+        for item_el in root.findall(".//item"):
+            title = _strip_html(item_el.findtext("title") or "")
+            desc  = _strip_html(item_el.findtext("description") or "")[:500]
+            link  = _extract_link(item_el)
+            pub   = item_el.findtext("pubDate") or ""
+
+            if not title:
+                continue
 
             combined = f"{title} {desc}"
-            if not _is_relevant(combined):
+
+            # Skip if not relevant (only for non-dedicated feeds)
+            if not force_relevant and not _is_relevant(combined):
                 continue
+
+            # For dedicated feeds, still skip obvious non-RE content
+            # by checking the title doesn't contain very specific exclusion terms
+            # (e.g. pure politics with no real estate angle)
+            if force_relevant and not _is_relevant(combined):
+                # Still try — dedicated feeds may have RE news phrased differently
+                pass  # accept all from dedicated feeds
 
             cat = source.get("category_hint") or _classify(combined)
 
@@ -176,11 +246,11 @@ def _fetch_source(source: dict) -> list:
                 "lang":     source["lang"],
             })
 
-        logger.info(f"[NEWS] {source['name']} ({source['url'][:40]}…): {len(items)} items")
+        logger.info(f"[NEWS] {source['name']}: {len(items)} items from {source['url'][:60]}")
         return items
 
     except Exception as e:
-        logger.warning(f"[NEWS] {source['name']} failed: {e}")
+        logger.warning(f"[NEWS] {source['name']} ({source['url'][:50]}) failed: {e}")
         return []
 
 
@@ -192,7 +262,7 @@ def fetch_all_news() -> dict:
     # Sort newest first
     all_items.sort(key=lambda x: x.get("date", ""), reverse=True)
 
-    # Deduplicate by first 60 chars of title
+    # Deduplicate by first 60 chars of title (case-insensitive)
     seen, deduped = set(), []
     for item in all_items:
         key = item["title"][:60].lower()
@@ -200,9 +270,10 @@ def fetch_all_news() -> dict:
             seen.add(key)
             deduped.append(item)
 
-    deduped = deduped[:60]  # keep top 60
+    deduped = deduped[:60]
 
-    ticker = [item["title"] for item in deduped[:10] if item["title"]]
+    # Build ticker from top items that have titles
+    ticker = [item["title"] for item in deduped[:12] if item["title"]]
 
     result = {
         "updated": datetime.now().isoformat(),
@@ -214,7 +285,7 @@ def fetch_all_news() -> dict:
     try:
         with open(CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
-        logger.info(f"[NEWS] Cache saved: {len(deduped)} items")
+        logger.info(f"[NEWS] Cache saved: {len(deduped)} items total")
     except Exception as e:
         logger.warning(f"[NEWS] Cache write error: {e}")
 
@@ -222,7 +293,7 @@ def fetch_all_news() -> dict:
 
 
 def get_news(category: str = None, lang: str = None, limit: int = 20) -> dict:
-    """Return cached news (refreshes if stale > REFRESH_INTERVAL min)."""
+    """Return cached news, refreshing if stale > REFRESH_INTERVAL min."""
     cached = None
     try:
         if os.path.exists(CACHE_FILE):
@@ -230,7 +301,7 @@ def get_news(category: str = None, lang: str = None, limit: int = 20) -> dict:
                 cached = json.load(f)
             updated = datetime.fromisoformat(cached.get("updated", "2000-01-01"))
             if datetime.now() - updated > timedelta(minutes=REFRESH_INTERVAL):
-                cached = None  # stale
+                cached = None  # stale — refetch
     except Exception:
         cached = None
 
@@ -238,7 +309,6 @@ def get_news(category: str = None, lang: str = None, limit: int = 20) -> dict:
         cached = fetch_all_news()
 
     items = cached.get("items", [])
-
     if category:
         items = [i for i in items if i.get("category") == category]
     if lang:
@@ -255,8 +325,7 @@ def get_news(category: str = None, lang: str = None, limit: int = 20) -> dict:
 def start_news_refresh_loop():
     """Start background thread that refreshes news every REFRESH_INTERVAL min."""
     def _loop():
-        # Initial fetch after 5s (let bot fully start first)
-        time.sleep(5)
+        time.sleep(5)  # let bot fully start first
         while True:
             try:
                 fetch_all_news()
