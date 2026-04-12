@@ -437,6 +437,28 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 except Exception as e: ok=False
                 return self._send_json({"ok":ok})
 
+        # subscriptions (stats.json + paid_subscriptions in DB)
+        if resource == "subscriptions":
+            from analytics import _load_stats, _save_stats
+            if method == "GET":
+                data = _load_stats()
+                subs = data.get("subscriptions", {})
+                return self._send_json({"total": len(subs), "items": subs})
+            if method == "DELETE" and rid:
+                # Remove from stats.json subscriptions
+                data = _load_stats()
+                subs = data.get("subscriptions", {})
+                removed_stats = subs.pop(rid, None)
+                if rid in data.get("users", {}):
+                    data["users"][rid]["subscribed"] = False
+                data["subscriptions"] = subs
+                _save_stats(data)
+                # Remove from listings_db.json paid_subscriptions
+                db_data = db._load()
+                removed_db = db_data.get("paid_subscriptions", {}).pop(rid, None)
+                db._save(db_data)
+                return self._send_json({"ok": True, "removed_stats": removed_stats, "removed_db": removed_db})
+
         # payments log
         if resource == "payments":
             from analytics import _load_stats, _save_stats
