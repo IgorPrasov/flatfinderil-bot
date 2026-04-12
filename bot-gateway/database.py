@@ -6,26 +6,12 @@ import os
 _DATA_DIR = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
 DB_FILE = os.path.join(_DATA_DIR, "listings_db.json")
 
-# On first run with a volume: seed from the bundled file in the repo directory
+# On first run with a volume: seed from the bundled file only if volume DB doesn't exist yet
 _BUNDLED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "listings_db.json")
-if _BUNDLED != DB_FILE and os.path.exists(_BUNDLED):
-    _needs_seed = not os.path.exists(DB_FILE)
-    if not _needs_seed:
-        try:
-            with open(_BUNDLED, 'r', encoding='utf-8') as _f:
-                _bundled_data = json.load(_f)
-            _bundled_count = len(_bundled_data.get("listings", {}))
-            with open(DB_FILE, 'r', encoding='utf-8') as _f:
-                _existing = json.load(_f)
-            _existing_count = len(_existing.get("listings", {}))
-            # Seed if volume has significantly fewer listings than bundled file
-            _needs_seed = _existing_count < _bundled_count * 0.5
-        except Exception:
-            _needs_seed = True
-    if _needs_seed:
-        import shutil
-        os.makedirs(_DATA_DIR, exist_ok=True)
-        shutil.copy2(_BUNDLED, DB_FILE)
+if _BUNDLED != DB_FILE and os.path.exists(_BUNDLED) and not os.path.exists(DB_FILE):
+    import shutil
+    os.makedirs(_DATA_DIR, exist_ok=True)
+    shutil.copy2(_BUNDLED, DB_FILE)
 
 def _dedup_listings():
     """Remove duplicate listings by source_url (or title). Runs once on startup."""
