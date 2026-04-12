@@ -437,6 +437,27 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 except Exception as e: ok=False
                 return self._send_json({"ok":ok})
 
+        # payments log
+        if resource == "payments":
+            from analytics import _load_stats, _save_stats
+            if method == "GET":
+                data = _load_stats()
+                log = data.get("payments_log", [])
+                return self._send_json({"total": len(log), "items": log})
+            if method == "DELETE" and rid:
+                try:
+                    i = int(rid)
+                except ValueError:
+                    return self._send_json({"error": "Invalid index"}, 400)
+                data = _load_stats()
+                log = data.get("payments_log", [])
+                if i < 0 or i >= len(log):
+                    return self._send_json({"error": "Index out of range"}, 404)
+                removed = log.pop(i)
+                data["payments_log"] = log
+                _save_stats(data)
+                return self._send_json({"ok": True, "removed": removed})
+
         # logout via API
         if resource == "logout":
             _bo_delete_session(self.headers)
