@@ -273,10 +273,10 @@ def get_favorites(user_id: int) -> List[Dict]:
     ids = data["favorites"].get(str(user_id), [])
     return [data["listings"][str(i)] for i in ids if str(i) in data["listings"]]
 
-def get_all_listings(limit: int = 1000) -> List[Dict]:
+def get_all_listings(limit: int = None) -> List[Dict]:
     data = _load()
     active = [l for l in data["listings"].values() if l.get("active")]
-    return active[:limit]
+    return active if limit is None else active[:limit]
 
 # ── View counter ──────────────────────────────────────────────────────────────
 
