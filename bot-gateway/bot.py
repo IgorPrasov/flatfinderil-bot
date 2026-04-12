@@ -511,6 +511,17 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             self.send_header("Content-Length", len(body))
             self.end_headers()
             self.wfile.write(body)
+        elif path == "/news":
+            try:
+                from news_fetcher import get_news
+                qs = parse_qs(parsed.query)
+                category = (qs.get("category") or [None])[0]
+                lang     = (qs.get("lang")     or [None])[0]
+                limit    = int((qs.get("limit")  or ["20"])[0])
+                data = get_news(category=category, lang=lang, limit=limit)
+            except Exception as e:
+                data = {"error": str(e), "items": [], "ticker": []}
+            self._send_json(data)
         else:
             self._send_html(DASHBOARD_FILE)
 
@@ -613,6 +624,13 @@ def _start_email_scheduler():
 
 web_thread = threading.Thread(target=start_web_server, daemon=True)
 web_thread.start()
+
+# Start news refresh loop (fetches RSS every 60 min)
+try:
+    from news_fetcher import start_news_refresh_loop
+    start_news_refresh_loop()
+except Exception as _ne:
+    logger.warning(f"News fetcher not started: {_ne}")
 
 def start_telegram_parser():
     try:
