@@ -553,3 +553,105 @@ def send_all_service_reports():
         if send_service_report(p["user_id"]):
             ok += 1
     return ok, len(providers)
+
+
+def _send_email_simple(to_email: str, subject: str, html: str) -> bool:
+    """Shared helper: send an HTML email via SMTP or Resend."""
+    if not to_email:
+        return False
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = f"{SMTP_FROM} <{SMTP_USER}>"
+    msg["To"]      = to_email
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    if SMTP_USER and SMTP_PASS:
+        # Try SSL 465
+        try:
+            ctx = ssl.create_default_context()
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx, timeout=15) as s:
+                s.login(SMTP_USER, SMTP_PASS)
+                s.sendmail(SMTP_USER, to_email, msg.as_bytes())
+            logger.info(f"[SSL-465] Sent to {to_email}: {subject}")
+            return True
+        except Exception as e1:
+            logger.warning(f"[SSL-465] {e1}")
+        # Try STARTTLS 587
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as s:
+                s.ehlo(); s.starttls(); s.login(SMTP_USER, SMTP_PASS)
+                s.sendmail(SMTP_USER, to_email, msg.as_bytes())
+            logger.info(f"[STARTTLS-587] Sent to {to_email}: {subject}")
+            return True
+        except Exception as e2:
+            logger.warning(f"[STARTTLS-587] {e2}")
+
+    # Try Resend
+    resend_key = os.environ.get("RESEND_API_KEY", "")
+    if resend_key:
+        try:
+            payload = json.dumps({
+                "from": f"{SMTP_FROM} <onboarding@resend.dev>",
+                "to": [to_email], "subject": subject, "html": html,
+            }).encode()
+            req = urllib.request.Request(
+                "https://api.resend.com/emails", data=payload,
+                headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read())
+            if result.get("id"):
+                logger.info(f"[RESEND] Sent to {to_email}: {subject}")
+                return True
+        except Exception as e3:
+            logger.error(f"[RESEND] {e3}")
+    return False
+
+
+def send_contact_request_email(to_email: str, listing_title: str,
+                                customer_username: str, customer_tg_id: int) -> bool:
+    """Notify agent/owner that someone requested their contact via the bot."""
+    subject = "📞 FlatFinderIL — Новый запрос контакта по объявлению"
+    html = f"""<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f5f5f5;padding:20px">
+<div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+  <div style="background:#2AABEE;padding:20px 28px">
+    <h2 style="color:#fff;margin:0;font-size:18px">📞 Новый запрос на просмотр</h2>
+  </div>
+  <div style="padding:24px 28px">
+    <p style="color:#333;font-size:14px">Пользователь <b>{customer_username}</b> (ID: {customer_tg_id})
+    запросил ваш контакт по объявлению:</p>
+    <div style="background:#f0f8ff;border-left:4px solid #2AABEE;padding:12px 16px;border-radius:4px;margin:16px 0">
+      <b style="color:#333">{listing_title}</b>
+    </div>
+    <p style="color:#555;font-size:13px">Свяжитесь с ним в Telegram — он уже видит ваши контактные данные.</p>
+  </div>
+  <div style="background:#f8f8f4;padding:14px 28px;text-align:center;border-top:1px solid #eee">
+    <p style="font-size:11px;color:#aaa;margin:0">FlatFinderIL · Israel Real Estate</p>
+  </div>
+</div></body></html>"""
+    return _send_email_simple(to_email, subject, html)
+
+
+def send_service_order_email(to_email: str, service_type: str,
+                              customer_username: str, customer_tg_id: int) -> bool:
+    """Notify service provider of a new order from the bot."""
+    subject = f"✅ FlatFinderIL — Новый заказ: {service_type}"
+    html = f"""<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f5f5f5;padding:20px">
+<div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+  <div style="background:#4CAF50;padding:20px 28px">
+    <h2 style="color:#fff;margin:0;font-size:18px">✅ Новый заказ услуги</h2>
+  </div>
+  <div style="padding:24px 28px">
+    <p style="color:#333;font-size:14px">Пользователь <b>{customer_username}</b> (ID: {customer_tg_id})
+    оформил заказ на вашу услугу:</p>
+    <div style="background:#f0fff4;border-left:4px solid #4CAF50;padding:12px 16px;border-radius:4px;margin:16px 0">
+      <b style="color:#333;font-size:16px">{service_type}</b>
+    </div>
+    <p style="color:#555;font-size:13px">Клиент ожидает вашего звонка. Свяжитесь с ним в Telegram как можно скорее.</p>
+  </div>
+  <div style="background:#f8f8f4;padding:14px 28px;text-align:center;border-top:1px solid #eee">
+    <p style="font-size:11px;color:#aaa;margin:0">FlatFinderIL · Israel Real Estate</p>
+  </div>
+</div></body></html>"""
+    return _send_email_simple(to_email, subject, html)

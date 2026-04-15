@@ -443,6 +443,19 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Can't reach owner, show contact
                 contact = listing.get("contact") or t("contact_none", context)
                 await query.answer(t("view_request_contact", context, contact=contact), show_alert=True)
+            # ── Email notification to owner ──────────────────────────────────
+            try:
+                owner_email = db.get_agent_email(owner_id)
+                if owner_email:
+                    from email_reporter import send_contact_request_email
+                    import threading
+                    threading.Thread(
+                        target=send_contact_request_email,
+                        args=(owner_email, title, username, user.id),
+                        daemon=True,
+                    ).start()
+            except Exception:
+                pass
         else:
             # External listing — show contact
             contact = listing.get("contact") or t("contact_none", context)

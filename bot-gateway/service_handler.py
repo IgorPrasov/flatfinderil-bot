@@ -177,6 +177,12 @@ class ServiceHandler:
                     CallbackQueryHandler(self.handle_city, pattern="^svc_city_"),
                     CallbackQueryHandler(self.back_to_menu_cb, pattern="^svc_back$"),
                 ],
+                SVC_RESULTS: [
+                    CallbackQueryHandler(self.handle_prev,  pattern="^svc_prev$"),
+                    CallbackQueryHandler(self.handle_next,  pattern="^svc_next$"),
+                    CallbackQueryHandler(self.order_service, pattern="^svc_order_"),
+                    CallbackQueryHandler(self.back_to_menu_cb, pattern="^back_to_menu$"),
+                ],
                 ADD_SVC_TYPE: [
                     CallbackQueryHandler(self.add_handle_type, pattern="^addsvc_type_"),
                 ],
@@ -307,17 +313,99 @@ class ServiceHandler:
             return
         s = results[idx]
         text = f"📋 <i>{idx+1} / {len(results)}</i>\n\n" + _format_service_card(s, lang)
+
         nav_buttons = []
         if idx > 0:
             nav_buttons.append(InlineKeyboardButton("◀️", callback_data="svc_prev"))
         if idx < len(results) - 1:
             nav_buttons.append(InlineKeyboardButton("▶️", callback_data="svc_next"))
-        back_label = {"ru": "🏠 Меню", "en": "🏠 Menu", "he": "🏠 תפריט"}[lang]
-        kb = InlineKeyboardMarkup([nav_buttons, [InlineKeyboardButton(back_label, callback_data="back_to_menu")]]) if nav_buttons else InlineKeyboardMarkup([[InlineKeyboardButton(back_label, callback_data="back_to_menu")]])
+
+        order_label = {"ru": "✅ Заказать", "en": "✅ Order", "he": "✅ להזמין"}[lang]
+        back_label  = {"ru": "🏠 Меню",    "en": "🏠 Menu",  "he": "🏠 תפריט"}[lang]
+        sid = s.get("id", "")
+        rows = []
+        if nav_buttons:
+            rows.append(nav_buttons)
+        rows.append([InlineKeyboardButton(order_label, callback_data=f"svc_order_{sid}")])
+        rows.append([InlineKeyboardButton(back_label,  callback_data="back_to_menu")])
+        kb = InlineKeyboardMarkup(rows)
+
         if query:
             await query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
         else:
             await update.callback_query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+
+    async def handle_prev(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        context.user_data["svc_idx"] = max(0, context.user_data.get("svc_idx", 0) - 1)
+        await self._show_service(update, context, query=query)
+        return SVC_RESULTS
+
+    async def handle_next(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        results = context.user_data.get("svc_results", [])
+        context.user_data["svc_idx"] = min(len(results) - 1, context.user_data.get("svc_idx", 0) + 1)
+        await self._show_service(update, context, query=query)
+        return SVC_RESULTS
+
+    async def order_service(self, update, context):
+        """User pressed 'Order'. Notify the service provider via Telegram + email."""
+        query = update.callback_query
+        await query.answer()
+        lang = get_lang(context)
+        sid_str = query.data.replace("svc_order_", "")
+
+        # Find service in results
+        results = context.user_data.get("svc_results", [])
+        s = next((x for x in results if str(x.get("id", "")) == str(sid_str)), None)
+        if not s:
+            await query.answer({"ru": "Услуга не найдена", "en": "Service not found", "he": "שירות לא נמצא"}.get(lang, "Not found"), show_alert=True)
+            return SVC_RESULTS
+
+        user = update.effective_user
+        username = f"@{user.username}" if user.username else user.first_name or str(user.id)
+        stype = SERVICE_TYPES.get(s.get("service_type", ""), {}).get(lang, s.get("service_type", ""))
+        owner_tg_id = s.get("user_id")
+        owner_phone = s.get("phone", "")
+        owner_email = s.get("contact", "") or db.get_service_email(owner_tg_id) if owner_tg_id else ""
+
+        # ── Notify provider via Telegram ────────────────────────────────────
+        if owner_tg_id:
+            notify_text = {
+                "ru": f"📩 <b>Новый заказ!</b>\n\nПользователь {username} хочет заказать вашу услугу <b>{stype}</b>.\n\n📞 Свяжитесь с ним в Telegram.",
+                "en": f"📩 <b>New order!</b>\n\nUser {username} wants to order your <b>{stype}</b> service.\n\n📞 Contact them on Telegram.",
+                "he": f"📩 <b>הזמנה חדשה!</b>\n\nמשתמש {username} רוצה להזמין את שירות <b>{stype}</b>.\n\n📞 צרו קשר בטלגרם.",
+            }.get(lang, f"New order from {username} for {stype}")
+            try:
+                await context.bot.send_message(chat_id=owner_tg_id, text=notify_text, parse_mode="HTML")
+            except Exception:
+                pass
+
+        # ── Notify provider via email ────────────────────────────────────────
+        if owner_email:
+            try:
+                import email_reporter
+                email_reporter.send_service_order_email(
+                    to_email=owner_email,
+                    service_type=stype,
+                    customer_username=username,
+                    customer_tg_id=user.id,
+                )
+            except Exception:
+                pass
+
+        # ── Confirm to customer ──────────────────────────────────────────────
+        confirm_text = {
+            "ru": f"✅ Заявка отправлена!\n\nПровайдер <b>{s.get('owner_name','')}</b> получил уведомление и свяжется с вами.\n📞 {owner_phone}" if owner_phone else f"✅ Заявка отправлена провайдеру!",
+            "en": f"✅ Request sent!\n\nProvider <b>{s.get('owner_name','')}</b> has been notified and will contact you.\n📞 {owner_phone}" if owner_phone else "✅ Request sent to provider!",
+            "he": f"✅ הבקשה נשלחה!\n\n<b>{s.get('owner_name','')}</b> קיבל הודעה ויצור איתך קשר.\n📞 {owner_phone}" if owner_phone else "✅ הבקשה נשלחה!",
+        }.get(lang, "✅ Order sent!")
+        back_label = {"ru": "🏠 Меню", "en": "🏠 Menu", "he": "🏠 תפריט"}[lang]
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton(back_label, callback_data="back_to_menu")]])
+        await query.edit_message_text(confirm_text, reply_markup=kb, parse_mode="HTML")
+        return SVC_RESULTS
 
     # ── Add service flow ─────────────────────────────────────────────────────
 
