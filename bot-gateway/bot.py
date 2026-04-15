@@ -374,6 +374,11 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 if active_qs=="false": svcs=[s for s in svcs if not s.get("active",True)]
                 svcs.sort(key=lambda x:x.get("date_added",""),reverse=True)
                 return self._send_json({"total":len(svcs),"items":svcs})
+            if method == "GET" and rid:
+                data = db._load()
+                svc = data.get("services",{}).get(rid)
+                if not svc: return self._send_json({"error":"Not found"},404)
+                return self._send_json(svc)
             if method == "PATCH" and rid and action == "toggle":
                 data = db._load()
                 svc = data.get("services",{}).get(rid)

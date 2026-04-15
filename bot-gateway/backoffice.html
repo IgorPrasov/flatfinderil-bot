@@ -841,39 +841,43 @@ async function showUser(uid) {
 }
 
 async function showService(sid) {
-  const d = await api('GET', '/services');
-  if (!d) return;
-  const s = d.items.find(x => x.id === sid || String(x.id) === String(sid));
-  if (!s) return;
+  const s = await api('GET', `/services/${sid}`);
+  if (!s || s.error) return;
   const stype = SVC_LABELS[s.service_type] || s.service_type || '—';
+  const priceStr = s.price && s.price > 0 ? s.price.toLocaleString() + ' ₪' : 'Договорная';
+  const tgLink = s.user_id ? `<a href="tg://user?id=${s.user_id}" target="_blank">@id${s.user_id}</a>` : '—';
+  const LANG_LABELS = {ru:'Русский',en:'English',he:'עברית'};
+  const CAT_LABELS  = {mover:'Переезды',cleaner:'Уборка',plumber:'Сантехника',electrician:'Электрика',designer:'Дизайн',other:'Другое'};
   const html = `
     <div class="detail-section">
-      <h4>Поставщик услуг</h4>
-      ${dr('ID', s.id)}
-      ${dr('Тип', stype)}
+      <h4>Информация о услуге</h4>
+      ${dr('ID', s.id||'—')}
+      ${dr('Тип услуги', stype)}
+      ${dr('Категория', CAT_LABELS[s.category]||s.category||'—')}
       ${dr('Регион', esc(s.region||'—'))}
       ${dr('Город', esc(s.city||'—'))}
-      ${dr('Цена', s.price ? s.price.toLocaleString() + ' ₪' : '—')}
+      ${dr('Цена', priceStr)}
+      ${dr('Язык', LANG_LABELS[s.lang]||s.lang||'—')}
       ${dr('Статус', s.active!==false ? badge('Активно','green') : badge('Скрыто','red'))}
-      ${dr('Дата', s.date_added||'—')}
+      ${dr('Дата добавления', s.date_added ? s.date_added.slice(0,10) : '—')}
     </div>
     <div class="detail-section">
-      <h4>Контакты</h4>
-      ${dr('Имя', esc(s.owner_name||s.contact_name||'—'))}
-      ${dr('Телефон', s.owner_phone||s.phone ? `<a href="tel:${s.owner_phone||s.phone}">${s.owner_phone||s.phone}</a>` : '—')}
-      ${dr('Telegram', s.telegram||s.contact ? esc(s.telegram||s.contact) : '—')}
+      <h4>Контакты поставщика</h4>
+      ${dr('Имя', esc(s.owner_name||'—'))}
+      ${dr('Телефон', s.phone ? `<a href="tel:${s.phone}">${s.phone}</a>` : '—')}
       ${dr('Email', s.email ? `<a href="mailto:${s.email}">${s.email}</a>` : '—')}
-      ${dr('User ID', s.user_id||'—')}
+      ${dr('Telegram', tgLink)}
+      ${dr('Telegram ID', s.user_id ? String(s.user_id) : '—')}
     </div>
-    ${s.description ? `<div class="detail-section"><h4>Описание</h4><div class="detail-desc">${esc(s.description)}</div></div>` : ''}
+    ${s.description ? `<div class="detail-section"><h4>Описание</h4><div class="detail-desc" style="white-space:pre-wrap">${esc(s.description)}</div></div>` : ''}
     <div class="detail-section">
       <h4>Действия</h4>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="toggleService('${s.id}',${s.active!==false})">${s.active!==false?'🙈 Скрыть':'👁 Показать'}</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="toggleService('${s.id}',${s.active!==false});closeDetail()">${s.active!==false?'🙈 Скрыть':'👁 Показать'}</button>
         <button class="btn btn-danger btn-sm" onclick="deleteService('${s.id}');closeDetail()">🗑 Удалить</button>
       </div>
     </div>`;
-  openDetail(`🚚 ${stype} — ${s.city||''}`, html);
+  openDetail(`🚚 ${stype} — ${esc(s.city||'')}`, html);
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
