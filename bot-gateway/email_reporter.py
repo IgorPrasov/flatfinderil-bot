@@ -633,6 +633,50 @@ def send_contact_request_email(to_email: str, listing_title: str,
     return _send_email_simple(to_email, subject, html)
 
 
+def send_deal_closed_email(to_email: str, listing_title: str,
+                            deal_price: int, listed_price: int,
+                            tenant_username: str, deal_type: str = "rent") -> bool:
+    """Notify agent/owner that a deal was successfully closed."""
+    deal_label = "аренда" if deal_type == "rent" else "продажа"
+    price_diff = deal_price - listed_price
+    diff_html = ""
+    if price_diff != 0 and listed_price > 0:
+        sign  = "+" if price_diff > 0 else ""
+        color = "#e74c3c" if price_diff > 0 else "#27ae60"
+        diff_html = f'<span style="color:{color};font-size:12px"> ({sign}{price_diff:,} ₪ от выставленной цены)</span>'
+
+    subject = f"🎉 FlatFinderIL — Сделка закрыта: {listing_title}"
+    html = f"""<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f5f5f5;padding:20px">
+<div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+  <div style="background:linear-gradient(135deg,#0f3460,#2AABEE);padding:24px 28px">
+    <h2 style="color:#fff;margin:0;font-size:20px">🎉 Сделка закрыта!</h2>
+    <p style="color:rgba(255,255,255,.8);margin:6px 0 0;font-size:13px">FlatFinderIL · {deal_label.capitalize()}</p>
+  </div>
+  <div style="padding:24px 28px">
+    <p style="color:#333;font-size:14px;margin:0 0 16px">Поздравляем! Ваше объявление успешно закрыто:</p>
+    <div style="background:#f0f8ff;border-left:4px solid #2AABEE;padding:14px 18px;border-radius:4px;margin-bottom:20px">
+      <div style="font-size:16px;font-weight:700;color:#0f3460">{listing_title}</div>
+      <div style="margin-top:8px;font-size:14px;color:#333">
+        💰 Цена сделки: <b>{deal_price:,} ₪</b>{diff_html}
+      </div>
+      <div style="margin-top:4px;font-size:13px;color:#555">
+        👤 Покупатель/арендатор: <b>{tenant_username}</b>
+      </div>
+    </div>
+    <div style="background:#f0fff4;border-radius:8px;padding:12px 16px;font-size:13px;color:#27ae60">
+      ✨ Вам начислено <b>+3 бонусных дня</b> подписки FlatFinderIL
+    </div>
+    <p style="color:#888;font-size:12px;margin-top:20px">
+      Объявление деактивировано. Вы можете разместить новое через бот.
+    </p>
+  </div>
+  <div style="background:#f8f8f4;padding:14px 28px;text-align:center;border-top:1px solid #eee">
+    <p style="font-size:11px;color:#aaa;margin:0">FlatFinderIL · Israel Real Estate</p>
+  </div>
+</div></body></html>"""
+    return _send_email_simple(to_email, subject, html)
+
+
 def send_service_order_email(to_email: str, service_type: str,
                               customer_username: str, customer_tg_id: int) -> bool:
     """Notify service provider of a new order from the bot."""

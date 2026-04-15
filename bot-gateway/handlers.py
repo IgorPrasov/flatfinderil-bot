@@ -723,6 +723,22 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
                 except Exception:
                     pass
+        # ── Email to owner/agent about closed deal ───────────────────────────
+        try:
+            owner_email = db.get_agent_email(owner_id)
+            if owner_email:
+                from email_reporter import send_deal_closed_email
+                tenant_info = next((r for r in requesters if r.get("user_id") == tenant_id), {})
+                tenant_name = tenant_info.get("username") or tenant_info.get("name") or f"ID {tenant_id}"
+                import threading
+                threading.Thread(
+                    target=send_deal_closed_email,
+                    args=(owner_email, title, final_price, listed_price,
+                          tenant_name, listing.get("deal_type", "rent")),
+                    daemon=True,
+                ).start()
+        except Exception:
+            pass
 
     # ── Tenant: "I rented/bought this" button ──────────────────────────────
     elif data.startswith("irented_") and not data.startswith("irented_confirm_"):
