@@ -170,7 +170,11 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lang = get_lang(context)
             plan = PLANS[plan_key]
             plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
-            stars = plan.get("stars", 399)  # Telegram Stars price
+            stars = plan.get("stars", 399)
+            chat_id = update.effective_chat.id
+            user_id = update.effective_user.id
+            payload = f"{plan_key}:{user_id}"
+            logger.info(f"[PAYMENT] Stars invoice attempt plan={plan_key} stars={stars} chat={chat_id} uid={user_id}")
 
             descriptions = {
                 "ru": f"Доступ к FlatFinderIL на {plan['days']} дней",
@@ -178,9 +182,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "he": f"גישה ל-FlatFinderIL למשך {plan['days']} ימים",
             }
             desc = descriptions.get(lang, descriptions["ru"])
-            chat_id = update.effective_chat.id
-            payload = f"{plan_key}:{update.effective_user.id}"
-            # Use direct HTTP call — PTB 20.7 predates Stars (XTR), bypass wrapper
+
             try:
                 import requests as _req
                 from config import BOT_TOKEN
@@ -198,18 +200,16 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     timeout=10,
                 )
                 result = resp.json()
+                logger.info(f"[PAYMENT] Telegram API response: {result}")
                 if not result.get("ok"):
-                    raise RuntimeError(result.get("description", "Telegram API error"))
-                logger.info(f"[PAYMENT] Stars invoice sent chat={chat_id} plan={plan_key} stars={stars}")
+                    err_desc = result.get("description", "Unknown error")
+                    raise RuntimeError(err_desc)
+                logger.info(f"[PAYMENT] Invoice sent ok chat={chat_id} plan={plan_key}")
             except Exception as inv_err:
-                logger.error(f"[PAYMENT] sendInvoice failed: {inv_err}")
-                err_msgs = {
-                    "ru": "⚠️ Не удалось открыть форму оплаты. Попробуйте позже.",
-                    "en": "⚠️ Could not open payment form. Please try later.",
-                    "he": "⚠️ לא ניתן לפתוח את טופס התשלום. נסה שוב מאוחר יותר.",
-                }
+                logger.error(f"[PAYMENT] sendInvoice FAILED: {inv_err}")
+                # Show actual error in chat for debugging
                 await query.edit_message_text(
-                    err_msgs.get(lang, err_msgs["ru"]),
+                    f"⚠️ Ошибка оплаты:\n<code>{inv_err}</code>\n\nСообщите в поддержку.",
                     reply_markup=subscription_keyboard(context),
                     parse_mode="HTML",
                 )
