@@ -183,13 +183,11 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     title=f"FlatFinderIL — {plan_name}",
                     description=desc,
                     payload=f"{plan_key}:{update.effective_user.id}",
-                    provider_token="",        # empty = Telegram Stars
-                    currency="XTR",           # Telegram Stars
+                    provider_token="",   # empty string = Telegram Stars
+                    currency="XTR",      # Telegram Stars
                     prices=[LabeledPrice(plan_name, stars)],
-                    need_name=False,
-                    need_phone_number=False,
-                    need_email=False,
-                    protect_content=False,
+                    # NOTE: need_name/need_phone/need_email/protect_content
+                    # are NOT supported for XTR currency — omit entirely
                 )
             except Exception as inv_err:
                 logger.error(f"[PAYMENT] reply_invoice failed: {inv_err}")
