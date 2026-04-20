@@ -10,6 +10,7 @@ from handlers import (
     start, handle_menu, my_listings, handle_unknown, agent_cabinet,
     refer_command, handle_edit_text,
     handle_pre_checkout, handle_successful_payment,
+    handle_stars_invoice,
     cmd_testpay,
 )
 from search_handler import SearchHandler
@@ -125,6 +126,8 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_menu))
     # Payment handlers in group=-1 so they run BEFORE any ConversationHandler
     # (prevents a mid-conversation state from swallowing the pre_checkout_query)
+    # Stars invoice + payment handlers at group=-1 — fire BEFORE ConversationHandlers
+    app.add_handler(CallbackQueryHandler(handle_stars_invoice, pattern="^sub_(week|two_weeks|month|search_alert|search_alert_confirm)$"), group=-1)
     app.add_handler(PreCheckoutQueryHandler(handle_pre_checkout), group=-1)
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, handle_successful_payment), group=-1)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_text))

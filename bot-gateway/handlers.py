@@ -1118,3 +1118,87 @@ async def cmd_testpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=back_to_menu_keyboard(context),
     )
 
+
+# ── Stars payment handler — registered at group=-1 (high priority) ────────────
+# Runs BEFORE any ConversationHandler so it works even mid-conversation.
+
+async def handle_stars_invoice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle sub_week / sub_two_weeks / sub_month / sub_search_alert_confirm callbacks.
+    Registered at group=-1 so ConversationHandlers can't swallow them."""
+    query = update.callback_query
+    data = query.data or ""
+
+    # Only handle plan purchase callbacks (not sub_crypto, not sub_search_alert description)
+    plan_key = data.replace("sub_", "", 1)
+
+    # Show description page for search_alert
+    if plan_key == "search_alert":
+        await query.answer()
+        lang = get_lang(context)
+        from keyboards import search_alert_confirm_keyboard
+        await query.edit_message_text(
+            t("sub_search_alert_desc", context),
+            reply_markup=search_alert_confirm_keyboard(context),
+            parse_mode="HTML",
+        )
+        return
+
+    # Direct activate for search_alert_confirm (still no real payment for alerts)
+    if plan_key == "search_alert_confirm":
+        await query.answer()
+        lang = get_lang(context)
+        expiry = activate_subscription(update.effective_user.id, "search_alert")
+        plan = PLANS["search_alert"]
+        plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
+        await query.edit_message_text(
+            t("sub_activated", context, plan=plan_name, expiry=expiry.strftime("%d.%m.%Y")),
+            reply_markup=back_to_menu_keyboard(context),
+            parse_mode="HTML",
+        )
+        return
+
+    # Send Stars invoice for week / two_weeks / month
+    if plan_key not in PLANS:
+        return  # unknown plan, ignore
+
+    await query.answer()
+    lang = get_lang(context)
+    plan = PLANS[plan_key]
+    plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
+    stars = plan.get("stars", 399)
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    payload = f"{plan_key}:{user_id}"
+    desc = {
+        "ru": f"Доступ к FlatFinderIL на {plan['days']} дней",
+        "en": f"FlatFinderIL access for {plan['days']} days",
+        "he": f"גישה ל-FlatFinderIL למשך {plan['days']} ימים",
+    }.get(lang, f"FlatFinderIL — {plan['days']} days")
+
+    logger.info(f"[STARS] Sending invoice plan={plan_key} stars={stars} chat={chat_id} uid={user_id}")
+    try:
+        import requests as _req
+        from config import BOT_TOKEN
+        resp = _req.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendInvoice",
+            json={
+                "chat_id": chat_id,
+                "title": f"FlatFinderIL — {plan_name}",
+                "description": desc,
+                "payload": payload,
+                "provider_token": "",
+                "currency": "XTR",
+                "prices": [{"label": plan_name, "amount": stars}],
+            },
+            timeout=10,
+        )
+        result = resp.json()
+        logger.info(f"[STARS] API response: {result}")
+        if not result.get("ok"):
+            raise RuntimeError(result.get("description", "Telegram API error"))
+    except Exception as e:
+        logger.error(f"[STARS] Invoice failed: {e}")
+        await query.message.reply_text(
+            f"⚠️ Ошибка оплаты: <code>{e}</code>",
+            parse_mode="HTML",
+        )
