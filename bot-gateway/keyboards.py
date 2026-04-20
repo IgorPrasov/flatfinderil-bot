@@ -342,7 +342,7 @@ def paywall_keyboard(ctx):
 def search_alert_confirm_keyboard(ctx):
     """Confirm screen for search_alert plan purchase."""
     lang = get_lang(ctx)
-    confirm = {"ru": "✅ Активировать · 39.90 ₪/мес", "en": "✅ Activate · ₪39.90/mo", "he": "✅ הפעל · ₪39.90/חודש"}.get(lang, "✅ Activate")
+    confirm = {"ru": "✅ Активировать · 799 ⭐/мес", "en": "✅ Activate · 799 ⭐/mo", "he": "✅ הפעל · 799 ⭐/חודש"}.get(lang, "✅ Activate")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(confirm,                 callback_data="sub_search_alert_confirm")],
         [InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")],

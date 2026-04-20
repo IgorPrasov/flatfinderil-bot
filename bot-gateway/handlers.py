@@ -5,7 +5,8 @@ from telegram.ext import ContextTypes
 
 logger = logging.getLogger(__name__)
 
-PAYMENT_PROVIDER_TOKEN = os.environ.get("PAYMENT_PROVIDER_TOKEN", "")
+# Telegram Stars (XTR) — no provider token needed
+PAYMENT_PROVIDER_TOKEN = ""  # legacy, kept for reference
 from keyboards import (
     main_menu_keyboard, back_to_menu_keyboard,
     results_navigation_keyboard, language_keyboard, join_keyboard,
@@ -169,50 +170,39 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lang = get_lang(context)
             plan = PLANS[plan_key]
             plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
-            price_agorot = int(plan["price"] * 100)  # ILS → agorot
+            stars = plan.get("stars", 399)  # Telegram Stars price
 
-            if not PAYMENT_PROVIDER_TOKEN:
-                # Fallback: activate without payment (dev/trial mode)
-                user_id = update.effective_user.id
-                expiry = activate_subscription(user_id, plan_key)
-                expiry_str = expiry.strftime("%d.%m.%Y")
+            descriptions = {
+                "ru": f"Доступ к FlatFinderIL на {plan['days']} дней",
+                "en": f"FlatFinderIL access for {plan['days']} days",
+                "he": f"גישה ל-FlatFinderIL למשך {plan['days']} ימים",
+            }
+            desc = descriptions.get(lang, descriptions["ru"])
+            try:
+                await query.message.reply_invoice(
+                    title=f"FlatFinderIL — {plan_name}",
+                    description=desc,
+                    payload=f"{plan_key}:{update.effective_user.id}",
+                    provider_token="",        # empty = Telegram Stars
+                    currency="XTR",           # Telegram Stars
+                    prices=[LabeledPrice(plan_name, stars)],
+                    need_name=False,
+                    need_phone_number=False,
+                    need_email=False,
+                    protect_content=False,
+                )
+            except Exception as inv_err:
+                logger.error(f"[PAYMENT] reply_invoice failed: {inv_err}")
+                err_msgs = {
+                    "ru": "⚠️ Не удалось открыть форму оплаты. Попробуйте позже.",
+                    "en": "⚠️ Could not open payment form. Please try later.",
+                    "he": "⚠️ לא ניתן לפתוח את טופס התשלום. נסה שוב מאוחר יותר.",
+                }
                 await query.edit_message_text(
-                    t("sub_activated", context, plan=plan_name, expiry=expiry_str),
-                    reply_markup=back_to_menu_keyboard(context),
+                    err_msgs.get(lang, err_msgs["ru"]),
+                    reply_markup=subscription_keyboard(context),
                     parse_mode="HTML",
                 )
-            else:
-                descriptions = {
-                    "ru": f"Доступ к FlatFinderIL на {plan['days']} дней",
-                    "en": f"FlatFinderIL access for {plan['days']} days",
-                    "he": f"גישה ל-FlatFinderIL למשך {plan['days']} ימים",
-                }
-                desc = descriptions.get(lang, descriptions["ru"])
-                try:
-                    await query.message.reply_invoice(
-                        title=f"FlatFinderIL — {plan_name}",
-                        description=desc,
-                        payload=f"{plan_key}:{update.effective_user.id}",
-                        provider_token=PAYMENT_PROVIDER_TOKEN,
-                        currency="ILS",
-                        prices=[LabeledPrice(plan_name, price_agorot)],
-                        need_name=False,
-                        need_phone_number=False,
-                        need_email=False,
-                        protect_content=False,
-                    )
-                except Exception as inv_err:
-                    logger.error(f"[PAYMENT] reply_invoice failed: {inv_err}")
-                    err_msgs = {
-                        "ru": "⚠️ Не удалось создать счёт для оплаты картой. Попробуйте позже или воспользуйтесь оплатой криптовалютой.",
-                        "en": "⚠️ Could not create payment invoice. Please try later or use crypto payment.",
-                        "he": "⚠️ לא ניתן ליצור חשבונית. נסה שוב מאוחר יותר או השתמש בתשלום קריפטו.",
-                    }
-                    await query.edit_message_text(
-                        err_msgs.get(lang, err_msgs["ru"]),
-                        reply_markup=subscription_keyboard(context),
-                        parse_mode="HTML",
-                    )
 
     # ── Crypto payments ──────────────────────────────────────────────────
     elif data == "sub_crypto":
@@ -1045,32 +1035,15 @@ async def handle_successful_payment(update: Update, context: ContextTypes.DEFAUL
 
         plan = PLANS[plan_key]
         plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
-        plan_name_he = plan.get("name_he") or plan["name_ru"]
+        stars = plan.get("stars", 0)
         expiry_str = expiry.strftime("%d.%m.%Y")
-        amount_ils = plan.get("price", 0)
         charge_id = payment.telegram_payment_charge_id or "—"
-
-        # Extract email/name from order_info
-        order_info = payment.order_info
-        buyer_email = order_info.email if order_info else None
-        buyer_name = order_info.name if order_info else None
-        if not buyer_name:
-            u = update.effective_user
-            buyer_name = " ".join(filter(None, [u.first_name, u.last_name]))
-
-        # Send Hebrew receipt asynchronously (non-blocking)
-        if buyer_email:
-            import threading
-            threading.Thread(
-                target=_send_payment_receipt,
-                args=(buyer_email, buyer_name, plan_name_he, amount_ils, plan.get("days", 7), expiry_str, charge_id),
-                daemon=True,
-            ).start()
+        logger.info(f"[PAYMENT] Stars charge_id={charge_id} stars={stars} plan={plan_key} uid={user_id}")
 
         msgs = {
-            "ru": f"✅ <b>Оплата прошла успешно!</b>\n\nПодписка <b>{plan_name}</b> активна до <b>{expiry_str}</b>.\n\n{'📧 Квитанция отправлена на ' + buyer_email if buyer_email else ''}\n\nСпасибо за оплату! 🏠",
-            "en": f"✅ <b>Payment successful!</b>\n\n<b>{plan_name}</b> subscription active until <b>{expiry_str}</b>.\n\n{'📧 Receipt sent to ' + buyer_email if buyer_email else ''}\n\nThank you! 🏠",
-            "he": f"✅ <b>התשלום בוצע בהצלחה!</b>\n\nמנוי <b>{plan_name}</b> פעיל עד <b>{expiry_str}</b>.\n\n{'📧 קבלה נשלחה ל-' + buyer_email if buyer_email else ''}\n\nתודה! 🏠",
+            "ru": f"✅ <b>Оплата прошла успешно!</b>\n\nПодписка <b>{plan_name}</b> активна до <b>{expiry_str}</b>.\n\n⭐ Списано {stars} Stars\n\nСпасибо! 🏠",
+            "en": f"✅ <b>Payment successful!</b>\n\n<b>{plan_name}</b> subscription active until <b>{expiry_str}</b>.\n\n⭐ {stars} Stars charged\n\nThank you! 🏠",
+            "he": f"✅ <b>התשלום בוצע בהצלחה!</b>\n\nמנוי <b>{plan_name}</b> פעיל עד <b>{expiry_str}</b>.\n\n⭐ {stars} Stars נגבו\n\nתודה! 🏠",
         }
         await update.message.reply_text(
             msgs.get(lang, msgs["ru"]),

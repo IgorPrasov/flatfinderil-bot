@@ -9,10 +9,10 @@ FREE_SEARCH_LIMIT = 3
 
 # Планы подписки
 PLANS = {
-    "week":         {"name_ru": "1 неделя",              "name_en": "1 week",           "name_he": "שבוע 1",       "days": 7,  "price": 19.90},
-    "two_weeks":    {"name_ru": "2 недели",               "name_en": "2 weeks",          "name_he": "2 שבועות",     "days": 14, "price": 29.90},
-    "month":        {"name_ru": "1 месяц",                "name_en": "1 month",          "name_he": "חודש 1",       "days": 30, "price": 39.90},
-    "search_alert": {"name_ru": "🔔 Подписка на поиск",  "name_en": "🔔 Search alerts", "name_he": "🔔 התראות חיפוש", "days": 30, "price": 39.90},
+    "week":         {"name_ru": "1 неделя",              "name_en": "1 week",           "name_he": "שבוע 1",          "days": 7,  "price": 19.90, "stars": 399},
+    "two_weeks":    {"name_ru": "2 недели",               "name_en": "2 weeks",          "name_he": "2 שבועות",        "days": 14, "price": 29.90, "stars": 599},
+    "month":        {"name_ru": "1 месяц",                "name_en": "1 month",          "name_he": "חודש 1",          "days": 30, "price": 39.90, "stars": 799},
+    "search_alert": {"name_ru": "🔔 Подписка на поиск",  "name_en": "🔔 Search alerts", "name_he": "🔔 התראות חיפוש", "days": 30, "price": 39.90, "stars": 799},
 }
 
 
