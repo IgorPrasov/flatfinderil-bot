@@ -240,14 +240,14 @@ TRANSLATIONS["sub_pay_btn"] = {"ru":"💳 Оплатить через Telegram P
 TRANSLATIONS["sub_note"] = {"ru":"Безопасная оплата · Отмена в любой момент","en":"Secure payment · Cancel anytime","he":"תשלום מאובטח · ביטול בכל עת"}
 TRANSLATIONS["sub_activated"] = {"ru":"🎉 <b>Подписка активирована!</b>\n\nТариф: {plan}\nДействует до: {expiry}\n\nБезлимитный поиск активен ✅","en":"🎉 <b>Subscription activated!</b>\n\nPlan: {plan}\nValid until: {expiry}\n\nUnlimited search is active ✅","he":"🎉 <b>המנוי הופעל!</b>\n\nתוכנית: {plan}\nבתוקף עד: {expiry}\n\nחיפוש ללא הגבלה פעיל ✅"}
 TRANSLATIONS["sub_status"] = {"ru":"📊 Статус подписки","en":"📊 Subscription status","he":"📊 סטטוס מנוי"}
-TRANSLATIONS["btn_sub_week"] = {"ru":"1 неделя · 399 ⭐","en":"1 week · 399 ⭐","he":"שבוע · 399 ⭐"}
-TRANSLATIONS["btn_sub_two_weeks"] = {"ru":"2 недели · 599 ⭐","en":"2 weeks · 599 ⭐","he":"2 שבועות · 599 ⭐"}
-TRANSLATIONS["btn_sub_month"] = {"ru":"1 месяц · 799 ⭐","en":"1 month · 799 ⭐","he":"חודש · 799 ⭐"}
-TRANSLATIONS["btn_sub_search_alert"] = {"ru":"🔔 Подписка на поиск · 799 ⭐/нед","en":"🔔 Search alerts · 799 ⭐/wk","he":"🔔 התראות חיפוש · 799 ⭐/שבוע"}
+TRANSLATIONS["btn_sub_week"] = {"ru":"1 неделя · 399 ⭐ (19 ₪)","en":"1 week · 399 ⭐ (₪19)","he":"שבוע · 399 ⭐ (₪19)"}
+TRANSLATIONS["btn_sub_two_weeks"] = {"ru":"2 недели · 599 ⭐ (29 ₪)","en":"2 weeks · 599 ⭐ (₪29)","he":"2 שבועות · 599 ⭐ (₪29)"}
+TRANSLATIONS["btn_sub_month"] = {"ru":"1 месяц · 799 ⭐ (39 ₪)","en":"1 month · 799 ⭐ (₪39)","he":"חודש · 799 ⭐ (₪39)"}
+TRANSLATIONS["btn_sub_search_alert"] = {"ru":"🔔 Поиск · 799 ⭐/нед (39 ₪)","en":"🔔 Alerts · 799 ⭐/wk (₪39)","he":"🔔 התראות · 799 ⭐/שבוע (₪39)"}
 TRANSLATIONS["sub_search_alert_desc"] = {
-    "ru": "🔔 <b>Подписка на поиск</b>\n\nПолучайте мгновенные уведомления о новых объявлениях, которые совпадают с вашими фильтрами.\n\n• Безлимитный поиск ✅\n• Уведомления о новых объявлениях ✅\n• Добавление объявлений ✅\n\n⭐ 799 Stars / неделя",
-    "en": "🔔 <b>Search alerts subscription</b>\n\nGet instant notifications about new listings matching your filters.\n\n• Unlimited search ✅\n• New listing notifications ✅\n• Add listings ✅\n\n⭐ 799 Stars / week",
-    "he": "🔔 <b>מנוי התראות חיפוש</b>\n\nקבל התראות מיידיות על מודעות חדשות התואמות לפילטרים שלך.\n\n• חיפוש ללא הגבלה ✅\n• התראות על מודעות חדשות ✅\n• הוספת מודעות ✅\n\n⭐ 799 Stars / שבוע",
+    "ru": "🔔 <b>Подписка на поиск</b>\n\nПолучайте мгновенные уведомления о новых объявлениях, которые совпадают с вашими фильтрами.\n\n• Безлимитный поиск ✅\n• Уведомления о новых объявлениях ✅\n• Добавление объявлений ✅\n\n⭐ 799 Stars (~39 ₪) / неделя",
+    "en": "🔔 <b>Search alerts subscription</b>\n\nGet instant notifications about new listings matching your filters.\n\n• Unlimited search ✅\n• New listing notifications ✅\n• Add listings ✅\n\n⭐ 799 Stars (~₪39) / week",
+    "he": "🔔 <b>מנוי התראות חיפוש</b>\n\nקבל התראות מיידיות על מודעות חדשות התואמות לפילטרים שלך.\n\n• חיפוש ללא הגבלה ✅\n• התראות על מודעות חדשות ✅\n• הוספת מודעות ✅\n\n⭐ 799 Stars (~₪39) / שבוע",
 }
 
 # ── Paywall strings ──────────────────────────────────────────────────────────
