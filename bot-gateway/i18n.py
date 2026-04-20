@@ -243,11 +243,11 @@ TRANSLATIONS["sub_status"] = {"ru":"📊 Статус подписки","en":"�
 TRANSLATIONS["btn_sub_week"] = {"ru":"1 неделя · 399 ⭐","en":"1 week · 399 ⭐","he":"שבוע · 399 ⭐"}
 TRANSLATIONS["btn_sub_two_weeks"] = {"ru":"2 недели · 599 ⭐","en":"2 weeks · 599 ⭐","he":"2 שבועות · 599 ⭐"}
 TRANSLATIONS["btn_sub_month"] = {"ru":"1 месяц · 799 ⭐","en":"1 month · 799 ⭐","he":"חודש · 799 ⭐"}
-TRANSLATIONS["btn_sub_search_alert"] = {"ru":"🔔 Подписка на поиск · 799 ⭐/мес","en":"🔔 Search alerts · 799 ⭐/mo","he":"🔔 התראות חיפוש · 799 ⭐/חודש"}
+TRANSLATIONS["btn_sub_search_alert"] = {"ru":"🔔 Подписка на поиск · 799 ⭐/нед","en":"🔔 Search alerts · 799 ⭐/wk","he":"🔔 התראות חיפוש · 799 ⭐/שבוע"}
 TRANSLATIONS["sub_search_alert_desc"] = {
-    "ru": "🔔 <b>Подписка на поиск</b>\n\nПолучайте мгновенные уведомления о новых объявлениях, которые совпадают с вашими фильтрами.\n\n• Безлимитный поиск ✅\n• Уведомления о новых объявлениях ✅\n• Добавление объявлений ✅\n\n39.90 ₪ / месяц",
-    "en": "🔔 <b>Search alerts subscription</b>\n\nGet instant notifications about new listings matching your filters.\n\n• Unlimited search ✅\n• New listing notifications ✅\n• Add listings ✅\n\n₪39.90 / month",
-    "he": "🔔 <b>מנוי התראות חיפוש</b>\n\nקבל התראות מיידיות על מודעות חדשות התואמות לפילטרים שלך.\n\n• חיפוש ללא הגבלה ✅\n• התראות על מודעות חדשות ✅\n• הוספת מודעות ✅\n\n₪39.90 / חודש",
+    "ru": "🔔 <b>Подписка на поиск</b>\n\nПолучайте мгновенные уведомления о новых объявлениях, которые совпадают с вашими фильтрами.\n\n• Безлимитный поиск ✅\n• Уведомления о новых объявлениях ✅\n• Добавление объявлений ✅\n\n⭐ 799 Stars / неделя",
+    "en": "🔔 <b>Search alerts subscription</b>\n\nGet instant notifications about new listings matching your filters.\n\n• Unlimited search ✅\n• New listing notifications ✅\n• Add listings ✅\n\n⭐ 799 Stars / week",
+    "he": "🔔 <b>מנוי התראות חיפוש</b>\n\nקבל התראות מיידיות על מודעות חדשות התואמות לפילטרים שלך.\n\n• חיפוש ללא הגבלה ✅\n• התראות על מודעות חדשות ✅\n• הוספת מודעות ✅\n\n⭐ 799 Stars / שבוע",
 }
 
 # ── Paywall strings ──────────────────────────────────────────────────────────
