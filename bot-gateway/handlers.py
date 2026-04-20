@@ -178,19 +178,31 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "he": f"גישה ל-FlatFinderIL למשך {plan['days']} ימים",
             }
             desc = descriptions.get(lang, descriptions["ru"])
+            chat_id = update.effective_chat.id
+            payload = f"{plan_key}:{update.effective_user.id}"
+            # Use direct HTTP call — PTB 20.7 predates Stars (XTR), bypass wrapper
             try:
-                await query.message.reply_invoice(
-                    title=f"FlatFinderIL — {plan_name}",
-                    description=desc,
-                    payload=f"{plan_key}:{update.effective_user.id}",
-                    provider_token="",   # empty string = Telegram Stars
-                    currency="XTR",      # Telegram Stars
-                    prices=[LabeledPrice(plan_name, stars)],
-                    # NOTE: need_name/need_phone/need_email/protect_content
-                    # are NOT supported for XTR currency — omit entirely
+                import requests as _req
+                from config import BOT_TOKEN
+                resp = _req.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendInvoice",
+                    json={
+                        "chat_id": chat_id,
+                        "title": f"FlatFinderIL — {plan_name}",
+                        "description": desc,
+                        "payload": payload,
+                        "provider_token": "",
+                        "currency": "XTR",
+                        "prices": [{"label": plan_name, "amount": stars}],
+                    },
+                    timeout=10,
                 )
+                result = resp.json()
+                if not result.get("ok"):
+                    raise RuntimeError(result.get("description", "Telegram API error"))
+                logger.info(f"[PAYMENT] Stars invoice sent chat={chat_id} plan={plan_key} stars={stars}")
             except Exception as inv_err:
-                logger.error(f"[PAYMENT] reply_invoice failed: {inv_err}")
+                logger.error(f"[PAYMENT] sendInvoice failed: {inv_err}")
                 err_msgs = {
                     "ru": "⚠️ Не удалось открыть форму оплаты. Попробуйте позже.",
                     "en": "⚠️ Could not open payment form. Please try later.",
