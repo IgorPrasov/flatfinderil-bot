@@ -140,6 +140,10 @@ def main():
     # Start weekly email reporter (Sunday 10:00)
     _start_email_scheduler()
 
+    # Start Facebook parser if cookies are configured
+    if os.environ.get("FB_COOKIES_JSON"):
+        _start_fb_parser()
+
     logger.info("Bot started!")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
@@ -147,6 +151,20 @@ def main():
 import threading
 import os
 import hmac
+
+
+def _start_fb_parser():
+    def _fb_loop():
+        try:
+            from facebook_parser import run_loop
+            logger.info("Facebook parser started (interval=60 min)")
+            run_loop(interval_min=60)
+        except Exception as e:
+            logger.error(f"Facebook parser crashed: {e}", exc_info=True)
+
+    t = threading.Thread(target=_fb_loop, daemon=True, name="fb-parser")
+    t.start()
+    logger.info("Facebook parser thread launched")
 import secrets
 
 INTERNAL_API_KEY = os.environ.get("INTERNAL_API_KEY", "")
