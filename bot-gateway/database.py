@@ -2,6 +2,9 @@ from datetime import datetime
 from typing import List, Dict, Optional
 import json
 import os
+import threading
+
+_DB_LOCK = threading.RLock()
 
 _DATA_DIR = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
 DB_FILE = os.path.join(_DATA_DIR, "listings_db.json")
@@ -46,66 +49,26 @@ def _load():
         try:
             with open(DB_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                # Migrate: ensure all new keys exist
-                if "subscriptions" not in data:
-                    data["subscriptions"] = {}
-                if "favorites_prices" not in data:
-                    data["favorites_prices"] = {}
-                if "reviews" not in data:
-                    data["reviews"] = {}
-                if "referrals" not in data:
-                    data["referrals"] = {}
-                if "referral_bonuses" not in data:
-                    data["referral_bonuses"] = {}
-                if "closed_deals" not in data:
-                    data["closed_deals"] = {}
-                if "view_requesters" not in data:
-                    data["view_requesters"] = {}
-                if "deal_next_id" not in data:
-                    data["deal_next_id"] = 1
-                if "services" not in data:
-                    data["services"] = {}
-                if "services_next_id" not in data:
-                    data["services_next_id"] = 1
-                if "crm_contacts" not in data:
-                    data["crm_contacts"] = {}
-                if "crm_contact_next_id" not in data:
-                    data["crm_contact_next_id"] = 1
-                if "crm_deals" not in data:
-                    data["crm_deals"] = {}
-                if "crm_deal_next_id" not in data:
-                    data["crm_deal_next_id"] = 1
-                if "crm_notes" not in data:
-                    data["crm_notes"] = {}
-                if "paid_subscriptions" not in data:
-                    data["paid_subscriptions"] = {}
-                if "agent_profiles" not in data:
-                    data["agent_profiles"] = {}
-                if "service_profiles" not in data:
-                    data["service_profiles"] = {}
-                return data
-        except:
+            for key, default in [
+                ("subscriptions", {}), ("favorites_prices", {}), ("reviews", {}),
+                ("referrals", {}), ("referral_bonuses", {}), ("closed_deals", {}),
+                ("view_requesters", {}), ("deal_next_id", 1), ("services", {}),
+                ("services_next_id", 1), ("crm_contacts", {}), ("crm_contact_next_id", 1),
+                ("crm_deals", {}), ("crm_deal_next_id", 1), ("crm_notes", {}),
+                ("paid_subscriptions", {}), ("agent_profiles", {}), ("service_profiles", {}),
+            ]:
+                if key not in data:
+                    data[key] = default
+            return data
+        except Exception:
             pass
     return {
-        "listings": {},
-        "favorites": {},
-        "user_listings": {},
-        "next_id": 11,
-        "subscriptions": {},
-        "favorites_prices": {},
-        "reviews": {},
-        "referrals": {},
-        "referral_bonuses": {},
-        "closed_deals": {},
-        "view_requesters": {},
-        "deal_next_id": 1,
-        "services": {},
-        "services_next_id": 1,
-        "crm_contacts": {},
-        "crm_contact_next_id": 1,
-        "crm_deals": {},
-        "crm_deal_next_id": 1,
-        "crm_notes": {},
+        "listings": {}, "favorites": {}, "user_listings": {}, "next_id": 11,
+        "subscriptions": {}, "favorites_prices": {}, "reviews": {}, "referrals": {},
+        "referral_bonuses": {}, "closed_deals": {}, "view_requesters": {},
+        "deal_next_id": 1, "services": {}, "services_next_id": 1,
+        "crm_contacts": {}, "crm_contact_next_id": 1, "crm_deals": {},
+        "crm_deal_next_id": 1, "crm_notes": {},
     }
 
 def _save(data):
@@ -204,23 +167,24 @@ def get_listing(listing_id: int) -> Optional[Dict]:
     return data["listings"].get(str(listing_id))
 
 def add_listing(listing_data: Dict) -> int:
-    data = _load()
-    next_id = data["next_id"]
-    listing_data["id"] = next_id
-    listing_data["date_added"] = datetime.now().strftime("%Y-%m-%d")
-    listing_data["active"] = True
-    listing_data.setdefault("views", 0)
-    listing_data.setdefault("view_requests", 0)
-    data["listings"][str(next_id)] = listing_data
-    data["next_id"] = next_id + 1
-    user_id = listing_data.get("user_id")
-    if user_id:
-        uid = str(user_id)
-        if uid not in data["user_listings"]:
-            data["user_listings"][uid] = []
-        data["user_listings"][uid].append(next_id)
-    _save(data)
-    return next_id
+    with _DB_LOCK:
+        data = _load()
+        next_id = data["next_id"]
+        listing_data["id"] = next_id
+        listing_data["date_added"] = datetime.now().strftime("%Y-%m-%d")
+        listing_data["active"] = True
+        listing_data.setdefault("views", 0)
+        listing_data.setdefault("view_requests", 0)
+        data["listings"][str(next_id)] = listing_data
+        data["next_id"] = next_id + 1
+        user_id = listing_data.get("user_id")
+        if user_id:
+            uid = str(user_id)
+            if uid not in data["user_listings"]:
+                data["user_listings"][uid] = []
+            data["user_listings"][uid].append(next_id)
+        _save(data)
+        return next_id
 
 def get_user_listings(user_id: int) -> List[Dict]:
     data = _load()
