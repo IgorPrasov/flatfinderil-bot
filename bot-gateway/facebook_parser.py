@@ -489,11 +489,32 @@ def scrape_group(page, group: dict) -> int:
 #  ОСНОВНЫЕ ФУНКЦИИ ЗАПУСКА
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _ensure_chromium():
+    """Install Playwright Chromium if not present (needed on Railway)."""
+    import subprocess
+    pw_cache = os.path.expanduser("~/.cache/ms-playwright")
+    if os.path.exists(pw_cache) and any(
+        e.name.startswith("chromium") for e in os.scandir(pw_cache)
+    ):
+        return
+    log.info("Chromium not found — installing via playwright install...")
+    result = subprocess.run(
+        ["playwright", "install", "--with-deps", "chromium"],
+        capture_output=True, text=True
+    )
+    if result.returncode == 0:
+        log.info("Chromium installed successfully")
+    else:
+        log.error(f"Chromium install failed: {result.stderr[-500:]}")
+
+
 def run_once(groups: list[dict] | None = None, headful: bool = False) -> int:
     target = groups or GROUPS
     log.info("=" * 65)
     log.info(f"🚀  Facebook Parser — старт  |  групп: {len(target)},  скроллов: {SCROLL_ROUNDS}")
     log.info("=" * 65)
+
+    _ensure_chromium()
 
     cookies = load_facebook_cookies()
     if not cookies:
