@@ -209,6 +209,106 @@ def get_analytics(date_from: str = None, date_to: str = None):
     listing_cities  = Counter(l.get("city","")    for l in listings_for_counters)
     listing_sources = Counter(l.get("source","manual") for l in listings_for_counters)
     source_details  = Counter(l.get("contact","") for l in listings_for_counters if l.get("source") == "telegram")
+    source_counter  = Counter(l.get("source","manual") for l in listings_all)
+
+    # Facebook группы: извлекаем ID из source_url и считаем объявления
+    _FB_GROUP_NAMES = {
+        # Тель-Авив
+        "101875683484689":  "מפה לאוזן תל אביב",
+        "295395253832427":  "דירות בתל אביב",
+        "457465901082882":  "ת״א ללא תיווך",
+        "tel.aviv.dirot":   "לוח דירות תל אביב",
+        "341195019300726":  "דירות במרכז",
+        "191591524188001":  "דרום תל אביב",
+        "1485565508385836": "צפון תל אביב",
+        "184920528370332":  "דירות ת״א",
+        "365588344194085":  "2-3 חדרים ת״א",
+        "250663073164312":  "Tel Aviv Housing",
+        "1664977427442936": "מרכז עד 5000₪",
+        # Хайфа
+        "173351201739":     "מפה לאוזן חיפה",
+        "1591401697779759": "קריות ללא תיווך",
+        "837431273097770":  "דירות בחיפה",
+        "yad2k":            "דירות בקריות",
+        "110907419268500":  "סטודנטים חיפה",
+        "611703096084191":  "חיפה עם מחיר",
+        "1896414753945570": "דירות חיפה",
+        "783424098674651":  "דירות חיפה",
+        "131650282168271":  "חיפה ללא תיווך",
+        # Иерусалим
+        "172544843294":     "מפה לאוזן ירושלים",
+        "325992450444":     "דירות בירושלים",
+        "344780799040537":  "להשכרה ירושלים",
+        "apartmentsinjerusalem": "ירושלים ללא תיווך",
+        # Ришон-ле-Цион
+        "555578950202434":  "ראשון לציון",
+        "959597644173111":  "ראשל״צ ללא תיווך",
+        "111163552234056":  "מפה לאוזן ראשל״צ",
+        "963153170558917":  "חולון בת-ים ראשל״צ",
+        "201105170260427":  "ראשל״צ חולון בת-ים",
+        # Холон
+        "1354045801786047": "חולון",
+        "801470026653021":  "להשכרה חולון",
+        "266774507954665":  "חולון בלבד",
+        "509654872819955":  "חולון בת-ים ללא תיווך",
+        "dirot.batyam.holon":"בת-ים חולון",
+        # Ашдод
+        "1624818081000281": "אשדוד והסביבה",
+        "1087635731246729": "אשדוד ללא תיווך",
+        "215752412333714":  "דירות אשדוד",
+        "rent.in.ashdod":   "אשדוד / Ашдод",
+        "585483232340913":  "אשדוד אשקלון",
+        # Нетания
+        "228387647805774":  "נתניה ללא תיווך",
+        "554754367898974":  "מפה לאוזן נתניה",
+        "1153910968018350": "נתניה והסביבה",
+        "rentflatnetanya":  "נתניה / Нетания",
+        # Рамат-Ган
+        "1870209196564360": "רמת גן גבעתיים",
+        "192850633573":     "מפה לאוזן ר״ג",
+        "253957624766723":  "להשכרה רמת גן",
+        "441654752934426":  "ר״ג גבעתיים ללא תיווך",
+        # Бат-Ям
+        "647964450757105":  "Аренда Бат Ям",
+        "rentbatyam":       "АРЕНДА БАТ ЯМ",
+        "198851813933632":  "Аренда в Бат Яме",
+        "1903124356581754": "Без маклера Бат Ям",
+        "RentBuySaleBatYam":"Аренда/продажа Бат Ям",
+        "holonandbatyam":   "Холон и Бат-Ям",
+        "batyam.ad":        "Бат-Ям объявления",
+        # Рош-аАин
+        "1777924022257391": "ראש העין רבתי",
+        "1773509336205184": "ראש העין",
+        "1824690151020636": "לוח ראש העין",
+        "1797166367186177": "הפרלמנט ראש העין",
+        "509084853121039":  "להשכרה ראש העין",
+        "308216903043626":  "ראש העין ללא תיווך",
+        # Общеизраильские
+        "819372811594662":  "Аренда квартир IL",
+        "141464740539934":  "Аренда в Израиле",
+        "1697329423753683": "Квартиры без маклера",
+        "321202505245057":  "Из рук в руки",
+        "2928147683954852": "Весь Гуш-Дан",
+        "919120634860210":  "Русскояз. Израиль",
+        "LiveandWork":      "Apartment Rentals IL",
+        "TelAvivBoard":     "ТА доска объявлений",
+        "2lumi":            "Доска объявлений IL",
+        "adsisrael":        "Объявления (RU)",
+    }
+    def _fb_group_id(url):
+        if "/groups/" in url:
+            part = url.split("/groups/")[1].split("/")[0]
+            return part if part else ""
+        return ""
+    fb_group_counter = Counter(
+        _fb_group_id(l.get("source_url",""))
+        for l in listings_all if l.get("source") == "facebook"
+    )
+    fb_sources_list = [
+        {"name": _FB_GROUP_NAMES.get(gid, gid), "count": cnt}
+        for gid, cnt in fb_group_counter.most_common(30)
+        if gid
+    ]
     income = round(
         sub_plans.get("week", 0) * 19.90 +
         sub_plans.get("two_weeks", 0) * 29.90 +
@@ -491,11 +591,13 @@ def get_analytics(date_from: str = None, date_to: str = None):
         "listings": {
             "total": len(listings_all),          # всегда полный размер базы
             "added_period": len(listings),        # добавлено за выбранный период
-            "telegram": Counter(l.get("source","manual") for l in listings_all).get("telegram", 0),
-            "manual": Counter(l.get("source","manual") for l in listings_all).get("manual", 0),
-            "by_city": [{"city": c, "count": n} for c, n in Counter(l.get("city","") for l in listings_all).most_common(5)],
+            "telegram": source_counter.get("telegram", 0),
+            "facebook": source_counter.get("facebook", 0),
+            "manual":   source_counter.get("manual", 0),
+            "by_city": [{"city": c, "count": n} for c, n in Counter(l.get("city","") for l in listings_all).most_common(8)],
             "sources": [{"name": s, "count": n} for s, n in Counter(l.get("contact","") for l in listings_all if l.get("source") == "telegram").most_common(30)],
             "channels_total": len(set(l.get("contact","") for l in listings_all if l.get("source") == "telegram")),
+            "fb_sources": fb_sources_list,
             "user_added": user_added,
         },
         "cabinets": cabinets,

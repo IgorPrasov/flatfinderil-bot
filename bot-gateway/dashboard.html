@@ -205,12 +205,21 @@ canvas{max-width:100%}
         <div class="card-body"><canvas id="chart-listing-cities" height="160"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-title">Источники Telegram</div>
+        <div class="card-title">📱 Telegram — каналы</div>
         <div class="card-body" id="sources-list"></div>
       </div>
     </div>
     <div class="card">
-      <div class="card-title">Статус каналов</div>
+      <div class="card-title">📘 Facebook — группы</div>
+      <div class="card-body">
+        <div class="grid11" style="margin-bottom:12px">
+          <div id="fb-sources-bars"></div>
+          <div class="channel-grid" id="fb-groups-grid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Статус Telegram-каналов</div>
       <div class="card-body"><div class="channel-grid" id="channels-grid"></div></div>
     </div>
     <div class="card">
@@ -731,7 +740,9 @@ function render(){
 
   document.getElementById("kpi-listings").innerHTML=
     kpi("📋","Всего в базе",n(D.listings.total),"",TG)+
-    kpi("📱","Из Telegram",n(D.listings.telegram),"каналов: "+(D.listings.channels_total||D.listings.sources.length),GREEN)+
+    kpi("📱","Telegram",n(D.listings.telegram||0),"каналов: "+(D.listings.channels_total||D.listings.sources.length),GREEN)+
+    kpi("📘","Facebook",n(D.listings.facebook||0),"групп: "+(D.listings.fb_sources||[]).length,"#1877F2")+
+    kpi("👤","Вручную",n(D.listings.manual||0),"от пользователей",GOLD)+
     kpi("➕","За период",n(D.listings.added_period||0),periodSub,PURPLE);
 
   document.getElementById("kpi-money").innerHTML=
@@ -827,10 +838,10 @@ function render(){
     {data:D.listings.by_city.map(x=>x.count),backgroundColor:GOLD,borderRadius:6}
   ],{});
 
-  // Sources
+  // Sources (Telegram)
   document.getElementById("sources-list").innerHTML=barH(D.listings.sources,"count","name",TG);
 
-  // Channels
+  // Channels (Telegram)
   document.getElementById("channels-grid").innerHTML=D.listings.sources.map(s=>`
     <div class="channel-card">
       <div style="font-size:10px;color:#4CAF8A;margin-bottom:3px">● активен</div>
@@ -838,6 +849,24 @@ function render(){
       <div style="font-size:22px;font-weight:500;color:#2AABEE">${n(s.count)}</div>
       <div style="font-size:10px;color:#999">объявлений</div>
     </div>`).join("");
+
+  // Facebook groups
+  const FB_COLOR = "#1877F2";
+  const fbSrc = D.listings.fb_sources || [];
+  if (fbSrc.length) {
+    document.getElementById("fb-sources-bars").innerHTML = barH(fbSrc, "count", "name", FB_COLOR);
+    document.getElementById("fb-groups-grid").innerHTML = fbSrc.map(s=>`
+      <div class="channel-card" style="border-left-color:${FB_COLOR}">
+        <div style="font-size:10px;color:${FB_COLOR};margin-bottom:3px">📘 Facebook</div>
+        <div style="font-size:11px;font-weight:500;margin-bottom:2px">${s.name}</div>
+        <div style="font-size:22px;font-weight:500;color:${FB_COLOR}">${n(s.count)}</div>
+        <div style="font-size:10px;color:#999">объявлений</div>
+      </div>`).join("");
+  } else {
+    document.getElementById("fb-sources-bars").innerHTML =
+      `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Данные Facebook появятся после первого парсинга</div>`;
+    document.getElementById("fb-groups-grid").innerHTML = "";
+  }
 
   // User-added listings table
   const ua = (D.listings.user_added || []);

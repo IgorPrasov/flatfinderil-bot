@@ -14,27 +14,23 @@ if _BUNDLED != DB_FILE and os.path.exists(_BUNDLED) and not os.path.exists(DB_FI
     shutil.copy2(_BUNDLED, DB_FILE)
 
 def _dedup_listings():
-    """Remove duplicate listings by source_url (or title). Runs once on startup."""
+    """Remove duplicate listings by source_url only (not by title).
+    Title-based dedup was too aggressive and ate valid FB/Telegram listings."""
     if not os.path.exists(DB_FILE):
         return
     try:
         with open(DB_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
         listings = data.get("listings", {})
-        seen_urls, seen_titles, to_remove = set(), set(), []
+        seen_urls, to_remove = set(), []
         for lid, l in listings.items():
-            url = l.get('source_url', '')
-            title = (l.get('title') or '')[:100]
-            if url:
+            url = l.get('source_url', '').strip()
+            if url:  # only dedup if has a real URL
                 if url in seen_urls:
                     to_remove.append(lid)
                 else:
                     seen_urls.add(url)
-            else:
-                if title and title in seen_titles:
-                    to_remove.append(lid)
-                elif title:
-                    seen_titles.add(title)
+            # listings without source_url are kept (manual/old entries)
         if to_remove:
             for lid in to_remove:
                 del data["listings"][lid]
@@ -43,7 +39,7 @@ def _dedup_listings():
     except Exception:
         pass
 
-_dedup_listings()
+# _dedup_listings()  # disabled — was removing valid FB/Telegram listings on every startup
 
 def _load():
     if os.path.exists(DB_FILE):
