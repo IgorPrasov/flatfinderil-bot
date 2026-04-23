@@ -170,14 +170,33 @@ def get_listing(listing_id: int) -> Optional[Dict]:
     return data["listings"].get(str(listing_id))
 
 def add_listing(listing_data: Dict) -> int:
+    """
+    Save a new listing. Returns assigned ID, or -1 if listing is blacklisted.
+    Integrates classifier: auto-detects phones, marks poster_type, blocks blacklist.
+    """
     with _DB_LOCK:
         data = _load()
+
+        # ── Phone classification (skips if no classifier module) ──────────────
+        if listing_data.get("source") in ("facebook", "telegram") and \
+           not listing_data.get("user_id"):  # only for parser-sourced listings
+            try:
+                from classifier import process_listing_phones, _ensure_classifier_tables
+                data = _ensure_classifier_tables(data)
+                listing_data, data, should_save = process_listing_phones(listing_data, data)
+                if not should_save:
+                    _save(data)   # persist phone post counts even on skip
+                    return -1     # blacklisted
+            except Exception as _e:
+                pass  # classifier optional — don't break the main flow
+
         next_id = data["next_id"]
         listing_data["id"] = next_id
         listing_data["date_added"] = datetime.now().strftime("%Y-%m-%d")
         listing_data["active"] = True
         listing_data.setdefault("views", 0)
         listing_data.setdefault("view_requests", 0)
+        listing_data.setdefault("poster_type", "unknown")
         data["listings"][str(next_id)] = listing_data
         data["next_id"] = next_id + 1
         user_id = listing_data.get("user_id")
@@ -1021,3 +1040,58 @@ def get_service_report_data(user_id: int) -> Dict:
         "services": sorted(services, key=lambda x: x.get("views", 0), reverse=True),
         "week": datetime.date.today().strftime("%d.%m.%Y"),
     }
+
+
+# ── Phone classifier DB helpers ───────────────────────────────────────────────
+
+def report_phone_db(phone: str, reporter_id: int, reason: str = "spam") -> dict:
+    """
+    Add a user report against a phone number (3-strikes → blacklist).
+    Returns {"status": "reported"|"already_reported"|"blacklisted", "strikes": N}
+    """
+    with _DB_LOCK:
+        from classifier import report_phone, _ensure_classifier_tables
+        data = _load()
+        data = _ensure_classifier_tables(data)
+        before = phone in data.get("phone_blacklist", {})
+        data = report_phone(phone, reporter_id, reason, data)
+        after = phone in data.get("phone_blacklist", {})
+        strikes = len({r["reporter_id"] for r in data["phone_reports"].get(phone, [])})
+        _save(data)
+        if after and not before:
+            return {"status": "blacklisted", "strikes": strikes}
+        if before:
+            return {"status": "blacklisted", "strikes": strikes}
+        return {"status": "reported", "strikes": strikes}
+
+
+def get_phone_stats(phone: str) -> dict:
+    """Return classifier stats for a phone number."""
+    from classifier import _ensure_classifier_tables
+    from datetime import timedelta
+    data = _load()
+    data = _ensure_classifier_tables(data)
+    cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    posts = data["phone_post_counts"].get(phone, [])
+    recent = [p for p in posts if p.get("date", "") >= cutoff]
+    return {
+        "phone": phone,
+        "is_agent": phone in data["phone_agents"],
+        "is_blacklisted": phone in data["phone_blacklist"],
+        "posts_last_30d": len(recent),
+        "total_reports": len({r["reporter_id"] for r in data["phone_reports"].get(phone, [])}),
+        "blacklist_info": data["phone_blacklist"].get(phone),
+        "agent_info": data["phone_agents"].get(phone),
+    }
+
+
+def get_listings_by_tier(filters: Dict, is_premium: bool) -> List[Dict]:
+    """
+    Search listings filtered by subscription tier:
+      • Premium → poster_type == "private" only (clean, no agents)
+      • Free/Trial → all listings (private + agent)
+    Blacklisted listings are always excluded.
+    """
+    from classifier import filter_for_tier
+    results = search_listings(filters)
+    return filter_for_tier(results, is_premium)
