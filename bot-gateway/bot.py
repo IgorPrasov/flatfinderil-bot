@@ -91,6 +91,22 @@ async def cmd_testemail(update: Update, context):
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
 
+async def cmd_digest(update: Update, context):
+    """
+    /digest [city] — отправить утреннюю сводку прямо сейчас.
+    Примеры: /digest   /digest Нетания   /digest Тель-Авив
+    """
+    from i18n import get_lang
+    lang = get_lang(context)
+    city = " ".join(context.args) if context.args else None
+    try:
+        from morning_digest import build_digest_text
+        text = build_digest_text(city=city, lang=lang, include_datagov=True)
+        await update.message.reply_text(text, parse_mode="HTML")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
+
+
 def main():
     global _bot_app, _bot_loop
     fix_city_migration()
@@ -118,6 +134,7 @@ def main():
     app.add_handler(CommandHandler("refer", refer_command))
     app.add_handler(CommandHandler("testemail", cmd_testemail))
     app.add_handler(CommandHandler("testpay", cmd_testpay))
+    app.add_handler(CommandHandler("digest", cmd_digest))
     app.add_handler(commercial.get_conversation_handler())
     app.add_handler(services.get_conversation_handler())
     app.add_handler(crm.get_conversation_handler())
@@ -139,6 +156,13 @@ def main():
 
     # Start weekly email reporter (Sunday 10:00)
     _start_email_scheduler()
+
+    # Start morning digest (every day 09:00 Israel time)
+    try:
+        from morning_digest import schedule_daily_digest
+        schedule_daily_digest(app.bot, hour=9, minute=0)
+    except Exception as _md_err:
+        logger.warning(f"Morning digest scheduler not started: {_md_err}")
 
     # Start Facebook parser if cookies are configured
     if os.environ.get("FB_COOKIES_JSON"):
