@@ -99,21 +99,21 @@ canvas{max-width:100%}
   </div>
 
   <div class="nav">
-    <button class="nav-btn active" onclick="showTab('overview')">📊 Обзор</button>
-    <button class="nav-btn" onclick="showTab('users')">👥 Пользователи</button>
-    <button class="nav-btn" onclick="showTab('searches')">🔍 Поиски</button>
-    <button class="nav-btn" onclick="showTab('listings')">🏠 Объявления</button>
-    <button class="nav-btn" onclick="showTab('commercial')">🏢 Коммерческая</button>
-    <button class="nav-btn" onclick="showTab('services')">🚚 Услуги</button>
-    <button class="nav-btn" onclick="showTab('cabinets')">🗂 Кабинеты</button>
-    <button class="nav-btn" onclick="showTab('sellers')">🏢 Агент / Частные</button>
-    <button class="nav-btn" onclick="showTab('emails')">📧 Email рассылка</button>
-    <button class="nav-btn" onclick="showTab('crm')">👥 CRM</button>
-    <button class="nav-btn" onclick="showTab('engage')">💬 Вовлечённость</button>
-    <button class="nav-btn" onclick="showTab('money')">💰 Доход</button>
-    <button class="nav-btn" onclick="showTab('price')">📈 Цены</button>
-    <button class="nav-btn" onclick="showTab('news')">📰 Новости</button>
-    <button class="nav-btn" onclick="showTab('digest')">🌅 Дайджест</button>
+    <button class="nav-btn active" onclick="showTab('overview',this)">📊 Обзор</button>
+    <button class="nav-btn" onclick="showTab('users',this)">👥 Пользователи</button>
+    <button class="nav-btn" onclick="showTab('searches',this)">🔍 Поиски</button>
+    <button class="nav-btn" onclick="showTab('listings',this)">🏠 Объявления</button>
+    <button class="nav-btn" onclick="showTab('commercial',this)">🏢 Коммерческая</button>
+    <button class="nav-btn" onclick="showTab('services',this)">🚚 Услуги</button>
+    <button class="nav-btn" onclick="showTab('cabinets',this)">🗂 Кабинеты</button>
+    <button class="nav-btn" onclick="showTab('sellers',this)">🏢 Агент / Частные</button>
+    <button class="nav-btn" onclick="showTab('emails',this)">📧 Email рассылка</button>
+    <button class="nav-btn" onclick="showTab('crm',this)">👥 CRM</button>
+    <button class="nav-btn" onclick="showTab('engage',this)">💬 Вовлечённость</button>
+    <button class="nav-btn" onclick="showTab('money',this)">💰 Доход</button>
+    <button class="nav-btn" onclick="showTab('price',this)">📈 Цены</button>
+    <button class="nav-btn" onclick="showTab('news',this)">📰 Новости</button>
+    <button class="nav-btn" onclick="showTab('digest',this)">🌅 Дайджест</button>
     <select id="ui-lang" onchange="setUILang(this.value)" style="margin-left:8px;font-size:11px;border:1px solid #e0e0da;border-radius:6px;padding:3px 6px;background:#f8f8f4;cursor:pointer">
       <option value="ru">🇷🇺 RU</option>
       <option value="en">🇬🇧 EN</option>
@@ -198,6 +198,12 @@ canvas{max-width:100%}
       <div class="card-body"><div class="channel-grid" id="channels-grid"></div></div>
     </div>
     <div class="card">
+      <div class="card-title">📘 Парсинг Facebook-групп</div>
+      <div class="card-body">
+        <div class="channel-grid" id="fb-groups-grid"></div>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-title">👤 Объявления добавленные пользователями</div>
       <div class="card-body">
         <table style="width:100%;border-collapse:collapse;font-size:13px" id="user-added-table">
@@ -253,6 +259,22 @@ canvas{max-width:100%}
     <div class="card">
       <div class="card-title">Последние добавленные услуги</div>
       <div class="card-body" id="svc-recent"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">👤 Поставщики услуг</div>
+      <div class="card-body">
+        <table style="width:100%;border-collapse:collapse;font-size:12px" id="providers-table">
+          <thead><tr style="color:#aaa;border-bottom:1px solid #eee">
+            <th style="padding:6px 8px;text-align:left">Имя</th>
+            <th style="padding:6px 8px;text-align:left">Тип</th>
+            <th style="padding:6px 8px;text-align:left">Район</th>
+            <th style="padding:6px 8px;text-align:left">Телефон</th>
+            <th style="padding:6px 8px;text-align:right">Цена</th>
+            <th style="padding:6px 8px;text-align:right">Просм.</th>
+          </tr></thead>
+          <tbody id="providers-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -785,12 +807,28 @@ function render(){
 
   // Channels
   document.getElementById("channels-grid").innerHTML=D.listings.sources.map(s=>`
-    <div class="channel-card">
+    <a class="channel-card" href="https://t.me/${s.name.replace('@','')}" target="_blank" rel="noopener" style="text-decoration:none;display:block;color:inherit">
       <div style="font-size:10px;color:#4CAF8A;margin-bottom:3px">● активен</div>
       <div style="font-size:11px;font-weight:500;font-family:monospace;margin-bottom:2px">${s.name}</div>
       <div style="font-size:22px;font-weight:500;color:#2AABEE">${n(s.count)}</div>
       <div style="font-size:10px;color:#999">объявлений</div>
-    </div>`).join("");
+    </a>`).join("");
+
+  // Facebook groups
+  const FB_GROUPS = [
+    {name:"Israel Apartments for Rent",url:"https://www.facebook.com/groups/israelapartments",count:0,status:"monitoring"},
+    {name:"Квартиры Израиль — аренда",url:"https://www.facebook.com/groups/kvartiriizrail",count:0,status:"monitoring"},
+    {name:"Tel Aviv Apartments",url:"https://www.facebook.com/groups/telavivrent",count:0,status:"monitoring"},
+    {name:"Хайфа — аренда квартир",url:"https://www.facebook.com/groups/haifaapartments",count:0,status:"monitoring"},
+  ];
+  const fbData = D.fb_groups || FB_GROUPS;
+  document.getElementById("fb-groups-grid").innerHTML = fbData.map(g=>`
+    <a class="channel-card" href="${g.url}" target="_blank" rel="noopener" style="text-decoration:none;display:block;color:inherit;border-left-color:#1877F2">
+      <div style="font-size:10px;color:#1877F2;margin-bottom:3px">📘 ${g.status==='active'?'● активен':'◯ мониторинг'}</div>
+      <div style="font-size:11px;font-weight:500;margin-bottom:2px">${g.name}</div>
+      <div style="font-size:22px;font-weight:500;color:#1877F2">${n(g.count)}</div>
+      <div style="font-size:10px;color:#999">объявлений</div>
+    </a>`).join("");
 
   // User-added listings table
   const ua = (D.listings.user_added || []);
@@ -957,6 +995,24 @@ function render(){
           <div style="font-size:14px;font-weight:500;color:${GREEN}">${s.price?n(s.price)+' ₪':'Договорная'}</div>
         </div>`).join("")
     : `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Услуги появятся здесь после первых публикаций</div>`;
+
+  // Service providers table
+  const providers = D.service_providers || (SV.recent||[]).map(s=>({
+    name: s.contact || "—", type: s.type || "🚚 Перевозки",
+    region: s.region || "Центр", phone: s.phone || "—",
+    price: s.price || 0, views: s.views || 0,
+  }));
+  document.getElementById("providers-body").innerHTML = providers.length
+    ? providers.map((p,i)=>`
+      <tr style="border-bottom:1px solid #f0f0ea;${i%2?'background:#fafafa':''}">
+        <td style="padding:6px 8px;font-weight:500">${p.name}</td>
+        <td style="padding:6px 8px">${p.type}</td>
+        <td style="padding:6px 8px;color:#666">${p.region}</td>
+        <td style="padding:6px 8px;font-family:monospace;color:#2AABEE">${p.phone}</td>
+        <td style="padding:6px 8px;text-align:right;font-weight:500;color:#4CAF8A">${p.price?n(p.price)+' ₪':'Договорная'}</td>
+        <td style="padding:6px 8px;text-align:right;color:#999">${p.views||0}</td>
+      </tr>`).join("")
+    : `<tr><td colspan="6" style="padding:16px;text-align:center;color:#999;font-size:12px">Поставщики услуг появятся здесь после первых публикаций</td></tr>`;
 
   // ── Cabinets tab ───────────────────────────────────────────────────────
   const CAB = D.cabinets || [];
@@ -1452,11 +1508,11 @@ function renderDigest(data){
     : `<div style="color:#999;font-size:12px;padding:16px">Нет данных за сегодня</div>`;
 }
 
-function showTab(name){
+function showTab(name, btn){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
   document.getElementById("tab-"+name).classList.add("active");
-  event.target.classList.add("active");
+  (btn || event?.target)?.classList.add("active");
   // Lazy-load new tabs
   if(name==="price")  loadPriceStats();
   if(name==="news")   loadNews();
