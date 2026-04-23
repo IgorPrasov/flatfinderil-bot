@@ -118,6 +118,29 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        # ── Proxy all /api/* and /rss.xml to analytics server ─────────────────
+        if parsed.path.startswith("/api/") or parsed.path in ("/rss.xml",):
+            query = ("?" + parsed.query) if parsed.query else ""
+            target = f"http://127.0.0.1:{ANALYTICS_PORT}{parsed.path}{query}"
+            try:
+                with urllib.request.urlopen(target, timeout=15) as resp:
+                    body = resp.read()
+                    ctype = resp.headers.get("Content-Type", "application/json")
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as e:
+                body = f'{{"error":"{e}"}}'.encode()
+                self.send_response(502)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+            return
         if parsed.path == "/admin/cleanup-spam":
             target = f"http://127.0.0.1:{ANALYTICS_PORT}/admin/cleanup-spam"
             try:
