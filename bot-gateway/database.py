@@ -206,6 +206,12 @@ def add_listing(listing_data: Dict) -> int:
                 data["user_listings"][uid] = []
             data["user_listings"][uid].append(next_id)
         _save(data)
+        # Schedule background translation for all 4 languages
+        try:
+            from translator import schedule_pre_translate
+            schedule_pre_translate(next_id, listing_data)
+        except Exception:
+            pass
         return next_id
 
 def get_user_listings(user_id: int) -> List[Dict]:

@@ -4,11 +4,11 @@ import database as db
 
 def _price_str(price: int, deal_type: str, lang: str) -> str:
     if deal_type == "rent":
-        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש"}.get(lang, "₪/мес")
+        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש", "fr": "₪/mois"}.get(lang, "₪/мес")
         return f"{price:,} {unit}".replace(",", " ")
     else:
         if price >= 1_000_000:
-            mln = {"ru": "млн ₪", "en": "M ₪", "he": "מיל' ₪"}.get(lang, "млн ₪")
+            mln = {"ru": "млн ₪", "en": "M ₪", "he": "מיל' ₪", "fr": "M ₪"}.get(lang, "млн ₪")
             return f"{price / 1_000_000:.1f} {mln}"
         return f"{price:,} ₪".replace(",", " ")
 
@@ -17,53 +17,53 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
     listing = translate_listing_fields(listing, lang)
     prop_type = get_property_type_name(listing["property_type"], lang)
     deal_emoji = "🔑" if listing["deal_type"] == "rent" else "🏷"
-    deal_label = {"ru":"Аренда","en":"Rent","he":"שכירות"}.get(lang) if listing["deal_type"]=="rent" else {"ru":"Продажа","en":"Sale","he":"מכירה"}.get(lang)
+    deal_label = {"ru":"Аренда","en":"Rent","he":"שכירות","fr":"Location"}.get(lang,"Rent") if listing["deal_type"]=="rent" else {"ru":"Продажа","en":"Sale","he":"מכירה","fr":"Vente"}.get(lang,"Sale")
     price_str = _price_str(listing["price"], listing["deal_type"], lang)
-    pool_str = {"ru":"🏊 Есть бассейн","en":"🏊 Pool available","he":"🏊 יש בריכה"}.get(lang) if listing.get("pool") else {"ru":"🚫 Без бассейна","en":"🚫 No pool","he":"🚫 אין בריכה"}.get(lang)
+    pool_str = {"ru":"🏊 Есть бассейн","en":"🏊 Pool available","he":"🏊 יש בריכה","fr":"🏊 Piscine disponible"}.get(lang,"🏊 Pool available") if listing.get("pool") else {"ru":"🚫 Без бассейна","en":"🚫 No pool","he":"🚫 אין בריכה","fr":"🚫 Sans piscine"}.get(lang,"🚫 No pool")
     parking = listing.get("parking", 0)
     if parking == 0:
-        park_str = {"ru":"❌ Без парковки","en":"❌ No parking","he":"❌ ללא חניה"}.get(lang)
+        park_str = {"ru":"❌ Без парковки","en":"❌ No parking","he":"❌ ללא חניה","fr":"❌ Sans parking"}.get(lang,"❌ No parking")
     elif parking == 1:
-        park_str = {"ru":"🚗 1 место","en":"🚗 1 space","he":"🚗 מקום 1"}.get(lang)
+        park_str = {"ru":"🚗 1 место","en":"🚗 1 space","he":"🚗 מקום 1","fr":"🚗 1 place"}.get(lang,"🚗 1 space")
     elif parking == 2:
-        park_str = {"ru":"🚗🚗 2 места","en":"🚗🚗 2 spaces","he":"🚗🚗 2 מקומות"}.get(lang)
+        park_str = {"ru":"🚗🚗 2 места","en":"🚗🚗 2 spaces","he":"🚗🚗 2 מקומות","fr":"🚗🚗 2 places"}.get(lang,"🚗🚗 2 spaces")
     else:
-        park_str = {"ru":f"🚗 {parking} места","en":f"🚗 {parking} spaces","he":f"🚗 {parking} מקומות"}.get(lang)
+        park_str = {"ru":f"🚗 {parking} места","en":f"🚗 {parking} spaces","he":f"🚗 {parking} מקומות","fr":f"🚗 {parking} places"}.get(lang,f"🚗 {parking} spaces")
     infra_list = listing.get("infrastructure", [])
     infra_str = ""
     if infra_list:
         infra_items = [get_infra_name(k, lang) for k in infra_list[:5]]
-        infra_label = {"ru":"Инфраструктура","en":"Infrastructure","he":"תשתיות"}.get(lang)
+        infra_label = {"ru":"Инфраструктура","en":"Infrastructure","he":"תשתיות","fr":"Infrastructure"}.get(lang,"Infrastructure")
         infra_str = f"\n🏙 <b>{infra_label}:</b> " + " · ".join(infra_items)
     district_key = listing.get("district")
     district_name = get_district_name(district_key, lang) if district_key else ""
     header = ""
     if index is not None and total is not None:
-        card_word = {"ru":"Объявление","en":"Listing","he":"מודעה"}.get(lang)
-        of_word = {"ru":"из","en":"of","he":"מתוך"}.get(lang)
+        card_word = {"ru":"Объявление","en":"Listing","he":"מודעה","fr":"Annonce"}.get(lang,"Listing")
+        of_word = {"ru":"из","en":"of","he":"מתוך","fr":"sur"}.get(lang,"of")
         header = f"📋 <i>{card_word} {index+1} {of_word} {total}</i>\n\n"
     photos_list = listing.get("photos") or ["🏠"]
     photo = photos_list[0] if photos_list else "🏠"
-    sqm_label = {"ru":"кв.м","en":"sq.m","he":'מ"ר'}.get(lang, "sq.m")
-    city_label = {"ru":"Город","en":"City","he":"עיר"}.get(lang)
-    hood_label = {"ru":"Район","en":"Area","he":"אזור"}.get(lang)
-    rooms_label = {"ru":"Комнат","en":"Rooms","he":"חדרים"}.get(lang)
-    floor_label = {"ru":"Этаж","en":"Floor","he":"קומה"}.get(lang)
-    area_label = {"ru":"Площадь","en":"Area","he":"שטח"}.get(lang)
-    added_label = {"ru":"Добавлено","en":"Added","he":"נוסף"}.get(lang)
+    sqm_label = {"ru":"кв.м","en":"sq.m","he":'מ"ר',"fr":"m²"}.get(lang, "sq.m")
+    city_label = {"ru":"Город","en":"City","he":"עיר","fr":"Ville"}.get(lang,"City")
+    hood_label = {"ru":"Район","en":"Area","he":"אזור","fr":"Quartier"}.get(lang,"Area")
+    rooms_label = {"ru":"Комнат","en":"Rooms","he":"חדרים","fr":"Pièces"}.get(lang,"Rooms")
+    floor_label = {"ru":"Этаж","en":"Floor","he":"קומה","fr":"Étage"}.get(lang,"Floor")
+    area_label = {"ru":"Площадь","en":"Area","he":"שטח","fr":"Surface"}.get(lang,"Area")
+    added_label = {"ru":"Добавлено","en":"Added","he":"נוסף","fr":"Ajouté"}.get(lang,"Added")
 
     # Views counter
     views = listing.get("views", 0)
-    views_label = {"ru": f"Просмотров: {views}", "en": f"Views: {views}", "he": f"צפיות: {views}"}.get(lang, f"Views: {views}")
+    views_label = {"ru": f"Просмотров: {views}", "en": f"Views: {views}", "he": f"צפיות: {views}", "fr": f"Vues: {views}"}.get(lang, f"Views: {views}")
     views_str = f"\n👁 <i>{views_label}</i>"
 
     # Reviews / rating
     avg_rating, review_count = db.get_average_rating(listing.get("id", 0))
     if avg_rating is not None:
-        reviews_word = {"ru": "отзывов", "en": "reviews", "he": "ביקורות"}.get(lang, "reviews")
+        reviews_word = {"ru": "отзывов", "en": "reviews", "he": "ביקורות", "fr": "avis"}.get(lang, "reviews")
         rating_str = f"\n⭐ <b>{avg_rating}</b> ({review_count} {reviews_word})"
     else:
-        no_reviews = {"ru": "Нет отзывов", "en": "No reviews", "he": "אין ביקורות"}.get(lang, "No reviews")
+        no_reviews = {"ru": "Нет отзывов", "en": "No reviews", "he": "אין ביקורות", "fr": "Pas d'avis"}.get(lang, "No reviews")
         rating_str = f"\n⭐ {no_reviews}"
 
     # Price fairness
@@ -79,14 +79,14 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
                     pct_diff = ((listing_price - avg_market) / avg_market) * 100
                     if pct_diff < -10:
                         below_pct = round(abs(pct_diff))
-                        fairness_text = {"ru": f"Ниже рынка на {below_pct}%", "en": f"{below_pct}% below market", "he": f"{below_pct}% מתחת לשוק"}.get(lang, f"{below_pct}% below market")
+                        fairness_text = {"ru": f"Ниже рынка на {below_pct}%", "en": f"{below_pct}% below market", "he": f"{below_pct}% מתחת לשוק", "fr": f"{below_pct}% sous le marché"}.get(lang, f"{below_pct}% below market")
                         price_fairness_str = f"\n📊 {fairness_text}"
                     elif pct_diff > 10:
                         above_pct = round(pct_diff)
-                        fairness_text = {"ru": f"Выше рынка на {above_pct}%", "en": f"{above_pct}% above market", "he": f"{above_pct}% מעל השוק"}.get(lang, f"{above_pct}% above market")
+                        fairness_text = {"ru": f"Выше рынка на {above_pct}%", "en": f"{above_pct}% above market", "he": f"{above_pct}% מעל השוק", "fr": f"{above_pct}% au-dessus du marché"}.get(lang, f"{above_pct}% above market")
                         price_fairness_str = f"\n📊 {fairness_text}"
                     else:
-                        fairness_text = {"ru": "Цена соответствует рынку", "en": "Price matches market", "he": "המחיר תואם לשוק"}.get(lang, "Price matches market")
+                        fairness_text = {"ru": "Цена соответствует рынку", "en": "Price matches market", "he": "המחיר תואם לשוק", "fr": "Prix conforme au marché"}.get(lang, "Price matches market")
                         price_fairness_str = f"\n📊 {fairness_text}"
     except Exception:
         pass
@@ -96,18 +96,18 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
     if nearest_m is not None and nearest_m < float("inf"):
         try:
             from geocoding import format_distance
-            dist_label = {"ru": "до инфраструктуры", "en": "to infrastructure", "he": "לתשתית"}.get(lang, "")
+            dist_label = {"ru": "до инфраструктуры", "en": "to infrastructure", "he": "לתשתית", "fr": "de l'infrastructure"}.get(lang, "")
             proximity_str = f"\n📌 <b>{format_distance(nearest_m)}</b> {dist_label}"
         except Exception:
             proximity_str = ""
     else:
         proximity_str = ""
 
-    addr_label = {"ru": "Адрес", "en": "Address", "he": "כתובת"}.get(lang, "Address")
+    addr_label = {"ru": "Адрес", "en": "Address", "he": "כתובת", "fr": "Adresse"}.get(lang, "Address")
     address = listing.get("address", "")
     map_url = listing.get("map_url", "")
     if address and map_url:
-        map_label = {"ru": "карта", "en": "map", "he": "מפה"}.get(lang, "map")
+        map_label = {"ru": "карта", "en": "map", "he": "מפה", "fr": "carte"}.get(lang, "map")
         address_str = f"\n🏠 <b>{addr_label}:</b> {address}  <a href=\"{map_url}\">🗺 {map_label}</a>"
     elif address:
         address_str = f"\n🏠 <b>{addr_label}:</b> {address}"
@@ -116,9 +116,9 @@ def format_listing_card(listing: dict, ctx=None, index: int = None, total: int =
 
     seller_type = listing.get("seller_type", "")
     if seller_type == "agent":
-        seller_badge = {"ru": "🏢 Агент", "en": "🏢 Agent", "he": "🏢 סוכן"}.get(lang, "🏢 Agent")
+        seller_badge = {"ru": "🏢 Агент", "en": "🏢 Agent", "he": "🏢 סוכן", "fr": "🏢 Agent"}.get(lang, "🏢 Agent")
     elif seller_type == "private":
-        seller_badge = {"ru": "👤 Частное лицо", "en": "👤 Private", "he": "👤 פרטי"}.get(lang, "👤 Private")
+        seller_badge = {"ru": "👤 Частное лицо", "en": "👤 Private", "he": "👤 פרטי", "fr": "👤 Particulier"}.get(lang, "👤 Private")
     else:
         seller_badge = ""
     seller_str = f"  <i>{seller_badge}</i>" if seller_badge else ""
@@ -175,7 +175,7 @@ def format_search_summary(filters: dict, ctx) -> str:
         lines.append(_tr("sum_pool"))
     elevator = filters.get("elevator")
     if elevator == "yes":
-        lines.append(_tr("sum_elevator", val={"ru":"Есть","en":"Yes","he":"יש"}.get(lang,"Yes")))
+        lines.append(_tr("sum_elevator", val={"ru":"Есть","en":"Yes","he":"יש","fr":"Oui"}.get(lang,"Yes")))
     if filters.get("infrastructure"):
         lines.append(_tr("sum_infra", val=", ".join([get_infra_name(k,lang) for k in filters["infrastructure"]])))
     if filters.get("with_photos"):
