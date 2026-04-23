@@ -72,8 +72,11 @@ def _load():
     }
 
 def _save(data):
-    with open(DB_FILE, 'w', encoding='utf-8') as f:
+    # Atomic write: write to temp then rename to avoid partial-write corruption
+    tmp = DB_FILE + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, DB_FILE)
 
 def _get_listings():
     return _load()
@@ -192,27 +195,26 @@ def get_user_listings(user_id: int) -> List[Dict]:
     return [data["listings"][str(i)] for i in ids if str(i) in data["listings"]]
 
 def toggle_favorite(user_id: int, listing_id: int) -> bool:
-    data = _load()
-    uid = str(user_id)
-    if uid not in data["favorites"]:
-        data["favorites"][uid] = []
-    if listing_id in data["favorites"][uid]:
-        data["favorites"][uid].remove(listing_id)
-        # Remove saved price
-        fp_key = f"{uid}_{listing_id}"
-        data.get("favorites_prices", {}).pop(fp_key, None)
+    with _DB_LOCK:
+        data = _load()
+        uid = str(user_id)
+        if uid not in data["favorites"]:
+            data["favorites"][uid] = []
+        if listing_id in data["favorites"][uid]:
+            data["favorites"][uid].remove(listing_id)
+            fp_key = f"{uid}_{listing_id}"
+            data.get("favorites_prices", {}).pop(fp_key, None)
+            _save(data)
+            return False
+        data["favorites"][uid].append(listing_id)
+        listing = data["listings"].get(str(listing_id))
+        if listing:
+            if "favorites_prices" not in data:
+                data["favorites_prices"] = {}
+            fp_key = f"{uid}_{listing_id}"
+            data["favorites_prices"][fp_key] = listing.get("price", 0)
         _save(data)
-        return False
-    data["favorites"][uid].append(listing_id)
-    # Save current price for price drop tracking
-    listing = data["listings"].get(str(listing_id))
-    if listing:
-        if "favorites_prices" not in data:
-            data["favorites_prices"] = {}
-        fp_key = f"{uid}_{listing_id}"
-        data["favorites_prices"][fp_key] = listing.get("price", 0)
-    _save(data)
-    return True
+        return True
 
 def get_favorites(user_id: int) -> List[Dict]:
     data = _load()
@@ -227,40 +229,43 @@ def get_all_listings(limit: int = None) -> List[Dict]:
 # ── View counter ──────────────────────────────────────────────────────────────
 
 def increment_views(listing_id: int):
-    data = _load()
-    key = str(listing_id)
-    if key in data["listings"]:
-        data["listings"][key]["views"] = data["listings"][key].get("views", 0) + 1
-        _save(data)
+    with _DB_LOCK:
+        data = _load()
+        key = str(listing_id)
+        if key in data["listings"]:
+            data["listings"][key]["views"] = data["listings"][key].get("views", 0) + 1
+            _save(data)
 
 def increment_view_requests(listing_id: int):
-    data = _load()
-    key = str(listing_id)
-    if key in data["listings"]:
-        data["listings"][key]["view_requests"] = data["listings"][key].get("view_requests", 0) + 1
-        _save(data)
+    with _DB_LOCK:
+        data = _load()
+        key = str(listing_id)
+        if key in data["listings"]:
+            data["listings"][key]["view_requests"] = data["listings"][key].get("view_requests", 0) + 1
+            _save(data)
 
 # ── Search subscriptions ──────────────────────────────────────────────────────
 
 def add_search_subscription(user_id: int, filters: Dict) -> str:
     """Save search filters as a subscription. Returns sub_id."""
-    data = _load()
-    if "subscriptions" not in data:
-        data["subscriptions"] = {}
-    uid = str(user_id)
-    if uid not in data["subscriptions"]:
-        data["subscriptions"][uid] = []
-    sub_id = f"{uid}_{len(data['subscriptions'][uid])}"
-    sub = {
-        "id": sub_id,
-        "filters": filters,
-        "created": datetime.now().isoformat(),
-        "last_checked": datetime.now().isoformat(),
-        "last_result_ids": [],
-    }
-    data["subscriptions"][uid].append(sub)
-    _save(data)
-    return sub_id
+    with _DB_LOCK:
+        data = _load()
+        if "subscriptions" not in data:
+            data["subscriptions"] = {}
+        uid = str(user_id)
+        if uid not in data["subscriptions"]:
+            data["subscriptions"][uid] = []
+        sub_id = f"{uid}_{len(data['subscriptions'][uid])}"
+        sub = {
+            "id": sub_id,
+            "filters": filters,
+            "created": datetime.now().isoformat(),
+            "last_checked": datetime.now().isoformat(),
+            "last_result_ids": [],
+        }
+        data["subscriptions"][uid].append(sub)
+        _save(data)
+        return sub_id
 
 def get_user_subscriptions(user_id: int) -> List[Dict]:
     data = _load()
@@ -280,14 +285,15 @@ def get_all_subscriptions() -> Dict:
     return data.get("subscriptions", {})
 
 def update_subscription_last_checked(user_id: int, sub_index: int, last_result_ids: List):
-    data = _load()
-    uid = str(user_id)
-    subs = data.get("subscriptions", {}).get(uid, [])
-    if 0 <= sub_index < len(subs):
-        subs[sub_index]["last_checked"] = datetime.now().isoformat()
-        subs[sub_index]["last_result_ids"] = last_result_ids
-        data["subscriptions"][uid] = subs
-        _save(data)
+    with _DB_LOCK:
+        data = _load()
+        uid = str(user_id)
+        subs = data.get("subscriptions", {}).get(uid, [])
+        if 0 <= sub_index < len(subs):
+            subs[sub_index]["last_checked"] = datetime.now().isoformat()
+            subs[sub_index]["last_result_ids"] = last_result_ids
+            data["subscriptions"][uid] = subs
+            _save(data)
 
 # ── Price drop tracking ───────────────────────────────────────────────────────
 
@@ -297,12 +303,13 @@ def get_all_favorites_with_prices() -> Dict:
     return data.get("favorites_prices", {})
 
 def update_favorite_price(user_id: int, listing_id: int, new_price: int):
-    data = _load()
-    if "favorites_prices" not in data:
-        data["favorites_prices"] = {}
-    fp_key = f"{user_id}_{listing_id}"
-    data["favorites_prices"][fp_key] = new_price
-    _save(data)
+    with _DB_LOCK:
+        data = _load()
+        if "favorites_prices" not in data:
+            data["favorites_prices"] = {}
+        fp_key = f"{user_id}_{listing_id}"
+        data["favorites_prices"][fp_key] = new_price
+        _save(data)
 
 # ── Reviews ───────────────────────────────────────────────────────────────────
 
@@ -411,27 +418,29 @@ def set_user_paid_subscription(user_id: int, plan_type: str, expiry_iso: str):
 
 def delete_listing(listing_id: int, user_id: int) -> bool:
     """Remove listing from DB and from user_listings index."""
-    data = _load()
-    lid = str(listing_id)
-    if lid not in data["listings"]:
-        return False
-    del data["listings"][lid]
-    uid = str(user_id)
-    if uid in data["user_listings"]:
-        data["user_listings"][uid] = [i for i in data["user_listings"][uid] if i != listing_id]
-    _save(data)
-    return True
+    with _DB_LOCK:
+        data = _load()
+        lid = str(listing_id)
+        if lid not in data["listings"]:
+            return False
+        del data["listings"][lid]
+        uid = str(user_id)
+        if uid in data["user_listings"]:
+            data["user_listings"][uid] = [i for i in data["user_listings"][uid] if i != listing_id]
+        _save(data)
+        return True
 
 
 def update_listing(listing_id: int, fields: dict) -> bool:
     """Update arbitrary fields of an existing listing."""
-    data = _load()
-    lid = str(listing_id)
-    if lid not in data["listings"]:
-        return False
-    data["listings"][lid].update(fields)
-    _save(data)
-    return True
+    with _DB_LOCK:
+        data = _load()
+        lid = str(listing_id)
+        if lid not in data["listings"]:
+            return False
+        data["listings"][lid].update(fields)
+        _save(data)
+        return True
 
 
 # ── Admin helpers ─────────────────────────────────────────────────────────────
@@ -542,22 +551,22 @@ def get_similar_listings(listing: Dict) -> List[Dict]:
 
 def record_view_requester(listing_id: int, user_id: int, username: str = "", name: str = ""):
     """Record that a user requested viewing of a listing."""
-    data = _load()
-    lid = str(listing_id)
-    if "view_requesters" not in data:
-        data["view_requesters"] = {}
-    if lid not in data["view_requesters"]:
-        data["view_requesters"][lid] = []
-    # Avoid duplicates
-    existing_ids = [r["user_id"] for r in data["view_requesters"][lid]]
-    if user_id not in existing_ids:
-        data["view_requesters"][lid].append({
-            "user_id": user_id,
-            "username": username,
-            "name": name,
-            "date": datetime.now().strftime("%Y-%m-%d"),
-        })
-    _save(data)
+    with _DB_LOCK:
+        data = _load()
+        lid = str(listing_id)
+        if "view_requesters" not in data:
+            data["view_requesters"] = {}
+        if lid not in data["view_requesters"]:
+            data["view_requesters"][lid] = []
+        existing_ids = [r["user_id"] for r in data["view_requesters"][lid]]
+        if user_id not in existing_ids:
+            data["view_requesters"][lid].append({
+                "user_id": user_id,
+                "username": username,
+                "name": name,
+                "date": datetime.now().strftime("%Y-%m-%d"),
+            })
+        _save(data)
 
 
 def get_view_requesters(listing_id: int) -> List[Dict]:
