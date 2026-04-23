@@ -27,8 +27,8 @@ def language_keyboard():
 
 def main_menu_keyboard(ctx):
     lang = get_lang(ctx)
-    sub_label = {"ru": "★ Подписка", "en": "★ Subscribe", "he": "★ מנוי"}.get(lang, "★ Подписка")
-    svc_label = {"ru": "🚚 Услуги", "en": "🚚 Services", "he": "🚚 שירותים"}.get(lang, "🚚 Услуги")
+    sub_label = {"ru": "★ Подписка", "en": "★ Subscribe", "he": "★ מנוי", "fr": "★ Abonnement"}.get(lang, "★ Подписка")
+    svc_label = {"ru": "🚚 Услуги", "en": "🚚 Services", "he": "🚚 שירותים", "fr": "🚚 Services"}.get(lang, "🚚 Услуги")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t("btn_search", ctx), callback_data="search"), InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites")],
         [InlineKeyboardButton(t("btn_commercial", ctx), callback_data="commercial"), InlineKeyboardButton(svc_label, callback_data="services")],
@@ -133,8 +133,8 @@ def pool_keyboard(ctx,prefix="pool"):
 
 def with_photos_keyboard(ctx):
     lang = get_lang(ctx)
-    yes = {"ru": "📸 Только с фото", "en": "📸 With photos only", "he": "📸 עם תמונות בלבד"}.get(lang)
-    any_ = {"ru": "🔄 Не важно", "en": "🔄 Any", "he": "🔄 לא משנה"}.get(lang)
+    yes = {"ru": "📸 Только с фото", "en": "📸 With photos only", "he": "📸 עם תמונות בלבד", "fr": "📸 Avec photos uniquement"}.get(lang)
+    any_ = {"ru": "🔄 Не важно", "en": "🔄 Any", "he": "🔄 לא משנה", "fr": "🔄 Peu importe"}.get(lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(yes, callback_data="photos_yes"),
          InlineKeyboardButton(any_, callback_data="photos_any")],
@@ -194,7 +194,7 @@ def results_navigation_keyboard(ctx, current, total, listing_id, listing=None):
         InlineKeyboardButton(t("btn_request_view", ctx), callback_data=f"reqview_{listing_id}"),
         InlineKeyboardButton(t("btn_leave_review", ctx), callback_data=f"review_{listing_id}"),
     ]
-    irented_label = {"ru": "🤝 Я снял/купил это", "en": "🤝 I rented/bought this", "he": "🤝 שכרתי/קניתי"}.get(get_lang(ctx), "🤝 I rented this")
+    irented_label = {"ru": "🤝 Я снял/купил это", "en": "🤝 I rented/bought this", "he": "🤝 שכרתי/קניתי", "fr": "🤝 J'ai loué/acheté ceci"}.get(get_lang(ctx), "🤝 I rented this")
     irented_row = [InlineKeyboardButton(irented_label, callback_data=f"irented_{listing_id}")]
     sub_row = [
         InlineKeyboardButton(t("btn_subscribe_search", ctx), callback_data="subscribe_search"),
@@ -342,7 +342,7 @@ def paywall_keyboard(ctx):
 def search_alert_confirm_keyboard(ctx):
     """Confirm screen for search_alert plan purchase."""
     lang = get_lang(ctx)
-    confirm = {"ru": "✅ Активировать · 39.90 ₪/нед", "en": "✅ Activate · ₪39.90/wk", "he": "✅ הפעל · ₪39.90/שבוע"}.get(lang, "✅ Activate")
+    confirm = {"ru": "✅ Активировать · 39.90 ₪/нед", "en": "✅ Activate · ₪39.90/wk", "he": "✅ הפעל · ₪39.90/שבוע", "fr": "✅ Activer · 39.90 ₪/sem"}.get(lang, "✅ Activate")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(confirm,                 callback_data="sub_search_alert_confirm")],
         [InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")],
@@ -366,7 +366,7 @@ def my_subscriptions_keyboard(ctx, subscriptions):
     for i, sub in enumerate(subscriptions):
         label = f"📋 #{i+1}"
         keyboard.append([InlineKeyboardButton(label, callback_data="noop")])
-        unsub_label = {"ru": f"❌ Отписаться #{i+1}", "en": f"❌ Unsubscribe #{i+1}", "he": f"❌ בטל מנוי #{i+1}"}.get(get_lang(ctx), f"❌ Unsubscribe #{i+1}")
+        unsub_label = {"ru": f"❌ Отписаться #{i+1}", "en": f"❌ Unsubscribe #{i+1}", "he": f"❌ בטל מנוי #{i+1}", "fr": f"❌ Se désabonner #{i+1}"}.get(get_lang(ctx), f"❌ Unsubscribe #{i+1}")
         keyboard.append([InlineKeyboardButton(unsub_label, callback_data=f"unsub_{i}")])
     keyboard.append([InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")])
     return InlineKeyboardMarkup(keyboard)
@@ -383,7 +383,7 @@ def cabinet_listings_keyboard(ctx, listings):
             callback_data=f"cab_listing_{l['id']}"
         )])
     # Crypto payment button
-    crypto_label = {"ru": "₿ Оплатить криптовалютой", "en": "₿ Pay with Crypto", "he": "₿ שלם בקריפטו"}.get(lang, "₿ Pay with Crypto")
+    crypto_label = {"ru": "₿ Оплатить криптовалютой", "en": "₿ Pay with Crypto", "he": "₿ שלם בקריפטו", "fr": "₿ Payer en crypto"}.get(lang, "₿ Pay with Crypto")
     keyboard.append([InlineKeyboardButton(crypto_label, callback_data="sub_crypto")])
     keyboard.append([InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")])
     return InlineKeyboardMarkup(keyboard)
@@ -392,17 +392,17 @@ def cabinet_listings_keyboard(ctx, listings):
 def cabinet_listing_manage_keyboard(ctx, listing_id, active=True, deal_closed=False):
     """Edit / Delete / Toggle / Close deal buttons for a single listing."""
     lang = get_lang(ctx)
-    edit_label   = {"ru": "✏️ Редактировать",   "en": "✏️ Edit",        "he": "✏️ ערוך"}.get(lang, "✏️ Edit")
-    delete_label = {"ru": "🗑️ Удалить",         "en": "🗑️ Delete",      "he": "🗑️ מחק"}.get(lang, "🗑️ Delete")
+    edit_label   = {"ru": "✏️ Редактировать",   "en": "✏️ Edit",        "he": "✏️ ערוך",       "fr": "✏️ Modifier"}.get(lang, "✏️ Edit")
+    delete_label = {"ru": "🗑️ Удалить",         "en": "🗑️ Delete",      "he": "🗑️ מחק",        "fr": "🗑️ Supprimer"}.get(lang, "🗑️ Delete")
     toggle_label = (
-        {"ru": "🔴 Снять с публикации", "en": "🔴 Deactivate", "he": "🔴 כבה"}.get(lang, "🔴 Deactivate")
+        {"ru": "🔴 Снять с публикации", "en": "🔴 Deactivate", "he": "🔴 כבה", "fr": "🔴 Désactiver"}.get(lang, "🔴 Deactivate")
         if active else
-        {"ru": "🟢 Опубликовать снова", "en": "🟢 Activate",   "he": "🟢 הפעל"}.get(lang, "🟢 Activate")
+        {"ru": "🟢 Опубликовать снова", "en": "🟢 Activate",   "he": "🟢 הפעל", "fr": "🟢 Activer"}.get(lang, "🟢 Activate")
     )
-    close_label  = {"ru": "✅ Сдано / Продано", "en": "✅ Deal closed",  "he": "✅ עסקה נסגרה"}.get(lang, "✅ Deal closed")
-    back_label   = {"ru": "« К списку",          "en": "« Back to list", "he": "« חזרה"}.get(lang, "« Back")
+    close_label  = {"ru": "✅ Сдано / Продано", "en": "✅ Deal closed",  "he": "✅ עסקה נסגרה", "fr": "✅ Loué / Vendu"}.get(lang, "✅ Deal closed")
+    back_label   = {"ru": "« К списку",          "en": "« Back to list", "he": "« חזרה",        "fr": "« Retour à la liste"}.get(lang, "« Back")
 
-    crypto_label = {"ru": "₿ Оплатить криптовалютой", "en": "₿ Pay with Crypto", "he": "₿ שלם בקריפטו"}.get(lang, "₿ Pay with Crypto")
+    crypto_label = {"ru": "₿ Оплатить криптовалютой", "en": "₿ Pay with Crypto", "he": "₿ שלם בקריפטו", "fr": "₿ Payer en crypto"}.get(lang, "₿ Pay with Crypto")
     rows = [
         [InlineKeyboardButton(edit_label,   callback_data=f"edit_listing_{listing_id}"),
          InlineKeyboardButton(delete_label, callback_data=f"confirm_delete_{listing_id}")],
@@ -418,9 +418,9 @@ def cabinet_listing_manage_keyboard(ctx, listing_id, active=True, deal_closed=Fa
 def edit_listing_keyboard(ctx, listing_id):
     """What field to edit."""
     lang = get_lang(ctx)
-    price_label = {"ru": "💰 Изменить цену",     "en": "💰 Change price",       "he": "💰 שנה מחיר"}.get(lang, "💰 Change price")
-    desc_label  = {"ru": "📝 Изменить описание", "en": "📝 Edit description",   "he": "📝 ערוך תיאור"}.get(lang, "📝 Edit")
-    back_label  = {"ru": "« Назад",              "en": "« Back",                "he": "« חזרה"}.get(lang, "« Back")
+    price_label = {"ru": "💰 Изменить цену",     "en": "💰 Change price",       "he": "💰 שנה מחיר",    "fr": "💰 Modifier le prix"}.get(lang, "💰 Change price")
+    desc_label  = {"ru": "📝 Изменить описание", "en": "📝 Edit description",   "he": "📝 ערוך תיאור",   "fr": "📝 Modifier la description"}.get(lang, "📝 Edit")
+    back_label  = {"ru": "« Назад",              "en": "« Back",                "he": "« חזרה",           "fr": "« Retour"}.get(lang, "« Back")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(price_label, callback_data=f"editfield_price_{listing_id}")],
         [InlineKeyboardButton(desc_label,  callback_data=f"editfield_desc_{listing_id}")],
@@ -431,8 +431,8 @@ def edit_listing_keyboard(ctx, listing_id):
 def confirm_delete_keyboard(ctx, listing_id):
     """Yes/No for deleting a listing."""
     lang = get_lang(ctx)
-    yes_label = {"ru": "✅ Да, удалить",  "en": "✅ Yes, delete", "he": "✅ כן, מחק"}.get(lang, "✅ Delete")
-    no_label  = {"ru": "❌ Нет, оставить","en": "❌ No, keep",    "he": "❌ לא"}.get(lang, "❌ No")
+    yes_label = {"ru": "✅ Да, удалить",  "en": "✅ Yes, delete", "he": "✅ כן, מחק", "fr": "✅ Oui, supprimer"}.get(lang, "✅ Delete")
+    no_label  = {"ru": "❌ Нет, оставить","en": "❌ No, keep",    "he": "❌ לא",      "fr": "❌ Non, conserver"}.get(lang, "❌ No")
     return InlineKeyboardMarkup([[
         InlineKeyboardButton(yes_label, callback_data=f"do_delete_{listing_id}"),
         InlineKeyboardButton(no_label,  callback_data=f"cab_listing_{listing_id}"),
@@ -451,8 +451,8 @@ def close_deal_select_keyboard(ctx, listing_id, requesters):
             callback_data=f"deal_tenant_{listing_id}_{uid}"
         )])
     # Option: close without specifying tenant
-    anyway_label = {"ru": "✅ Закрыть без выбора", "en": "✅ Close without selecting", "he": "✅ סגור ללא בחירה"}.get(lang, "✅ Close")
-    cancel_label = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}.get(lang, "❌ Cancel")
+    anyway_label = {"ru": "✅ Закрыть без выбора", "en": "✅ Close without selecting", "he": "✅ סגור ללא בחירה", "fr": "✅ Clôturer sans sélectionner"}.get(lang, "✅ Close")
+    cancel_label = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול", "fr": "❌ Annuler"}.get(lang, "❌ Cancel")
     keyboard.append([InlineKeyboardButton(anyway_label, callback_data=f"deal_tenant_{listing_id}_0")])
     keyboard.append([InlineKeyboardButton(cancel_label, callback_data=f"cab_listing_{listing_id}")])
     return InlineKeyboardMarkup(keyboard)
@@ -461,8 +461,8 @@ def close_deal_select_keyboard(ctx, listing_id, requesters):
 def deal_confirm_price_keyboard(ctx, listing_id, tenant_id):
     """After owner entered price — final confirm."""
     lang = get_lang(ctx)
-    yes_label    = {"ru": "✅ Подтвердить сделку", "en": "✅ Confirm deal",  "he": "✅ אשר עסקה"}.get(lang, "✅ Confirm")
-    cancel_label = {"ru": "❌ Отмена",             "en": "❌ Cancel",        "he": "❌ ביטול"}.get(lang, "❌ Cancel")
+    yes_label    = {"ru": "✅ Подтвердить сделку", "en": "✅ Confirm deal",  "he": "✅ אשר עסקה", "fr": "✅ Confirmer la transaction"}.get(lang, "✅ Confirm")
+    cancel_label = {"ru": "❌ Отмена",             "en": "❌ Cancel",        "he": "❌ ביטול",    "fr": "❌ Annuler"}.get(lang, "❌ Cancel")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(yes_label,    callback_data=f"deal_confirm_{listing_id}_{tenant_id}")],
         [InlineKeyboardButton(cancel_label, callback_data=f"cab_listing_{listing_id}")],
@@ -472,8 +472,8 @@ def deal_confirm_price_keyboard(ctx, listing_id, tenant_id):
 def tenant_deal_confirm_keyboard(ctx, listing_id):
     """Tenant confirms 'I rented/bought this'."""
     lang = get_lang(ctx)
-    yes_label    = {"ru": "✅ Да, я снял/купил", "en": "✅ Yes, I did",  "he": "✅ כן, שכרתי/קניתי"}.get(lang, "✅ Yes")
-    cancel_label = {"ru": "❌ Нет",               "en": "❌ No",          "he": "❌ לא"}.get(lang, "❌ No")
+    yes_label    = {"ru": "✅ Да, я снял/купил", "en": "✅ Yes, I did",  "he": "✅ כן, שכרתי/קניתי", "fr": "✅ Oui, j'ai loué/acheté"}.get(lang, "✅ Yes")
+    cancel_label = {"ru": "❌ Нет",               "en": "❌ No",          "he": "❌ לא",               "fr": "❌ Non"}.get(lang, "❌ No")
     return InlineKeyboardMarkup([[
         InlineKeyboardButton(yes_label,    callback_data=f"irented_confirm_{listing_id}"),
         InlineKeyboardButton(cancel_label, callback_data="noop"),
@@ -483,8 +483,8 @@ def tenant_deal_confirm_keyboard(ctx, listing_id):
 def owner_deal_confirm_keyboard(ctx, listing_id, tenant_id):
     """Owner confirms deal initiated by tenant."""
     lang = get_lang(ctx)
-    yes_label = {"ru": "✅ Подтвердить", "en": "✅ Confirm", "he": "✅ אשר"}.get(lang, "✅ Yes")
-    no_label  = {"ru": "❌ Отклонить",  "en": "❌ Decline",  "he": "❌ דחה"}.get(lang, "❌ No")
+    yes_label = {"ru": "✅ Подтвердить", "en": "✅ Confirm", "he": "✅ אשר", "fr": "✅ Confirmer"}.get(lang, "✅ Yes")
+    no_label  = {"ru": "❌ Отклонить",  "en": "❌ Decline",  "he": "❌ דחה", "fr": "❌ Refuser"}.get(lang, "❌ No")
     return InlineKeyboardMarkup([[
         InlineKeyboardButton(yes_label, callback_data=f"deal_tenant_{listing_id}_{tenant_id}"),
         InlineKeyboardButton(no_label,  callback_data="noop"),
