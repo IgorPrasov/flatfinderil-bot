@@ -590,20 +590,12 @@ const DEMO={
     {user_id:"111001",time:"2026-04-23 19:33",deal:"rent",cities:"Герцлия",rooms:"3-4",price:"7000-12000",parking:true,pool:true},
   ],
   services:{
-    total:3,
-    by_type:[{type:"🚚 Перевозки",count:2},{type:"📦 Упаковка",count:1},{type:"🧹 Клининг",count:0}],
-    by_region:[{region:"🌿 Север",count:1},{region:"🏙 Центр",count:2},{region:"☀️ Юг",count:0}],
-    recent:[
-      {type:"🚚 Перевозки",region:"🏙 Центр",price:1200,date:"2026-04-20",icon:"🚚",contact:"Леви Перевозки"},
-      {type:"🚚 Перевозки",region:"🌿 Север",price:950,date:"2026-04-18",icon:"🚚",contact:"Хайфа-Муверс"},
-      {type:"📦 Упаковка",region:"🏙 Центр",price:0,date:"2026-04-15",icon:"📦",contact:"PackPro IL"},
-    ],
+    total:0,
+    by_type:[{type:"🚚 Перевозки",count:0},{type:"📦 Упаковка",count:0},{type:"🧹 Клининг",count:0}],
+    by_region:[{region:"🌿 Север",count:0},{region:"🏙 Центр",count:0},{region:"☀️ Юг",count:0}],
+    recent:[],
   },
-  service_providers:[
-    {name:"Леви Перевозки",type:"🚚 Перевозчик",region:"🏙 Центр",phone:"+972-50-111-2233",price:1200,views:45},
-    {name:"Хайфа-Муверс",type:"🚚 Перевозчик",region:"🌿 Север",phone:"+972-52-333-4455",price:950,views:28},
-    {name:"PackPro IL",type:"📦 Упаковщик",region:"🏙 Центр",phone:"+972-54-777-8899",price:0,views:17},
-  ],
+  service_providers_all:[],
   crm:{
     total_contacts:0,
     by_type:[
@@ -1045,11 +1037,15 @@ function render(){
 
   // ── Services tab ──────────────────────────────────────────────────────
   const SV = D.services || {};
+  const allProviders = D.service_providers_all || [];
+  const movCnt  = allProviders.filter(p=>p.type.includes("Перевоз")).length;
+  const packCnt = allProviders.filter(p=>p.type.includes("Упаков")).length;
+  const cleanCnt= allProviders.filter(p=>p.type.includes("Клинин")).length;
   document.getElementById("kpi-services").innerHTML =
-    kpi("🚚","Всего услуг",n(SV.total||0),"объявлений",TG)+
-    kpi("🚛","Перевозки",(SV.by_type||[]).find(x=>x.type.includes("Перевоз"))?.count||0,"",GREEN)+
-    kpi("📦","Упаковка",(SV.by_type||[]).find(x=>x.type.includes("Упаков"))?.count||0,"",GOLD)+
-    kpi("🧹","Клининг",(SV.by_type||[]).find(x=>x.type.includes("Клинин"))?.count||0,"",PURPLE);
+    kpi("🚚","Всего поставщиков",n(allProviders.length),"в базе",TG)+
+    kpi("🚛","Перевозки",movCnt,"",GREEN)+
+    kpi("📦","Упаковка",packCnt,"",GOLD)+
+    kpi("🧹","Клининг",cleanCnt,"",PURPLE);
 
   const svcTypes = (SV.by_type||[]);
   if(svcTypes.some(x=>x.count>0)){
@@ -1081,18 +1077,14 @@ function render(){
         </div>`).join("")
     : `<div style="text-align:center;padding:24px;color:#999;font-size:12px">Услуги появятся здесь после первых публикаций</div>`;
 
-  // Service providers table
-  const providers = D.service_providers || (SV.recent||[]).map(s=>({
-    name: s.contact || "—", type: s.type || "🚚 Перевозки",
-    region: s.region || "Центр", phone: s.phone || "—",
-    price: s.price || 0, views: s.views || 0,
-  }));
+  // Service providers table — real data from DB
+  const providers = D.service_providers_all || [];
   document.getElementById("providers-body").innerHTML = providers.length
     ? providers.map((p,i)=>`
       <tr style="border-bottom:1px solid #f0f0ea;${i%2?'background:#fafafa':''}">
-        <td style="padding:6px 8px;font-weight:500">${p.name}</td>
+        <td style="padding:6px 8px;font-weight:500">${p.name}<br><span style="font-size:10px;color:#aaa;font-weight:400">${p.desc||""}</span></td>
         <td style="padding:6px 8px">${p.type}</td>
-        <td style="padding:6px 8px;color:#666">${p.region}</td>
+        <td style="padding:6px 8px;color:#666">${p.region}${p.city&&p.city!=="—"?" · "+p.city:""}</td>
         <td style="padding:6px 8px;font-family:monospace;color:#2AABEE">${p.phone}</td>
         <td style="padding:6px 8px;text-align:right;font-weight:500;color:#4CAF8A">${p.price?n(p.price)+' ₪':'Договорная'}</td>
         <td style="padding:6px 8px;text-align:right;color:#999">${p.views||0}</td>

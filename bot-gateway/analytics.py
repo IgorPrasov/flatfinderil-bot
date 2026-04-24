@@ -400,6 +400,28 @@ def get_analytics(date_from: str = None, date_to: str = None):
     svc_by_region = Counter(REGION_NAMES.get(s.get("region",""), s.get("region","")) for s in svc_active)
     svc_recent = sorted(svc_active, key=lambda x: x.get("date_added",""), reverse=True)[:5]
 
+    SVC_TYPE_LABELS = {"moving": "🚚 Перевозчик", "packing": "📦 Упаковщик", "cleaning": "🧹 Клининг"}
+    svc_providers_all = sorted(
+        [
+            {
+                "svc_id":    s.get("id", ""),
+                "user_id":   str(s.get("user_id", "")),
+                "name":      s.get("owner_name") or s.get("contact") or "—",
+                "type":      SVC_TYPE_LABELS.get(s.get("service_type",""), s.get("service_type","")),
+                "region":    REGION_NAMES.get(s.get("region",""), s.get("region","")),
+                "city":      s.get("city") or "—",
+                "phone":     s.get("phone") or s.get("owner_phone") or "—",
+                "price":     s.get("price") or 0,
+                "views":     s.get("views") or 0,
+                "desc":      (s.get("description") or "")[:80],
+                "date":      s.get("date_added",""),
+                "active":    s.get("active", True),
+            }
+            for s in services_all
+        ],
+        key=lambda x: x["date"], reverse=True
+    )
+
     # ── User cabinets & user-added listings ───────────────────────────────
     user_listings_db = db_data.get("user_listings", {})
     user_added = []
@@ -633,6 +655,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
             ],
             "by_city": [{"city": c, "count": n} for c, n in comm_by_city.most_common(8) if c],
         },
+        "service_providers_all": svc_providers_all,
         "services": {
             "total": len(svc_active),
             "by_type": [{"type": t, "count": n} for t, n in svc_by_type.most_common()],
