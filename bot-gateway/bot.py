@@ -561,17 +561,104 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             self.send_header("Content-Length", len(body))
             self.end_headers()
             self.wfile.write(body)
-        elif path == "/news":
+        elif path in ("/news", "/api/news"):
             try:
                 from news_fetcher import get_news
                 qs = parse_qs(parsed.query)
-                category = (qs.get("category") or [None])[0]
+                category = (qs.get("category") or qs.get("cat") or [None])[0]
                 lang     = (qs.get("lang")     or [None])[0]
-                limit    = int((qs.get("limit")  or ["20"])[0])
+                limit    = int((qs.get("limit") or qs.get("n") or ["20"])[0])
                 data = get_news(category=category, lang=lang, limit=limit)
             except Exception as e:
                 data = {"error": str(e), "items": [], "ticker": []}
             self._send_json(data)
+
+        elif path == "/api/price-stats":
+            try:
+                from analytics_server import _get_price_stats
+                qs = parse_qs(parsed.query)
+                city = (qs.get("city")  or [None])[0]
+                deal = (qs.get("deal")  or ["rent"])[0]
+                days = int((qs.get("days") or ["30"])[0])
+                data = _get_price_stats(city=city, deal_type=deal, days=days)
+            except Exception as e:
+                data = {"error": str(e)}
+            self._send_json(data)
+
+        elif path == "/api/datagov":
+            try:
+                from datagov_api import get_market_overview, get_recent_deals
+                qs = parse_qs(parsed.query)
+                city  = (qs.get("city")  or ["Нетания"])[0]
+                rooms = (qs.get("rooms") or [None])[0]
+                days  = int((qs.get("days") or ["90"])[0])
+                if rooms:
+                    data = get_recent_deals(city_ru=city, rooms=int(rooms), last_days=days)
+                else:
+                    data = get_market_overview(city_ru=city, last_days=days)
+            except Exception as e:
+                data = {"error": str(e)}
+            self._send_json(data)
+
+        elif path == "/api/daily-digest":
+            try:
+                from morning_digest import get_daily_stats, build_digest_text
+                qs = parse_qs(parsed.query)
+                city = (qs.get("city") or [None])[0]
+                lang = (qs.get("lang") or ["ru"])[0]
+                stats = get_daily_stats(city=city)
+                text  = build_digest_text(city=city, lang=lang, include_datagov=False)
+                data  = {"stats": stats, "text": text, "lang": lang}
+            except Exception as e:
+                data = {"error": str(e)}
+            self._send_json(data)
+
+        elif path == "/rss.xml":
+            try:
+                from news_fetcher import get_news
+                from analytics_server import _build_rss
+                qs   = parse_qs(parsed.query)
+                lang = (qs.get("lang") or ["he"])[0]
+                cat  = (qs.get("cat")  or [None])[0]
+                news = get_news(category=cat, lang=lang, limit=40)
+                xml  = _build_rss(news.get("items", []), lang=lang, category=cat)
+                body = xml.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/rss+xml; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as e:
+                self._send_json({"error": str(e)})
+
+        elif path == "/admin/cleanup-spam":
+            # GET proxy for the cleanup action (legacy compat)
+            try:
+                from analytics_server import _cleanup_spam_listings
+                result = _cleanup_spam_listings()
+            except Exception as e:
+                result = {"error": str(e)}
+            self._send_json(result)
+
+        elif path == "/download-pdf":
+            try:
+                import bot_map_pdf
+                pdf_bytes = bot_map_pdf.generate()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/pdf")
+                self.send_header("Content-Disposition", "attachment; filename=FlatFinderIL_Bot_Map.pdf")
+                self.send_header("Content-Length", len(pdf_bytes))
+                self.end_headers()
+                self.wfile.write(pdf_bytes)
+            except Exception as e:
+                body = f"PDF error: {e}".encode()
+                self.send_response(500)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+
         else:
             self._send_html(DASHBOARD_FILE)
 
@@ -581,6 +668,13 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             return self._handle_backoffice("POST", path)
         if path == "/send-message":
             return self._handle_send_message()
+        if path == "/admin/cleanup-spam":
+            try:
+                from analytics_server import _cleanup_spam_listings
+                result = _cleanup_spam_listings()
+            except Exception as e:
+                result = {"error": str(e)}
+            return self._send_json(result)
         self._send_json({"error":"Not found"},404)
 
     def _handle_send_message(self):
