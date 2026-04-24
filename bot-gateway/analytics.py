@@ -580,6 +580,19 @@ def get_analytics(date_from: str = None, date_to: str = None):
         "searches_by_city": [{"city": c, "count": n} for c, n in city_counter.most_common(8)],
         "popular_filters": [{"filter": f, "count": n, "pct": round(n/len(searches)*100) if searches else 0} for f, n in filter_counter.most_common(8)],
         "total_searches_period": len(searches),
+        "searches_log": [
+            {
+                "user_id":   s.get("user_id", ""),
+                "time":      s.get("time", ""),
+                "deal":      s.get("deal_type", ""),
+                "cities":    ", ".join(s.get("cities") or []) or "—",
+                "rooms":     f'{s.get("rooms_min","?")}-{s.get("rooms_max","?")}' if s.get("rooms_min") else "—",
+                "price":     f'{s.get("price_min","?")}-{s.get("price_max","?")}' if s.get("price_min") else "—",
+                "parking":   bool(s.get("parking")),
+                "pool":      bool(s.get("pool")),
+            }
+            for s in sorted(searches_all, key=lambda x: x.get("time",""), reverse=True)[:300]
+        ],
         "activity_week": last_7,
         "subscription": {
             "trial": total_users - len(subs),

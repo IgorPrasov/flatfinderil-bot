@@ -163,6 +163,29 @@ canvas{max-width:100%}
       <div class="card-title">Распределение по языкам</div>
       <div class="card-body" id="langs-cards"></div>
     </div>
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>👤 Кто заходил — список пользователей</span>
+        <input type="text" id="users-search" placeholder="🔍 Поиск по имени/юзернейму..." oninput="filterUsersList(this.value)"
+          style="font-size:11px;border:1px solid #e0e0da;border-radius:6px;padding:3px 8px;width:220px;background:#f8f8f4">
+      </div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px" id="users-list-table">
+          <thead><tr style="color:#999;font-size:10px;border-bottom:1px solid #f0f0ea;background:#fafafa">
+            <th style="padding:7px 10px;text-align:left">ID</th>
+            <th style="padding:7px 10px;text-align:left">Имя</th>
+            <th style="padding:7px 10px;text-align:left">Username</th>
+            <th style="padding:7px 10px;text-align:left">Телефон</th>
+            <th style="padding:7px 10px;text-align:center">Язык</th>
+            <th style="padding:7px 10px;text-align:right">Поисков</th>
+            <th style="padding:7px 10px;text-align:center">Подписка</th>
+            <th style="padding:7px 10px;text-align:left">Первый вход</th>
+            <th style="padding:7px 10px;text-align:left">Последний вход</th>
+          </tr></thead>
+          <tbody id="users-list-body"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- SEARCHES -->
@@ -176,6 +199,24 @@ canvas{max-width:100%}
       <div class="card">
         <div class="card-title">Популярные фильтры</div>
         <div class="card-body" id="filters-list"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔍 Кто искал — журнал поисков</div>
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="color:#999;font-size:10px;border-bottom:1px solid #f0f0ea;background:#fafafa">
+            <th style="padding:7px 10px;text-align:left">Время</th>
+            <th style="padding:7px 10px;text-align:left">User ID</th>
+            <th style="padding:7px 10px;text-align:center">Тип</th>
+            <th style="padding:7px 10px;text-align:left">Города</th>
+            <th style="padding:7px 10px;text-align:center">Комн.</th>
+            <th style="padding:7px 10px;text-align:center">Цена</th>
+            <th style="padding:7px 10px;text-align:center">🅿️</th>
+            <th style="padding:7px 10px;text-align:center">🏊</th>
+          </tr></thead>
+          <tbody id="searches-log-body"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -534,12 +575,35 @@ const DEMO={
     by_deal:[{deal:"Аренда",count:0},{deal:"Продажа",count:0}],
     by_city:[],
   },
+  users_list:[
+    {user_id:"111001",first_name:"Иван",last_name:"Петров",username:"ivan_petrov",phone:"",lang:"ru",first_seen:"2026-04-01",last_seen:"2026-04-24",searches:14,subscribed:false},
+    {user_id:"111002",first_name:"Sarah",last_name:"Cohen",username:"sarah_cohen",phone:"",lang:"en",first_seen:"2026-04-05",last_seen:"2026-04-24",searches:7,subscribed:true},
+    {user_id:"111003",first_name:"Михаил",last_name:"Кац",username:"misha_katz",phone:"+972501112233",lang:"ru",first_seen:"2026-04-10",last_seen:"2026-04-23",searches:21,subscribed:false},
+    {user_id:"111004",first_name:"Алла",last_name:"",username:"alla_il",phone:"",lang:"ru",first_seen:"2026-04-15",last_seen:"2026-04-22",searches:3,subscribed:false},
+    {user_id:"111005",first_name:"David",last_name:"Levi",username:"",phone:"",lang:"he",first_seen:"2026-04-18",last_seen:"2026-04-24",searches:9,subscribed:false},
+  ],
+  searches_log:[
+    {user_id:"111001",time:"2026-04-24 09:12",deal:"rent",cities:"Нетания",rooms:"2-3",price:"5000-9000",parking:true,pool:false},
+    {user_id:"111003",time:"2026-04-24 08:47",deal:"buy",cities:"Тель-Авив",rooms:"3-4",price:"2000000-4000000",parking:true,pool:false},
+    {user_id:"111002",time:"2026-04-24 08:22",deal:"rent",cities:"Хайфа",rooms:"2-3",price:"—",parking:false,pool:false},
+    {user_id:"111005",time:"2026-04-23 22:05",deal:"rent",cities:"Тель-Авив",rooms:"1-2",price:"4000-7000",parking:false,pool:false},
+    {user_id:"111001",time:"2026-04-23 19:33",deal:"rent",cities:"Герцлия",rooms:"3-4",price:"7000-12000",parking:true,pool:true},
+  ],
   services:{
-    total:0,
-    by_type:[{type:"🚚 Перевозки",count:0},{type:"📦 Упаковка",count:0},{type:"🧹 Клининг",count:0}],
-    by_region:[{region:"🌿 Север",count:0},{region:"🏙 Центр",count:0},{region:"☀️ Юг",count:0}],
-    recent:[],
+    total:3,
+    by_type:[{type:"🚚 Перевозки",count:2},{type:"📦 Упаковка",count:1},{type:"🧹 Клининг",count:0}],
+    by_region:[{region:"🌿 Север",count:1},{region:"🏙 Центр",count:2},{region:"☀️ Юг",count:0}],
+    recent:[
+      {type:"🚚 Перевозки",region:"🏙 Центр",price:1200,date:"2026-04-20",icon:"🚚",contact:"Леви Перевозки"},
+      {type:"🚚 Перевозки",region:"🌿 Север",price:950,date:"2026-04-18",icon:"🚚",contact:"Хайфа-Муверс"},
+      {type:"📦 Упаковка",region:"🏙 Центр",price:0,date:"2026-04-15",icon:"📦",contact:"PackPro IL"},
+    ],
   },
+  service_providers:[
+    {name:"Леви Перевозки",type:"🚚 Перевозчик",region:"🏙 Центр",phone:"+972-50-111-2233",price:1200,views:45},
+    {name:"Хайфа-Муверс",type:"🚚 Перевозчик",region:"🌿 Север",phone:"+972-52-333-4455",price:950,views:28},
+    {name:"PackPro IL",type:"📦 Упаковщик",region:"🏙 Центр",phone:"+972-54-777-8899",price:0,views:17},
+  ],
   crm:{
     total_contacts:0,
     by_type:[
@@ -786,6 +850,27 @@ function render(){
         <div style="font-size:22px;font-weight:500;color:${COLORS[i]}">${n(l.count)}</div>
         <div style="font-size:11px;color:#999">${l.name} · ${l.value}%</div>
       </div>`).join("")+`</div>`;
+
+  // ── Users list table ───────────────────────────────────────────────────────
+  const _ul = D.users_list || [];
+  _renderUsersList(_ul);
+
+  // ── Searches log table ─────────────────────────────────────────────────────
+  const _sl = D.searches_log || [];
+  const dealEmoji = {rent:"🔑",buy:"🏠",sublet:"🔄"};
+  document.getElementById("searches-log-body").innerHTML = _sl.length
+    ? _sl.map((s,i)=>`
+      <tr style="border-bottom:1px solid #f8f8f4;${i%2?'background:#fafafa':''}">
+        <td style="padding:5px 10px;color:#999;white-space:nowrap">${s.time||"—"}</td>
+        <td style="padding:5px 10px;font-family:monospace;color:#2AABEE">${s.user_id||"—"}</td>
+        <td style="padding:5px 10px;text-align:center">${dealEmoji[s.deal]||s.deal||"—"}</td>
+        <td style="padding:5px 10px">${s.cities||"—"}</td>
+        <td style="padding:5px 10px;text-align:center;color:#666">${s.rooms||"—"}</td>
+        <td style="padding:5px 10px;text-align:center;color:#666;font-size:11px">${s.price||"—"}</td>
+        <td style="padding:5px 10px;text-align:center">${s.parking?"✅":"—"}</td>
+        <td style="padding:5px 10px;text-align:center">${s.pool?"✅":"—"}</td>
+      </tr>`).join("")
+    : `<tr><td colspan="8" style="padding:20px;text-align:center;color:#999">Поиски появятся здесь</td></tr>`;
 
   // Searches cities & filters
   document.getElementById("searches-cities").innerHTML=D.searches_by_city.length?barH(D.searches_by_city,"count","city",TG):`<div style="text-align:center;padding:24px;color:#999">Данные появятся после первых поисков</div>`;
@@ -1083,15 +1168,27 @@ function render(){
     <p>Аренда: мин <b>${prSL.price_rent.min?.toLocaleString()||'—'} ₪</b> · макс <b>${prSL.price_rent.max?.toLocaleString()||'—'} ₪</b> · ср <b>${prSL.price_rent.avg?.toLocaleString()||'—'} ₪</b></p>
     <p>Продажа: мин <b>${prSL.price_buy.min?.toLocaleString()||'—'} ₪</b> · макс <b>${prSL.price_buy.max?.toLocaleString()||'—'} ₪</b> · ср <b>${prSL.price_buy.avg?.toLocaleString()||'—'} ₪</b></p>`;
 
-  if(agSL.top_cities.length) makeChart("chart-agent-cities","bar",agSL.top_cities.map(x=>x.city),[agSL.top_cities.map(x=>x.count)],["Агенты"],[GREEN]);
-  if(prSL.top_cities.length) makeChart("chart-private-cities","bar",prSL.top_cities.map(x=>x.city),[prSL.top_cities.map(x=>x.count)],["Частные"],[BLUE]);
+  try {
+    if(agSL.top_cities.length) makeChart("chart-agent-cities","bar",agSL.top_cities.map(x=>x.city),[
+      {label:"Агенты",data:agSL.top_cities.map(x=>x.count),backgroundColor:GREEN,borderRadius:4}
+    ]);
+    if(prSL.top_cities.length) makeChart("chart-private-cities","bar",prSL.top_cities.map(x=>x.city),[
+      {label:"Частные",data:prSL.top_cities.map(x=>x.count),backgroundColor:BLUE,borderRadius:4}
+    ]);
+  } catch(e){}
 
-  // Price comparison bar charts
-  const rentLabels=["Агент (мин)","Агент (ср)","Агент (макс)","Частник (мин)","Частник (ср)","Частник (макс)"];
-  const rentData=[agSL.price_rent.min,agSL.price_rent.avg,agSL.price_rent.max,prSL.price_rent.min,prSL.price_rent.avg,prSL.price_rent.max];
-  makeChart("chart-price-rent","bar",rentLabels,[rentData],["Цена ₪"],[GREEN,GREEN,GREEN,BLUE,BLUE,BLUE]);
-  const buyData=[agSL.price_buy.min,agSL.price_buy.avg,agSL.price_buy.max,prSL.price_buy.min,prSL.price_buy.avg,prSL.price_buy.max];
-  makeChart("chart-price-buy","bar",rentLabels,[buyData],["Цена ₪"],[GREEN,GREEN,GREEN,BLUE,BLUE,BLUE]);
+  // Price comparison bar charts (try-catch to prevent render() crash)
+  try {
+    const rentLabels=["Агент мин","Агент ср","Агент макс","Частник мин","Частник ср","Частник макс"];
+    const rentData=[agSL.price_rent.min,agSL.price_rent.avg,agSL.price_rent.max,prSL.price_rent.min,prSL.price_rent.avg,prSL.price_rent.max];
+    makeChart("chart-price-rent","bar",rentLabels,[
+      {label:"Аренда ₪",data:rentData,backgroundColor:[GREEN,GREEN,GREEN,BLUE,BLUE,BLUE],borderRadius:4}
+    ]);
+    const buyData=[agSL.price_buy.min,agSL.price_buy.avg,agSL.price_buy.max,prSL.price_buy.min,prSL.price_buy.avg,prSL.price_buy.max];
+    makeChart("chart-price-buy","bar",rentLabels,[
+      {label:"Продажа ₪",data:buyData,backgroundColor:[GREEN,GREEN,GREEN,BLUE,BLUE,BLUE],borderRadius:4}
+    ]);
+  } catch(e){}
 
   const agRecent = agSL.recent || [];
   document.getElementById("tbl-agent-recent").innerHTML = agRecent.length
@@ -1506,6 +1603,40 @@ function renderDigest(data){
         <tr style="color:#999;font-size:10px"><th style="text-align:left;padding:5px 8px">Район</th><th style="text-align:right;padding:5px 8px">Объявл.</th><th style="text-align:right;padding:5px 8px">₪/комн.</th></tr>
         ${hoodRows}</table>`
     : `<div style="color:#999;font-size:12px;padding:16px">Нет данных за сегодня</div>`;
+}
+
+// ── Users list helpers ────────────────────────────────────────────────────────
+const langFlags = {"ru":"🇷🇺","en":"🇬🇧","he":"🇮🇱","fr":"🇫🇷"};
+
+function _renderUsersList(list){
+  const tbody = document.getElementById("users-list-body");
+  if(!tbody) return;
+  tbody.innerHTML = list.length ? list.map((u,i)=>`
+    <tr style="border-bottom:1px solid #f8f8f4;${i%2?'background:#fafafa':''}">
+      <td style="padding:5px 10px;font-family:monospace;color:#999;font-size:11px">${u.user_id}</td>
+      <td style="padding:5px 10px;font-weight:500">${[u.first_name,u.last_name].filter(Boolean).join(" ")||"—"}</td>
+      <td style="padding:5px 10px;color:#2AABEE">${u.username?"@"+u.username:"—"}</td>
+      <td style="padding:5px 10px;font-family:monospace;font-size:11px;color:#4CAF8A">${u.phone||"—"}</td>
+      <td style="padding:5px 10px;text-align:center">${langFlags[u.lang]||u.lang||"—"}</td>
+      <td style="padding:5px 10px;text-align:right;font-weight:500;color:#2AABEE">${u.searches||0}</td>
+      <td style="padding:5px 10px;text-align:center">${u.subscribed?'<span style="color:#4CAF8A;font-size:11px">● Подписан</span>':'<span style="color:#ccc;font-size:11px">○ Триал</span>'}</td>
+      <td style="padding:5px 10px;color:#999;font-size:11px">${u.first_seen||"—"}</td>
+      <td style="padding:5px 10px;color:#999;font-size:11px">${u.last_seen||"—"}</td>
+    </tr>`).join("")
+  : `<tr><td colspan="9" style="padding:20px;text-align:center;color:#999">Нет данных о пользователях</td></tr>`;
+}
+
+function filterUsersList(q){
+  const all = D.users_list || [];
+  if(!q.trim()){ _renderUsersList(all); return; }
+  const lq = q.toLowerCase();
+  _renderUsersList(all.filter(u=>
+    (u.first_name||"").toLowerCase().includes(lq) ||
+    (u.last_name||"").toLowerCase().includes(lq) ||
+    (u.username||"").toLowerCase().includes(lq) ||
+    (u.user_id||"").includes(lq) ||
+    (u.phone||"").includes(lq)
+  ));
 }
 
 function showTab(name, btn){
