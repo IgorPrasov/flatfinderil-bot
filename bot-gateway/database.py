@@ -428,15 +428,44 @@ def get_user_paid_subscriptions(user_id: int) -> dict:
 
 
 def set_user_paid_subscription(user_id: int, plan_type: str, expiry_iso: str):
-    """Save paid subscription expiry for user."""
+    """Save paid subscription expiry for user. Raises on persistence failure."""
+    with _DB_LOCK:
+        data = _load()
+        if "paid_subscriptions" not in data:
+            data["paid_subscriptions"] = {}
+        uid = str(user_id)
+        if uid not in data["paid_subscriptions"]:
+            data["paid_subscriptions"][uid] = {}
+        data["paid_subscriptions"][uid][plan_type] = expiry_iso
+        _save(data)
+        # Verify it was actually written
+        verify = _load()
+        if verify.get("paid_subscriptions", {}).get(uid, {}).get(plan_type) != expiry_iso:
+            raise IOError(
+                f"Subscription save verification failed for user {user_id} plan {plan_type}"
+            )
+
+
+# ── Trial warning tracking ──────────────────────────────────────────────────
+
+def was_trial_warning_sent(user_id: int, threshold: int) -> bool:
+    """Check if we already sent warning for this threshold (e.g. 7/3/1/0 days)."""
     data = _load()
-    if "paid_subscriptions" not in data:
-        data["paid_subscriptions"] = {}
-    uid = str(user_id)
-    if uid not in data["paid_subscriptions"]:
-        data["paid_subscriptions"][uid] = {}
-    data["paid_subscriptions"][uid][plan_type] = expiry_iso
-    _save(data)
+    sent = data.get("trial_warnings_sent", {}).get(str(user_id), [])
+    return threshold in sent
+
+
+def mark_trial_warning_sent(user_id: int, threshold: int):
+    """Record that we sent the warning for this threshold."""
+    with _DB_LOCK:
+        data = _load()
+        if "trial_warnings_sent" not in data:
+            data["trial_warnings_sent"] = {}
+        uid = str(user_id)
+        sent = data["trial_warnings_sent"].setdefault(uid, [])
+        if threshold not in sent:
+            sent.append(threshold)
+        _save(data)
 
 
 # ── Price market comparison ───────────────────────────────────────────────────

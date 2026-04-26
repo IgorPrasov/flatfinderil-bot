@@ -143,6 +143,87 @@ def _check_stale_listings_sync():
         _run_coroutine(_send_message(owner_id, msg))
 
 
+def _check_trial_warnings_sync():
+    """Send one-time trial-ending warnings to all users at thresholds 7/3/1/0 days."""
+    import database as db
+    from subscription import (
+        days_left_trial, is_trial_active, get_trial_warning,
+        TRIAL_WARNING_THRESHOLDS, has_access,
+    )
+    # Если триал ещё не подходит к концу — выходим
+    days = days_left_trial()
+    # Триал кончился (days == 0) — тоже шлём, threshold 0
+    if is_trial_active() and days > max(TRIAL_WARNING_THRESHOLDS):
+        return
+
+    # Какой порог уведомлений сейчас актуален
+    threshold = None
+    for t in sorted(TRIAL_WARNING_THRESHOLDS):
+        if days <= t:
+            threshold = t
+            break
+    if threshold is None:
+        return
+
+    # Берём всех пользователей из stats.json
+    try:
+        from analytics import _load_stats
+        stats = _load_stats()
+        users = stats.get("users", {})
+    except Exception as e:
+        logger.error(f"trial warnings: cannot load users: {e}")
+        return
+
+    sent_count = 0
+    for uid, u in users.items():
+        try:
+            user_id = int(uid)
+        except ValueError:
+            continue
+        # У кого есть оплаченная подписка — не беспокоим
+        try:
+            if has_access(user_id) and not is_trial_active():
+                # has_access возвращает True во время триала — поэтому проверяем только после триала
+                continue
+            # Если у пользователя есть платная подписка — пропускаем
+            from subscription import get_expiry
+            from datetime import datetime as _dt
+            paid = get_expiry(user_id, "main")
+            if paid and paid > _dt.now():
+                continue
+        except Exception:
+            pass
+
+        # Уже отправляли этот порог?
+        if db.was_trial_warning_sent(user_id, threshold):
+            continue
+
+        lang = u.get("lang", "ru")
+        text = get_trial_warning(lang, days)
+        try:
+            _run_coroutine(_send_message(user_id, text))
+            db.mark_trial_warning_sent(user_id, threshold)
+            sent_count += 1
+        except Exception as e:
+            logger.warning(f"trial warning send failed uid={user_id}: {e}")
+    if sent_count:
+        logger.info(f"[TRIAL] Sent {sent_count} warnings at threshold={threshold} days_left={days}")
+
+
+def trial_warning_loop():
+    """Background thread: check trial warnings once a day."""
+    logger.info("Trial warning checker started")
+    # Initial delay so we don't spam on every restart
+    time.sleep(60)
+    while True:
+        try:
+            _check_trial_warnings_sync()
+            time.sleep(24 * 60 * 60)  # 24 hours
+        except Exception as e:
+            logger.error(f"trial_warning_loop error: {e}")
+            time.sleep(60 * 60)  # retry in 1h on error
+
+
 def stale_listing_checker_loop():
     """Background thread: check stale listings once a day."""
     logger.info("Stale listing checker started")
@@ -233,5 +314,8 @@ def start_background_tasks(app):
 
     t4 = threading.Thread(target=crypto_payment_checker_loop, daemon=True, name="crypto-checker")
     t4.start()
+
+    t5 = threading.Thread(target=trial_warning_loop, daemon=True, name="trial-warning")
+    t5.start()
 
     logger.info("Background notification tasks started")

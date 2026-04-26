@@ -46,9 +46,16 @@ INFRA_KEYS_ADD = [
     "park", "gym", "beach", "restaurant", "synagogue"
 ]
 
+
+def _L(d: dict, lang: str) -> str:
+    """Безопасный выбор перевода: lang → en → ru → первый доступный."""
+    if not isinstance(d, dict):
+        return str(d)
+    return d.get(lang) or d.get("en") or d.get("ru") or next(iter(d.values()), "")
+
 def _t(context, ru, en, he):
     lang = get_lang(context)
-    return {"ru": ru, "en": en, "he": he}.get(lang, ru)
+    return _L({"ru": ru, "en": en, "he": he}, lang)
 
 def _confirmed(context, ru, en, he, value):
     label = _t(context, ru, en, he)
@@ -56,9 +63,9 @@ def _confirmed(context, ru, en, he, value):
 
 def _seller_type_keyboard(ctx):
     lang = get_lang(ctx)
-    agent   = {"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך"}[lang]
-    private = {"ru": "👤 Частное лицо",     "en": "👤 Private person",  "he": "👤 אדם פרטי"}[lang]
-    menu    = {"ru": "🏠 Главное меню",      "en": "🏠 Main menu",       "he": "🏠 תפריט ראשי"}[lang]
+    agent   = _L({"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך"}, lang)
+    private = _L({"ru": "👤 Частное лицо",     "en": "👤 Private person",  "he": "👤 אדם פרטי"}, lang)
+    menu    = _L({"ru": "🏠 Главное меню",      "en": "🏠 Main menu",       "he": "🏠 תפריט ראשי"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(agent,   callback_data="add_seller_agent")],
         [InlineKeyboardButton(private, callback_data="add_seller_private")],
@@ -69,10 +76,10 @@ def _seller_type_keyboard(ctx):
 def _agent_method_keyboard(ctx):
     """After agent is selected: choose manual entry or CSV upload."""
     lang = get_lang(ctx)
-    manual   = {"ru": "✍️ Добавить вручную",      "en": "✍️ Add manually",      "he": "✍️ הוסף ידנית"}[lang]
-    upload   = {"ru": "📤 Загрузить CSV/XLSX",    "en": "📤 Upload CSV/XLSX",    "he": "📤 העלה CSV/XLSX"}[lang]
-    template = {"ru": "📄 Скачать шаблон",         "en": "📄 Download template",  "he": "📄 הורד תבנית"}[lang]
-    back     = {"ru": "« Назад",                   "en": "« Back",               "he": "« חזרה"}[lang]
+    manual   = _L({"ru": "✍️ Добавить вручную",      "en": "✍️ Add manually",      "he": "✍️ הוסף ידנית"}, lang)
+    upload   = _L({"ru": "📤 Загрузить CSV/XLSX",    "en": "📤 Upload CSV/XLSX",    "he": "📤 העלה CSV/XLSX"}, lang)
+    template = _L({"ru": "📄 Скачать шаблон",         "en": "📄 Download template",  "he": "📄 הורד תבנית"}, lang)
+    back     = _L({"ru": "« Назад",                   "en": "« Back",               "he": "« חזרה"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(manual,   callback_data="add_agent_manual")],
         [InlineKeyboardButton(upload,   callback_data="add_agent_upload")],
@@ -83,12 +90,12 @@ def _agent_method_keyboard(ctx):
 
 def _deal_keyboard(ctx):
     lang = get_lang(ctx)
-    rent = {"ru": "🔑 Аренда", "en": "🔑 Rent", "he": "🔑 השכרה"}[lang]
-    buy = {"ru": "💰 Продажа", "en": "💰 Sale", "he": "💰 מכירה"}[lang]
-    sublet = {"ru": "🔄 Сублет", "en": "🔄 Sublet", "he": "🔄 סאבלט"}[lang]
-    commercial = {"ru": "🏢 Коммерческая", "en": "🏢 Commercial", "he": "🏢 מסחרי"}[lang]
-    back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
-    menu = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[lang]
+    rent = _L({"ru": "🔑 Аренда", "en": "🔑 Rent", "he": "🔑 השכרה"}, lang)
+    buy = _L({"ru": "💰 Продажа", "en": "💰 Sale", "he": "💰 מכירה"}, lang)
+    sublet = _L({"ru": "🔄 Сублет", "en": "🔄 Sublet", "he": "🔄 סאבלט"}, lang)
+    commercial = _L({"ru": "🏢 Коммерческая", "en": "🏢 Commercial", "he": "🏢 מסחרי"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(rent, callback_data="add_deal_rent"),
          InlineKeyboardButton(buy, callback_data="add_deal_buy")],
@@ -103,13 +110,13 @@ def _ptype_keyboard(ctx):
     buttons = []
     row = []
     for key, names in PROPERTY_TYPES.items():
-        row.append(InlineKeyboardButton(names[lang], callback_data=f"add_ptype_{key}"))
+        row.append(InlineKeyboardButton(_L(names, lang), callback_data=f"add_ptype_{key}"))
         if len(row) == 2:
             buttons.append(row)
             row = []
     if row:
         buttons.append(row)
-    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
@@ -118,20 +125,20 @@ def _comm_type_keyboard(ctx):
     buttons = []
     row = []
     for key, names in COMMERCIAL_TYPES.items():
-        row.append(InlineKeyboardButton(names[lang], callback_data=f"add_ptype_{key}"))
+        row.append(InlineKeyboardButton(_L(names, lang), callback_data=f"add_ptype_{key}"))
         if len(row) == 2:
             buttons.append(row)
             row = []
     if row:
         buttons.append(row)
-    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
 def _district_keyboard(ctx):
     lang = get_lang(ctx)
     buttons = [[InlineKeyboardButton(get_district_name(k, lang), callback_data=f"add_dist_{k}")] for k in DISTRICT_KEYS]
-    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
@@ -147,7 +154,7 @@ def _city_keyboard(ctx, district):
             row = []
     if row:
         buttons.append(row)
-    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
@@ -163,15 +170,15 @@ def _rooms_keyboard(ctx):
             row = []
     if row:
         buttons.append(row)
-    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
 def _yes_no_keyboard(ctx, prefix):
     lang = get_lang(ctx)
-    yes = {"ru": "✅ Есть", "en": "✅ Yes", "he": "✅ יש"}[lang]
-    no = {"ru": "❌ Нет", "en": "❌ No", "he": "❌ אין"}[lang]
-    back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    yes = _L({"ru": "✅ Есть", "en": "✅ Yes", "he": "✅ יש"}, lang)
+    no = _L({"ru": "❌ Нет", "en": "❌ No", "he": "❌ אין"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(yes, callback_data=f"{prefix}_yes"),
          InlineKeyboardButton(no, callback_data=f"{prefix}_no")],
@@ -185,11 +192,11 @@ def _shelter_keyboard(ctx):
         "miklat": {"ru": "🏗 Миклат", "en": "🏗 Miklat", "he": "🏗 מקלט"},
         "none": {"ru": "❌ Нет", "en": "❌ None", "he": "❌ אין"},
     }
-    back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(opts["mamad"][lang], callback_data="add_shelter_mamad"),
-         InlineKeyboardButton(opts["miklat"][lang], callback_data="add_shelter_miklat")],
-        [InlineKeyboardButton(opts["none"][lang], callback_data="add_shelter_none")],
+        [InlineKeyboardButton(_L(opts["mamad"], lang), callback_data="add_shelter_mamad"),
+         InlineKeyboardButton(_L(opts["miklat"], lang), callback_data="add_shelter_miklat")],
+        [InlineKeyboardButton(_L(opts["none"], lang), callback_data="add_shelter_none")],
         [InlineKeyboardButton(back, callback_data="add_back")],
     ])
 
@@ -208,12 +215,12 @@ def _infra_keyboard(ctx, selected=None):
         "restaurant": {"ru": "🍽 Рестораны", "en": "🍽 Restaurants", "he": "🍽 מסעדות"},
         "synagogue": {"ru": "✡️ Синагога", "en": "✡️ Synagogue", "he": "✡️ בית כנסת"},
     }
-    done = {"ru": "✅ Готово", "en": "✅ Done", "he": "✅ סיום"}[lang]
-    back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    done = _L({"ru": "✅ Готово", "en": "✅ Done", "he": "✅ סיום"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     buttons = []
     row = []
     for key in INFRA_KEYS_ADD:
-        name = infra_names[key][lang]
+        name = _L(infra_names[key], lang)
         mark = "✅ " if key in selected else ""
         row.append(InlineKeyboardButton(f"{mark}{name}", callback_data=f"add_infra_{key}"))
         if len(row) == 2:
@@ -230,11 +237,11 @@ def _infra_keyboard(ctx, selected=None):
 def _photos_keyboard(ctx, count):
     lang = get_lang(ctx)
     if count:
-        label = {"ru": f"✅ Готово ({count} фото)", "en": f"✅ Done ({count} photos)", "he": f"✅ סיום ({count} תמונות)"}[lang]
+        label = _L({"ru": f"✅ Готово ({count} фото)", "en": f"✅ Done ({count} photos)", "he": f"✅ סיום ({count} תמונות)"}, lang)
     else:
-        label = {"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}[lang]
-    back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
-    menu = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[lang]
+        label = _L({"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(label, callback_data="add_photos_done")],
         [InlineKeyboardButton(back, callback_data="add_back"),
@@ -244,9 +251,9 @@ def _photos_keyboard(ctx, count):
 
 def _confirm_keyboard(ctx):
     lang = get_lang(ctx)
-    publish = {"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם"}[lang]
-    cancel = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}[lang]
-    menu = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[lang]
+    publish = _L({"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם"}, lang)
+    cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}, lang)
+    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(publish, callback_data="add_confirm_yes")],
         [InlineKeyboardButton(cancel, callback_data="add_confirm_no")],
@@ -259,8 +266,8 @@ def _step_text(ctx, ru, en, he):
 
 def _back_kb(ctx):
     lang = get_lang(ctx)
-    back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
-    menu = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[lang]
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(back, callback_data="add_back"),
          InlineKeyboardButton(menu, callback_data="back_to_menu")],
@@ -373,6 +380,7 @@ class ListingHandler:
             },
             fallbacks=[
                 CommandHandler("start", self.cancel),
+                CommandHandler("cancel", self.cancel),
                 CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),
             ],
             per_message=False,
@@ -450,7 +458,7 @@ class ListingHandler:
             return ADD_UPLOAD_FILE
 
         # Private person — go straight to deal type
-        label = {"ru": "👤 Частное лицо", "en": "👤 Private person", "he": "👤 אדם פרטי"}[lang]
+        label = _L({"ru": "👤 Частное лицо", "en": "👤 Private person", "he": "👤 אדם פרטי"}, lang)
         await query.edit_message_text(
             _confirmed(context, "Тип продавца", "Seller type", "סוג המוכר", label),
             parse_mode="HTML"
@@ -500,7 +508,7 @@ class ListingHandler:
 
         if action == "add_agent_upload":
             lang = get_lang(context)
-            prompt = {
+            prompt = _L({
                 "ru": (
                     "📤 <b>Загрузка объявлений из файла</b>\n\n"
                     "Отправьте файл <b>CSV</b> или <b>XLSX</b>.\n"
@@ -519,13 +527,13 @@ class ListingHandler:
                     "כל העמודות חובה — קבצים עם חוסרים נדחים.\n\n"
                     "אין תבנית? לחץ «📄 הורד תבנית»."
                 ),
-            }[lang]
+            }, lang)
             await query.edit_message_text(prompt, reply_markup=_agent_method_keyboard(context), parse_mode="HTML")
             return ADD_UPLOAD_FILE
 
         if action == "add_agent_manual":
             lang = get_lang(context)
-            label = {"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך"}[lang]
+            label = _L({"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך"}, lang)
             await query.edit_message_text(
                 _confirmed(context, "Тип продавца", "Seller type", "סוג המוכר", label),
                 parse_mode="HTML"
@@ -546,9 +554,9 @@ class ListingHandler:
 
         if not (fname.lower().endswith(".csv") or fname.lower().endswith(".xlsx")):
             await update.message.reply_text(
-                {"ru": "❌ Отправьте файл CSV или XLSX.",
+                _L({"ru": "❌ Отправьте файл CSV или XLSX.",
                  "en": "❌ Please send a CSV or XLSX file.",
-                 "he": "❌ שלח קובץ CSV או XLSX."}[lang],
+                 "he": "❌ שלח קובץ CSV או XLSX."}, lang),
                 reply_markup=_agent_method_keyboard(context)
             )
             return ADD_UPLOAD_FILE
@@ -569,20 +577,20 @@ class ListingHandler:
             max_show = 10
             shown = errors[:max_show]
             tail = f"\n... и ещё {len(errors) - max_show} ошибок" if len(errors) > max_show else ""
-            err_text = {
+            err_text = _L({
                 "ru": f"❌ <b>Файл не принят</b>\n\n" + "\n".join(shown) + tail + "\n\nИсправьте ошибки и загрузите снова.",
                 "en": f"❌ <b>File rejected</b>\n\n" + "\n".join(shown) + tail + "\n\nFix the errors and re-upload.",
                 "he": f"❌ <b>הקובץ נדחה</b>\n\n" + "\n".join(shown) + tail + "\n\nתקן את השגיאות ושלח שוב.",
-            }[lang]
+            }, lang)
             await update.message.reply_text(err_text, reply_markup=_agent_method_keyboard(context), parse_mode="HTML")
             return ADD_UPLOAD_FILE
 
         n = result["imported"]
-        ok_text = {
+        ok_text = _L({
             "ru": f"✅ <b>Загружено {n} объявлений!</b>\n\nОни уже доступны в поиске.",
             "en": f"✅ <b>{n} listings imported!</b>\n\nThey are now visible in search.",
             "he": f"✅ <b>{n} מודעות הועלו!</b>\n\nהן כבר זמינות בחיפוש.",
-        }[lang]
+        }, lang)
         await update.message.reply_text(ok_text, parse_mode="HTML")
         return ConversationHandler.END
 
@@ -752,7 +760,7 @@ class ListingHandler:
             "commercial": {"ru": "Коммерческая", "en": "Commercial", "he": "מסחרי"},
         }
         lang = get_lang(context)
-        deal_label = deal_labels.get(deal, deal_labels["rent"])[lang]
+        deal_label = _L(deal_labels.get(deal, deal_labels["rent"]), lang)
         await query.edit_message_text(_confirmed(context, "Тип сделки", "Deal type", "סוג עסקה", deal_label), parse_mode="HTML")
         if deal == "commercial":
             text = _step_text(context, "Шаг 3/16: Тип помещения", "Step 3/16: Property type", "שלב 3/16: סוג נכס")
@@ -937,7 +945,7 @@ class ListingHandler:
         context.user_data["add_state"] = ADD_ELEVATOR
         labels = {"mamad": {"ru":"Мамад","en":"Mamad","he":"ממ\"ד"}, "miklat": {"ru":"Миклат","en":"Miklat","he":"מקלט"}, "none": {"ru":"Нет","en":"None","he":"אין"}}
         lang = get_lang(context)
-        label = labels[shelter][lang]
+        label = _L(labels[shelter], lang)
         await query.edit_message_text(_confirmed(context, "Мамад/Миклат", "Mamad/Miklat", "ממ\"ד/מקלט", label), parse_mode="HTML")
         text = _step_text(context, "Шаг 14/16: Лифт", "Step 14/16: Elevator", "שלב 14/16: מעלית")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=_yes_no_keyboard(context, "add_elevator"), parse_mode="HTML")
@@ -1066,12 +1074,12 @@ class ListingHandler:
             user_id = update.effective_user.id
             existing_email = db.get_agent_email(user_id)
             if existing_email:
-                hint = {"ru": f"(сохранён: {existing_email})", "en": f"(saved: {existing_email})", "he": f"(שמור: {existing_email})"}[lang]
+                hint = _L({"ru": f"(сохранён: {existing_email})", "en": f"(saved: {existing_email})", "he": f"(שמור: {existing_email})"}, lang)
             else:
                 hint = ""
             skip_btn = InlineKeyboardMarkup([[
                 InlineKeyboardButton(
-                    {"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}[lang],
+                    _L({"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}, lang),
                     callback_data="add_email_skip"
                 )
             ]])
@@ -1099,9 +1107,9 @@ class ListingHandler:
         if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
             lang = get_lang(context)
             await update.message.reply_text(
-                {"ru": "❌ Неверный формат e-mail. Попробуйте ещё раз или нажмите Пропустить.",
+                _L({"ru": "❌ Неверный формат e-mail. Попробуйте ещё раз или нажмите Пропустить.",
                  "en": "❌ Invalid e-mail format. Try again or press Skip.",
-                 "he": "❌ כתובת אימייל שגויה. נסה שוב או לחץ דלג."}[lang]
+                 "he": "❌ כתובת אימייל שגויה. נסה שוב או לחץ דלג."}, lang)
             )
             return ADD_EMAIL
         user_id = update.effective_user.id
@@ -1154,14 +1162,14 @@ class ListingHandler:
         d = context.user_data["add_listing"]
         lang = get_lang(context)
 
-        deal_label = {"ru": "Аренда" if d.get("deal_type")=="rent" else "Продажа",
+        deal_label = _L({"ru": "Аренда" if d.get("deal_type")=="rent" else "Продажа",
                       "en": "Rent" if d.get("deal_type")=="rent" else "Sale",
-                      "he": "השכרה" if d.get("deal_type")=="rent" else "מכירה"}[lang]
+                      "he": "השכרה" if d.get("deal_type")=="rent" else "מכירה"}, lang)
         ptype_label = PROPERTY_TYPES.get(d.get("property_type","apartment"), {}).get(lang, "")
         photo_count = len(d.get("photos", []))
-        photo_info = {"ru": f"{photo_count} фото" if photo_count else "нет фото",
+        photo_info = _L({"ru": f"{photo_count} фото" if photo_count else "нет фото",
                       "en": f"{photo_count} photo(s)" if photo_count else "no photos",
-                      "he": f"{photo_count} תמונות" if photo_count else "אין תמונות"}[lang]
+                      "he": f"{photo_count} תמונות" if photo_count else "אין תמונות"}, lang)
 
         summary_title = _step_text(context, "📋 Проверьте объявление:", "📋 Review your listing:", "📋 בדוק את המודעה:")
         owner_name = d.get("owner_name", "")
@@ -1249,8 +1257,19 @@ class ListingHandler:
         return ConversationHandler.END
 
     async def cancel(self, update, context):
+        from keyboards import main_menu_keyboard
+        from formatters import format_welcome
         if update.callback_query:
             await update.callback_query.answer()
+        if update.message:
+            await update.message.reply_text(
+                format_welcome(update.effective_user.first_name, context),
+                reply_markup=main_menu_keyboard(context),
+                parse_mode="HTML",
+            )
+        # Очищаем недопечатанное добавление
+        for k in ("new_listing", "add_state", "edit_listing"):
+            context.user_data.pop(k, None)
         return ConversationHandler.END
 
 
@@ -1363,11 +1382,11 @@ async def _send_welcome_message(context, user_id: int, listing: dict, listing_id
         "he": f"🏠 המודעה #{listing_id} פורסמה — FlatFinderIL",
     }.get(lang, f"🏠 Listing #{listing_id} published — FlatFinderIL")
 
-    greeting = {
+    greeting = _L({
         "ru": f"{'Здравствуйте, ' + name + '!' if name else 'Здравствуйте!'}",
         "en": f"{'Hello, ' + name + '!' if name else 'Hello!'}",
         "he": f"{'שלום, ' + name + '!' if name else 'שלום!'}",
-    }[lang]
+    }, lang)
 
     if is_agent:
         body_text = {

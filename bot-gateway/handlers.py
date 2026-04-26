@@ -21,7 +21,10 @@ from keyboards import (
 import cryptopay
 from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
-from subscription import has_access, activate_subscription, get_status_text, is_trial_active, PLANS
+from subscription import (
+    has_access, activate_subscription, get_status_text, is_trial_active, PLANS,
+    days_left_trial, get_trial_warning, TRIAL_WARNING_THRESHOLDS,
+)
 from analytics import track_user, track_subscription, track_member, get_member_count
 from display_utils import display_listing
 import database as db
@@ -67,8 +70,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.pop("search_filters", None)
     context.user_data.pop("results", None)
     track_user(user.id, context.user_data.get("lang", "ru"), first_name=user.first_name, last_name=user.last_name, username=user.username)
+
+    welcome_text = format_welcome(user.first_name, context)
+    # Прикрепляем баннер о скором окончании триала, если осталось ≤7 дней
+    try:
+        days = days_left_trial()
+        if days <= max(TRIAL_WARNING_THRESHOLDS) and not has_access(user.id) or (is_trial_active() and days <= max(TRIAL_WARNING_THRESHOLDS)):
+            lang = context.user_data.get("lang", "ru")
+            from subscription import get_expiry
+            from datetime import datetime as _dt
+            paid = get_expiry(user.id, "main")
+            # Показываем только если нет активной платной подписки
+            if not (paid and paid > _dt.now()):
+                banner = get_trial_warning(lang, days)
+                welcome_text = banner + "\n\n" + welcome_text
+    except Exception:
+        pass
+
     await update.message.reply_text(
-        format_welcome(user.first_name, context),
+        welcome_text,
         reply_markup=main_menu_keyboard(context),
         parse_mode="HTML"
     )
@@ -1061,7 +1081,41 @@ async def handle_successful_payment(update: Update, context: ContextTypes.DEFAUL
             parse_mode="HTML",
         )
     except Exception as e:
-        await update.message.reply_text("✅ Оплата получена! Свяжитесь с поддержкой для активации.")
+        # CRITICAL: оплата прошла, но активация подписки упала
+        charge_id = (payment.telegram_payment_charge_id if payment else None) or "—"
+        logger.error(
+            f"[PAYMENT][CRITICAL] activate_subscription FAILED after successful payment: "
+            f"uid={user_id} payload={payment.invoice_payload!r} "
+            f"amount={payment.total_amount} charge_id={charge_id} error={e!r}"
+        )
+        # Уведомляем админов
+        try:
+            for admin_username in ADMIN_USERNAMES:
+                pass  # username->id mapping unknown, fallback only via logs
+        except Exception:
+            pass
+        msgs = {
+            "ru": (
+                "⚠️ <b>Оплата получена, но не удалось активировать подписку.</b>\n\n"
+                f"Charge ID: <code>{charge_id}</code>\n"
+                "Сохраните это сообщение и напишите в поддержку — подписка будет активирована вручную в течение часа."
+            ),
+            "en": (
+                "⚠️ <b>Payment received but subscription activation failed.</b>\n\n"
+                f"Charge ID: <code>{charge_id}</code>\n"
+                "Save this message and contact support — subscription will be activated manually within an hour."
+            ),
+            "he": (
+                "⚠️ <b>התשלום התקבל אך הפעלת המנוי נכשלה.</b>\n\n"
+                f"Charge ID: <code>{charge_id}</code>\n"
+                "שמרו הודעה זו ופנו לתמיכה — המנוי יופעל ידנית תוך שעה."
+            ),
+        }
+        await update.message.reply_text(
+            msgs.get(lang, msgs["ru"]),
+            reply_markup=back_to_menu_keyboard(context),
+            parse_mode="HTML",
+        )
 
 
 # ── Admin test command ─────────────────────────────────────────────────────────

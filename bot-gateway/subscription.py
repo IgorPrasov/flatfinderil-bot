@@ -34,11 +34,19 @@ def _get_expiry_from_db(user_id: int, plan_type: str = "main"):
 
 
 def _save_expiry_to_db(user_id: int, expiry: datetime, plan_type: str = "main"):
-    """Сохраняет дату окончания подписки в БД."""
+    """Сохраняет дату окончания подписки в БД. Кидает исключение при ошибке (не глушим — оплата уже прошла)."""
+    import logging
+    log = logging.getLogger(__name__)
     try:
         db.set_user_paid_subscription(user_id, plan_type, expiry.isoformat())
-    except Exception:
-        pass
+        log.info(f"[SUB] Saved subscription user={user_id} plan={plan_type} expiry={expiry.isoformat()}")
+    except Exception as e:
+        # КРИТИЧНО: оплата прошла, но сохранение не удалось — логируем громко
+        log.error(
+            f"[SUB][CRITICAL] Failed to save subscription for paid user! "
+            f"user={user_id} plan={plan_type} expiry={expiry.isoformat()} error={e!r}"
+        )
+        raise
 
 
 def has_access(user_id: int) -> bool:
@@ -98,6 +106,74 @@ def days_left_trial() -> int:
     """Сколько дней осталось в тестовом периоде."""
     delta = TRIAL_END_DATE - datetime.now()
     return max(0, delta.days)
+
+
+# Пороги для предупреждений (в днях до окончания триала)
+TRIAL_WARNING_THRESHOLDS = [7, 3, 1, 0]
+
+
+def get_trial_warning(lang: str, days: int) -> str:
+    """Текст предупреждения о скором окончании триала. Используется и в /start, и в push-уведомлениях."""
+    end_str = TRIAL_END_DATE.strftime("%d.%m.%Y")
+    if days <= 0:
+        # Триал уже закончился (или последний день)
+        if lang == "ru":
+            return (
+                "⚠️ <b>Бесплатный период закончился!</b>\n"
+                "Чтобы продолжить пользоваться полным функционалом, оформите подписку.\n"
+                "Открыть тарифы: меню → 💎 Подписка"
+            )
+        elif lang == "en":
+            return (
+                "⚠️ <b>Free period has ended!</b>\n"
+                "To continue using full features, please subscribe.\n"
+                "Open plans: menu → 💎 Subscription"
+            )
+        elif lang == "he":
+            return (
+                "⚠️ <b>תקופת הניסיון הסתיימה!</b>\n"
+                "כדי להמשיך להשתמש בפונקציונליות המלאה, יש להירשם.\n"
+                "פתיחת תוכניות: תפריט → 💎 מנוי"
+            )
+        elif lang == "fr":
+            return (
+                "⚠️ <b>La période gratuite est terminée !</b>\n"
+                "Pour continuer à utiliser toutes les fonctionnalités, abonnez-vous.\n"
+                "Ouvrir les forfaits : menu → 💎 Abonnement"
+            )
+    if lang == "ru":
+        return (
+            f"⏰ <b>Бесплатный период скоро закончится!</b>\n"
+            f"Осталось <b>{days} дн.</b> (до {end_str}).\n"
+            f"Оформите подписку, чтобы не потерять доступ к полному функционалу.\n"
+            f"Открыть тарифы: меню → 💎 Подписка"
+        )
+    elif lang == "en":
+        return (
+            f"⏰ <b>Free period is ending soon!</b>\n"
+            f"<b>{days} days</b> left (until {end_str}).\n"
+            f"Subscribe to keep full access.\n"
+            f"Open plans: menu → 💎 Subscription"
+        )
+    elif lang == "he":
+        return (
+            f"⏰ <b>תקופת הניסיון מסתיימת בקרוב!</b>\n"
+            f"נותרו <b>{days} ימים</b> (עד {end_str}).\n"
+            f"הירשמו כדי לשמור על גישה מלאה.\n"
+            f"פתיחת תוכניות: תפריט → 💎 מנוי"
+        )
+    elif lang == "fr":
+        return (
+            f"⏰ <b>La période gratuite se termine bientôt !</b>\n"
+            f"Il reste <b>{days} jours</b> (jusqu'au {end_str}).\n"
+            f"Abonnez-vous pour garder l'accès complet.\n"
+            f"Ouvrir les forfaits : menu → 💎 Abonnement"
+        )
+    # fallback на русский
+    return (
+        f"⏰ <b>Бесплатный период скоро закончится!</b>\n"
+        f"Осталось <b>{days} дн.</b> (до {end_str})."
+    )
 
 
 def get_status_text(user_id: int, lang: str) -> str:

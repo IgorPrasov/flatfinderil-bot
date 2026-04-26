@@ -42,6 +42,7 @@ class CommercialHandler:
             fallbacks=[
                 CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),
                 CommandHandler("start", self.cancel),
+                CommandHandler("cancel", self.cancel),
             ],
             per_message=False, allow_reentry=True,
         )
@@ -201,13 +202,13 @@ class CommercialHandler:
     async def cancel(self, update, context):
         from keyboards import main_menu_keyboard
         from formatters import format_welcome
+        text = format_welcome(update.effective_user.first_name, context)
+        kb = main_menu_keyboard(context)
         query = update.callback_query
         if query:
             await query.answer()
-            user = update.effective_user
-            await query.edit_message_text(
-                format_welcome(user.first_name, context),
-                reply_markup=main_menu_keyboard(context),
-                parse_mode="HTML"
-            )
+            await query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+        elif update.message:
+            await update.message.reply_text(text, reply_markup=kb, parse_mode="HTML")
+        context.user_data.pop("comm_filters", None)
         return ConversationHandler.END

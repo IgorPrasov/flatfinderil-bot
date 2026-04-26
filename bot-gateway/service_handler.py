@@ -4,6 +4,14 @@ from i18n import get_lang
 import database as db
 
 # States
+
+def _L(d, lang):
+    """Безопасный выбор перевода: lang → en → ru → первый доступный."""
+    if not isinstance(d, dict):
+        return str(d)
+    return d.get(lang) or d.get("en") or d.get("ru") or next(iter(d.values()), "")
+
+
 (
     SVC_MENU, SVC_REGION, SVC_CITY, SVC_RESULTS,
     ADD_SVC_TYPE, ADD_SVC_REGION, ADD_SVC_CITY, ADD_SVC_PRICE, ADD_SVC_DESC, ADD_SVC_NAME, ADD_SVC_PHONE, ADD_SVC_EMAIL, ADD_SVC_CONFIRM
@@ -38,17 +46,17 @@ REGION_DISTRICTS = {
 
 def _t(ctx, ru, en, he):
     lang = get_lang(ctx)
-    return {"ru": ru, "en": en, "he": he}.get(lang, ru)
+    return _L({"ru": ru, "en": en, "he": he}, lang)
 
 
 def _lbl(ctx, key, mapping):
     lang = get_lang(ctx)
-    return mapping[key].get(lang, mapping[key]["ru"])
+    return _L(mapping.get(key, {}), lang)
 
 
 def _back_kb(ctx):
     lang = get_lang(ctx)
-    back = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[lang]
+    back = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
     return InlineKeyboardMarkup([[InlineKeyboardButton(back, callback_data="back_to_menu")]])
 
 
@@ -56,9 +64,9 @@ def _services_menu_kb(ctx):
     lang = get_lang(ctx)
     rows = []
     for key, names in SERVICE_TYPES.items():
-        rows.append([InlineKeyboardButton(names[lang], callback_data=f"svc_type_{key}")])
-    add_label = {"ru": "➕ Разместить услугу", "en": "➕ Add service", "he": "➕ הוסף שירות"}[lang]
-    back_label = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[lang]
+        rows.append([InlineKeyboardButton(_L(names, lang), callback_data=f"svc_type_{key}")])
+    add_label = _L({"ru": "➕ Разместить услугу", "en": "➕ Add service", "he": "➕ הוסף שירות"}, lang)
+    back_label = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
     rows.append([InlineKeyboardButton(add_label, callback_data="svc_add")])
     rows.append([InlineKeyboardButton(back_label, callback_data="back_to_menu")])
     return InlineKeyboardMarkup(rows)
@@ -66,9 +74,9 @@ def _services_menu_kb(ctx):
 
 def _region_kb(ctx, prefix):
     lang = get_lang(ctx)
-    rows = [[InlineKeyboardButton(REGIONS[r][lang], callback_data=f"{prefix}_{r}")] for r in REGIONS]
-    all_label = {"ru": "🌍 Вся страна", "en": "🌍 All country", "he": "🌍 כל הארץ"}[lang]
-    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    rows = [[InlineKeyboardButton(_L(REGIONS[r], lang), callback_data=f"{prefix}_{r}")] for r in REGIONS]
+    all_label = _L({"ru": "🌍 Вся страна", "en": "🌍 All country", "he": "🌍 כל הארץ"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     rows.append([InlineKeyboardButton(all_label, callback_data=f"{prefix}_all")])
     rows.append([InlineKeyboardButton(back_label, callback_data="svc_back")])
     return InlineKeyboardMarkup(rows)
@@ -76,18 +84,18 @@ def _region_kb(ctx, prefix):
 
 def _add_type_kb(ctx):
     lang = get_lang(ctx)
-    rows = [[InlineKeyboardButton(names[lang], callback_data=f"addsvc_type_{key}")]
+    rows = [[InlineKeyboardButton(_L(names, lang), callback_data=f"addsvc_type_{key}")]
             for key, names in SERVICE_TYPES.items()]
-    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     rows.append([InlineKeyboardButton(back_label, callback_data="back_to_menu")])
     return InlineKeyboardMarkup(rows)
 
 
 def _add_region_kb(ctx):
     lang = get_lang(ctx)
-    rows = [[InlineKeyboardButton(REGIONS[r][lang], callback_data=f"addsvc_region_{r}")] for r in REGIONS]
-    all_label = {"ru": "🌍 Вся страна", "en": "🌍 All country", "he": "🌍 כל הארץ"}[lang]
-    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    rows = [[InlineKeyboardButton(_L(REGIONS[r], lang), callback_data=f"addsvc_region_{r}")] for r in REGIONS]
+    all_label = _L({"ru": "🌍 Вся страна", "en": "🌍 All country", "he": "🌍 כל הארץ"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     rows.append([InlineKeyboardButton(all_label, callback_data="addsvc_region_all")])
     rows.append([InlineKeyboardButton(back_label, callback_data="svc_back")])
     return InlineKeyboardMarkup(rows)
@@ -105,8 +113,8 @@ def _city_kb(ctx, region, prefix):
             row = []
     if row:
         rows.append(row)
-    all_label = {"ru": "🌍 Весь район", "en": "🌍 All region", "he": "🌍 כל האזור"}[lang]
-    back_label = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    all_label = _L({"ru": "🌍 Весь район", "en": "🌍 All region", "he": "🌍 כל האזור"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     rows.append([InlineKeyboardButton(all_label, callback_data=f"{prefix}_all")])
     rows.append([InlineKeyboardButton(back_label, callback_data="svc_back")])
     return InlineKeyboardMarkup(rows)
@@ -114,14 +122,14 @@ def _city_kb(ctx, region, prefix):
 
 def _back_step_kb(ctx):
     lang = get_lang(ctx)
-    back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[lang]
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
     return InlineKeyboardMarkup([[InlineKeyboardButton(back, callback_data="svc_back")]])
 
 
 def _confirm_kb(ctx):
     lang = get_lang(ctx)
-    pub = {"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם"}[lang]
-    cancel = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}[lang]
+    pub = _L({"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם"}, lang)
+    cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(pub, callback_data="addsvc_confirm_yes")],
         [InlineKeyboardButton(cancel, callback_data="back_to_menu")],
@@ -221,6 +229,8 @@ class ServiceHandler:
             },
             fallbacks=[
                 CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),
+                CommandHandler("cancel", self.cancel),
+                CommandHandler("start", self.cancel),
             ],
             per_message=False, allow_reentry=True,
         )
@@ -243,7 +253,7 @@ class ServiceHandler:
         svc_type = query.data.replace("svc_type_", "")
         context.user_data["svc"]["type"] = svc_type
         lang = get_lang(context)
-        type_label = SERVICE_TYPES[svc_type][lang]
+        type_label = _L(SERVICE_TYPES[svc_type], lang)
         await query.edit_message_text(
             f"✅ <b>{type_label}</b>\n\n" + _t(context, "Выберите район:", "Select region:", "בחר אזור:"),
             reply_markup=_region_kb(context, "svc_region"),
@@ -257,9 +267,9 @@ class ServiceHandler:
         region = query.data.replace("svc_region_", "")
         context.user_data["svc"]["region"] = region
         lang = get_lang(context)
-        region_label = REGIONS.get(region, {}).get(lang, region) if region != "all" else {
+        region_label = REGIONS.get(region, {}).get(lang, region) if region != "all" else _L({
             "ru": "Вся страна", "en": "All country", "he": "כל הארץ"
-        }[lang]
+        }, lang)
         if region == "all":
             # Skip city selection, search all
             context.user_data["svc"]["city"] = "all"
@@ -320,8 +330,8 @@ class ServiceHandler:
         if idx < len(results) - 1:
             nav_buttons.append(InlineKeyboardButton("▶️", callback_data="svc_next"))
 
-        order_label = {"ru": "✅ Заказать", "en": "✅ Order", "he": "✅ להזמין"}[lang]
-        back_label  = {"ru": "🏠 Меню",    "en": "🏠 Menu",  "he": "🏠 תפריט"}[lang]
+        order_label = _L({"ru": "✅ Заказать", "en": "✅ Order", "he": "✅ להזמין"}, lang)
+        back_label  = _L({"ru": "🏠 Меню",    "en": "🏠 Menu",  "he": "🏠 תפריט"}, lang)
         sid = s.get("id", "")
         rows = []
         if nav_buttons:
@@ -402,7 +412,7 @@ class ServiceHandler:
             "en": f"✅ Request sent!\n\nProvider <b>{s.get('owner_name','')}</b> has been notified and will contact you.\n📞 {owner_phone}" if owner_phone else "✅ Request sent to provider!",
             "he": f"✅ הבקשה נשלחה!\n\n<b>{s.get('owner_name','')}</b> קיבל הודעה ויצור איתך קשר.\n📞 {owner_phone}" if owner_phone else "✅ הבקשה נשלחה!",
         }.get(lang, "✅ Order sent!")
-        back_label = {"ru": "🏠 Меню", "en": "🏠 Menu", "he": "🏠 תפריט"}[lang]
+        back_label = _L({"ru": "🏠 Меню", "en": "🏠 Menu", "he": "🏠 תפריט"}, lang)
         kb = InlineKeyboardMarkup([[InlineKeyboardButton(back_label, callback_data="back_to_menu")]])
         await query.edit_message_text(confirm_text, reply_markup=kb, parse_mode="HTML")
         return SVC_RESULTS
@@ -427,7 +437,7 @@ class ServiceHandler:
         svc_type = query.data.replace("addsvc_type_", "")
         context.user_data["add_svc"]["service_type"] = svc_type
         lang = get_lang(context)
-        label = SERVICE_TYPES[svc_type][lang]
+        label = _L(SERVICE_TYPES[svc_type], lang)
         await query.edit_message_text(f"✅ {label}\n\n" + _t(context, "Выберите район работы:", "Select work region:", "בחר אזור עבודה:"),
                                       reply_markup=_add_region_kb(context), parse_mode="HTML")
         return ADD_SVC_REGION
@@ -505,7 +515,7 @@ class ServiceHandler:
             existing = db.get_service_email(user.id if user else None)
             hint = ""
             if existing:
-                hint = {"ru": f"\n(сохранён: {existing})", "en": f"\n(saved: {existing})", "he": f"\n(שמור: {existing})"}[lang]
+                hint = _L({"ru": f"\n(сохранён: {existing})", "en": f"\n(saved: {existing})", "he": f"\n(שמור: {existing})"}, lang)
             email_text = _t(context,
                 f"📧 Email для еженедельных отчётов о просмотрах:{hint}\n\n<i>Отчёт приходит каждое воскресенье в 10:00</i>",
                 f"📧 Email for weekly view reports:{hint}\n\n<i>Report arrives every Sunday at 10:00</i>",
@@ -654,11 +664,11 @@ class ServiceHandler:
     async def cancel(self, update, context):
         from keyboards import main_menu_keyboard
         from formatters import format_welcome
-        query = update.callback_query
-        await query.answer()
-        await query.edit_message_text(
-            format_welcome(update.effective_user.first_name, context),
-            reply_markup=main_menu_keyboard(context),
-            parse_mode="HTML"
-        )
+        text = format_welcome(update.effective_user.first_name, context)
+        kb = main_menu_keyboard(context)
+        if update.callback_query:
+            await update.callback_query.answer()
+            await update.callback_query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+        elif update.message:
+            await update.message.reply_text(text, reply_markup=kb, parse_mode="HTML")
         return ConversationHandler.END

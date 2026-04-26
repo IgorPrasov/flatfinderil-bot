@@ -133,6 +133,7 @@ class SearchHandler:
             fallbacks=[
                 CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),
                 CommandHandler("start", self.cancel),
+                CommandHandler("cancel", self.cancel),
             ],
             per_message=False, allow_reentry=True,
         )

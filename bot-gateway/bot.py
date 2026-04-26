@@ -125,6 +125,17 @@ def main():
     from telegram.ext import TypeHandler
     app.add_handler(TypeHandler(Update, _debug_all_updates), group=-2)
 
+    # Global /cancel — works inside conversations (via fallbacks) and outside (returns to main menu)
+    async def _cancel_global(update: Update, context):
+        from keyboards import main_menu_keyboard
+        from formatters import format_welcome
+        if update.message:
+            await update.message.reply_text(
+                format_welcome(update.effective_user.first_name, context),
+                reply_markup=main_menu_keyboard(context),
+                parse_mode="HTML",
+            )
+    app.add_handler(CommandHandler("cancel", _cancel_global))
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("search", search.start_search))
     app.add_handler(CommandHandler("listings", my_listings))
@@ -436,6 +447,12 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             if method == "PATCH" and rid:
                 fields = self._read_body(); fields.pop("id",None)
                 return self._send_json({"ok": db.update_service(rid,fields)})
+            if method == "POST":
+                b = self._read_body()
+                b.setdefault("active", True)
+                b.setdefault("source", "backoffice")
+                sid = db.add_service(b)
+                return self._send_json({"ok": True, "id": sid})
             if method == "DELETE" and rid:
                 return self._send_json({"ok": db.delete_service(rid)})
 
@@ -773,7 +790,12 @@ web_thread.start()
 
 # Start news refresh loop (fetches RSS every 60 min)
 try:
-    from news_fetcher import start_news_refresh_loop
+    from news_fetcher import start_news_refresh_loop, fetch_all_news, CACHE_FILE
+    import os as _os
+    # Delete stale cache so first fetch runs immediately with new sources
+    if _os.path.exists(CACHE_FILE):
+        _os.remove(CACHE_FILE)
+        logger.info("News cache cleared — will refetch on first request")
     start_news_refresh_loop()
 except Exception as _ne:
     logger.warning(f"News fetcher not started: {_ne}")
