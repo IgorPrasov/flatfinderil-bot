@@ -12,13 +12,9 @@ CRYPTOPAY_TOKEN = os.environ.get("CRYPTOPAY_TOKEN", "")
 _TESTNET = os.environ.get("CRYPTOPAY_TESTNET", "").lower() in ("1", "true", "yes")
 CRYPTOPAY_BASE = "https://testnet-pay.crypt.bot/api" if _TESTNET else "https://pay.crypt.bot/api"
 
-# USD prices for crypto payments (ILS equivalent)
-# week=19.90₪≈$5.50  two_weeks=29.90₪≈$8.00  month=39.90₪≈$11.00
-CRYPTO_PRICES_USD = {
-    "week":       "5.50",
-    "two_weeks":  "8.00",
-    "month":      "11.00",
-}
+# USD prices for crypto payments (ILS equivalent). Single source of truth lives
+# in config.py and is overridable via env vars (SUB_PRICE_*_USD).
+from config import PLAN_PRICES_USD as CRYPTO_PRICES_USD  # noqa: E402  (re-export)
 
 SUPPORTED_ASSETS = ["USDT", "TON", "BTC", "ETH"]
 

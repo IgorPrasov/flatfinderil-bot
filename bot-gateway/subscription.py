@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import database as db
+from config import PLAN_PRICES_ILS, PLAN_DAYS, PLAN_STARS
 
 # Тестовый период — бесплатно для всех до 15 мая 2026
 TRIAL_END_DATE = datetime(2026, 5, 15)
@@ -7,12 +8,18 @@ TRIAL_END_DATE = datetime(2026, 5, 15)
 # Лимит бесплатного поиска после окончания триала
 FREE_SEARCH_LIMIT = 3
 
-# Планы подписки
+# Планы подписки. Цены/длительность/Stars приходят из config (и могут быть
+# переопределены через ENV без правок кода). Имена остаются человекочитаемыми
+# здесь, чтобы не размазывать локализацию по нескольким файлам.
 PLANS = {
-    "week":         {"name_ru": "1 неделя",              "name_en": "1 week",           "name_he": "שבוע 1",          "days": 7,  "price": 19.90},
-    "two_weeks":    {"name_ru": "2 недели",               "name_en": "2 weeks",          "name_he": "2 שבועות",        "days": 14, "price": 29.90},
-    "month":        {"name_ru": "1 месяц",                "name_en": "1 month",          "name_he": "חודש 1",          "days": 30, "price": 39.90},
-    "search_alert": {"name_ru": "🔔 Подписка на поиск",  "name_en": "🔔 Search alerts", "name_he": "🔔 התראות חיפוש", "days": 7,  "price": 39.90},
+    "week":         {"name_ru": "1 неделя",              "name_en": "1 week",           "name_he": "שבוע 1",
+                     "days":  PLAN_DAYS["week"],         "price": PLAN_PRICES_ILS["week"],         "stars": PLAN_STARS["week"]},
+    "two_weeks":    {"name_ru": "2 недели",               "name_en": "2 weeks",          "name_he": "2 שבועות",
+                     "days":  PLAN_DAYS["two_weeks"],    "price": PLAN_PRICES_ILS["two_weeks"],    "stars": PLAN_STARS["two_weeks"]},
+    "month":        {"name_ru": "1 месяц",                "name_en": "1 month",          "name_he": "חודש 1",
+                     "days":  PLAN_DAYS["month"],        "price": PLAN_PRICES_ILS["month"],        "stars": PLAN_STARS["month"]},
+    "search_alert": {"name_ru": "🔔 Подписка на поиск",  "name_en": "🔔 Search alerts", "name_he": "🔔 התראות חיפוש",
+                     "days":  PLAN_DAYS["search_alert"], "price": PLAN_PRICES_ILS["search_alert"], "stars": PLAN_STARS["search_alert"]},
 }
 
 

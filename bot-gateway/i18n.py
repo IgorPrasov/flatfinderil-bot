@@ -15,6 +15,12 @@ TRANSLATIONS = {
         "fr": "🔔 Rejoindre la communauté",
     },
     "choose_language": {"ru":"🌐 Выберите язык / Choose language / בחר שפה","en":"🌐 Choose language / Выберите язык / בחר שפה","he":"🌐 בחר שפה / Choose language / Выберите язык","fr":"🌐 Choisissez votre langue / Choose language / Выберите язык"},
+    "orphan_callback": {
+        "ru": "⚠️ Эта кнопка устарела (бот был обновлён). Возвращаю в главное меню — попробуйте заново.",
+        "en": "⚠️ This button is outdated (the bot was updated). Returning to the main menu — please try again.",
+        "he": "⚠️ הכפתור הזה כבר לא בתוקף (הבוט עודכן). חוזרים לתפריט הראשי — נסו שוב.",
+        "fr": "⚠️ Ce bouton est obsolète (le bot a été mis à jour). Retour au menu principal — réessayez.",
+    },
     "welcome": {"ru":"🇮🇱 <b>Добро пожаловать, {name}!</b>\n\nЯ помогу вам найти недвижимость в Израиле 🏠\n\n<b>Что я умею:</b>\n🔍 Поиск по фильтрам\n🏊 Фильтр по бассейну\n🚗 Фильтр по парковке\n🏘 Класс жилья\n🏙 Инфраструктура района\n❤️ Избранное\n➕ Добавление объявлений\n\nВыберите действие:","en":"🇮🇱 <b>Welcome, {name}!</b>\n\nI will help you find real estate in Israel 🏠\n\n<b>What I can do:</b>\n🔍 Search with filters\n🏊 Pool filter\n🚗 Parking filter\n🏘 Property class\n🏙 Neighborhood infrastructure\n❤️ Favorites\n➕ Add listings\n\nChoose an action:","he":"🇮🇱 <b>ברוך הבא, {name}!</b>\n\nאני אעזור לך למצוא נדל\"ן בישראל 🏠\n\n<b>מה אני יכול לעשות:</b>\n🔍 חיפוש עם פילטרים\n🏊 סינון לפי בריכה\n🚗 סינון לפי חניה\n🏘 סוג נכס\n🏙 תשתיות שכונה\n❤️ מועדפים\n➕ הוספת מודעות\n\nבחר פעולה:","fr":"🇮🇱 <b>Bienvenue, {name} !</b>\n\nJe vous aiderai à trouver un bien immobilier en Israël 🏠\n\n<b>Ce que je peux faire :</b>\n🔍 Recherche avec filtres\n🏊 Filtre piscine\n🚗 Filtre parking\n🏘 Type de bien\n🏙 Infrastructure du quartier\n❤️ Favoris\n➕ Ajouter des annonces\n\nChoisissez une action :"},
     "btn_search": {"ru":"🔍 Найти жильё","en":"🔍 Find property","he":"🔍 חפש נכס","fr":"🔍 Trouver un logement"},
     "btn_favorites": {"ru":"❤️ Избранное","en":"❤️ Favorites","he":"❤️ מועדפים","fr":"❤️ Favoris"},

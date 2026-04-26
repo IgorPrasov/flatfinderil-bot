@@ -162,14 +162,16 @@ class Handler(BaseHTTPRequestHandler):
                 import sys
                 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
                 import bot_map_pdf
-                pdf_bytes = bot_map_pdf.generate()
+                pdf_bytes, mime, fname = bot_map_pdf.generate_safe()
                 self.send_response(200)
-                self.send_header("Content-Type", "application/pdf")
-                self.send_header("Content-Disposition", "attachment; filename=FlatFinderIL_Bot_Map.pdf")
+                self.send_header("Content-Type", mime)
+                self.send_header("Content-Disposition",
+                                 f"attachment; filename={fname}")
                 self.send_header("Content-Length", len(pdf_bytes))
                 self.end_headers()
                 self.wfile.write(pdf_bytes)
             except Exception as e:
+                # generate_safe() should never raise, but be defensive.
                 body = f"PDF generation error: {e}".encode()
                 self.send_response(500)
                 self.send_header("Content-Type", "text/plain")

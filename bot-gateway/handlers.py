@@ -190,7 +190,8 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lang = get_lang(context)
             plan = PLANS[plan_key]
             plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
-            stars = plan.get("stars", 399)
+            from config import SUB_STARS_DEFAULT
+            stars = plan.get("stars", SUB_STARS_DEFAULT)
             chat_id = update.effective_chat.id
             user_id = update.effective_user.id
             payload = f"{plan_key}:{user_id}"
@@ -243,12 +244,13 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="HTML",
             )
         else:
+            from config import PLAN_PRICES_USD
             await query.edit_message_text(
                 "₿ <b>Оплата криптовалютой</b>\n\n"
                 "Выберите тариф:\n"
-                "• Неделя — <b>$5.50</b>\n"
-                "• 2 недели — <b>$8.00</b>\n"
-                "• Месяц — <b>$11.00</b>\n\n"
+                f"• Неделя — <b>${PLAN_PRICES_USD['week']}</b>\n"
+                f"• 2 недели — <b>${PLAN_PRICES_USD['two_weeks']}</b>\n"
+                f"• Месяц — <b>${PLAN_PRICES_USD['month']}</b>\n\n"
                 "💡 Оплата через @CryptoBot — внутри Telegram",
                 reply_markup=crypto_plan_keyboard(context),
                 parse_mode="HTML",
@@ -804,6 +806,44 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             except Exception:
                 pass
+
+    else:
+        # ── Orphan-callback fallback ─────────────────────────────────────
+        # Stale inline buttons (sent before a deploy that changed callback_data)
+        # would otherwise hit no branch, leaving the user with an infinite
+        # spinner. Log it for ops visibility and bring the user back to the
+        # main menu in their language.
+        try:
+            user_id = update.effective_user.id if update.effective_user else "?"
+        except Exception:
+            user_id = "?"
+        logger.warning(
+            "[ORPHAN_CALLBACK] unhandled callback_data=%r user_id=%s",
+            data, user_id,
+        )
+        try:
+            user = update.effective_user
+            first = (user.first_name if user else "") or ""
+            # Replace the old message so the stale buttons don't linger.
+            try:
+                await query.edit_message_text(
+                    f"{t('orphan_callback', context)}\n\n"
+                    f"{format_welcome(first, context)}",
+                    reply_markup=main_menu_keyboard(context),
+                    parse_mode="HTML",
+                )
+            except Exception:
+                # Editing can fail if the message is too old or unchanged;
+                # send a fresh message instead.
+                if query.message:
+                    await query.message.reply_text(
+                        f"{t('orphan_callback', context)}\n\n"
+                        f"{format_welcome(first, context)}",
+                        reply_markup=main_menu_keyboard(context),
+                        parse_mode="HTML",
+                    )
+        except Exception as _orphan_err:
+            logger.error("[ORPHAN_CALLBACK] failed to recover: %s", _orphan_err)
 
 
 async def my_listings(update: Update, context: ContextTypes.DEFAULT_TYPE):

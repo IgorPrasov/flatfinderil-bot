@@ -1,8 +1,11 @@
 """
 Generate FlatFinderIL Bot Map PDF.
 Call generate() -> bytes
+Call generate_safe() -> (bytes, mime_type, filename) — never raises; falls back
+to a minimal stdlib-only PDF if reportlab is unavailable or crashes.
 """
 import io
+import logging
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -464,3 +467,103 @@ def generate() -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
+
+# --- Fallback (stdlib-only) PDF generator ----------------------------------
+
+_FALLBACK_LINES = [
+    "FlatFinderIL Bot - Karta funktsiy",
+    "",
+    "Versiya 1.0  ·  Aprel 2026",
+    "",
+    "Telegram bot dlya poiska i razmeshcheniya",
+    "nedvizhimosti v Izraile.",
+    "",
+    "Klyuchevye funktsii:",
+    "  - Poisk arendy i pokupki s mnogoshagovym filtrom",
+    "  - Razmeshchenie ob'yavleniy s fotografiyami",
+    "  - Izbrannoe i istoriya prosmotrov",
+    "  - Mnogoyazychnyy interfeys (RU / EN / HE / FR)",
+    "  - Tarify, trial, podpiski (Stars + CryptoPay)",
+    "  - Analitika i administrativnaya panel'",
+    "",
+    "Polnaya versiya etogo dokumenta vremenno",
+    "nedostupna - generator otrisovki ne smog",
+    "sobrat' polnyy PDF. Etot fallback soderzhit",
+    "kratkoye opisanie. Poprobuyte pozzhe ili",
+    "obratites' v podderzhku.",
+    "",
+    "Telegram: @FlatFinderIL_Bot",
+]
+
+
+def _build_minimal_pdf(lines):
+    """Build a tiny but valid 1-page PDF using only the standard library.
+
+    Used as a fallback when reportlab is not importable or raises.
+    """
+    # Escape PDF special chars and force latin-1 (ASCII-safe) encoding.
+    def esc(s):
+        return (s.replace("\\", "\\\\")
+                 .replace("(", "\\(")
+                 .replace(")", "\\)"))
+
+    content_ops = ["BT", "/F1 12 Tf", "14 TL", "50 770 Td"]
+    for ln in lines:
+        content_ops.append(f"({esc(ln)}) Tj T*")
+    content_ops.append("ET")
+    content_stream = ("\n".join(content_ops)).encode("latin-1", "replace")
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R "
+        b"/Resources << /Font << /F1 4 0 R >> >> "
+        b"/MediaBox [0 0 612 792] /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length " + str(len(content_stream)).encode() + b" >>\n"
+        b"stream\n" + content_stream + b"\nendstream",
+    ]
+
+    out = bytearray()
+    out += b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n"
+    offsets = []
+    for i, obj in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += f"{i} 0 obj\n".encode()
+        out += obj
+        out += b"\nendobj\n"
+
+    xref_offset = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n".encode()
+    out += b"0000000000 65535 f \n"
+    for off in offsets:
+        out += f"{off:010d} 00000 n \n".encode()
+    out += (f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+            f"startxref\n{xref_offset}\n%%EOF\n").encode()
+
+    return bytes(out)
+
+
+def generate_safe():
+    """Always-succeed wrapper around generate().
+
+    Returns (bytes, mime_type, filename). On reportlab failure (ImportError,
+    runtime error, missing fonts, etc.) returns a minimal stdlib-built PDF
+    with a textual summary so callers can always serve a downloadable file.
+    """
+    log = logging.getLogger(__name__)
+    try:
+        data = generate()
+        if not data or len(data) < 100:
+            raise RuntimeError("generate() returned empty/too-small payload")
+        return data, "application/pdf", "FlatFinderIL_Bot_Map.pdf"
+    except Exception as e:
+        log.warning("[bot_map_pdf] reportlab path failed (%s); using fallback", e)
+        try:
+            data = _build_minimal_pdf(_FALLBACK_LINES)
+            return data, "application/pdf", "FlatFinderIL_Bot_Map_fallback.pdf"
+        except Exception as e2:
+            log.error("[bot_map_pdf] fallback PDF builder also failed: %s", e2)
+            text = "\n".join(_FALLBACK_LINES).encode("utf-8")
+            return text, "text/plain; charset=utf-8", "FlatFinderIL_Bot_Map.txt"

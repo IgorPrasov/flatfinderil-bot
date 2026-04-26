@@ -1,6 +1,71 @@
 import os
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8047585631:AAH9OTvRuJWEMBieIyaZRBPEalOda6nLo0Q")
 
+# ─── Subscription pricing (env-overridable) ─────────────────────────────────
+# Single source of truth for all subscription prices. Values can be overridden
+# by environment variables for staging/A-B testing without a code deploy.
+def _f(env, default):
+    try:
+        return float(os.environ.get(env, default))
+    except (TypeError, ValueError):
+        return float(default)
+
+def _i(env, default):
+    try:
+        return int(os.environ.get(env, default))
+    except (TypeError, ValueError):
+        return int(default)
+
+# Days per plan
+SUB_DAYS_WEEK         = _i("SUB_DAYS_WEEK", 7)
+SUB_DAYS_TWO_WEEKS    = _i("SUB_DAYS_TWO_WEEKS", 14)
+SUB_DAYS_MONTH        = _i("SUB_DAYS_MONTH", 30)
+SUB_DAYS_SEARCH_ALERT = _i("SUB_DAYS_SEARCH_ALERT", 7)
+
+# ILS prices (used for Telegram card / Stars-as-ILS displays)
+SUB_PRICE_WEEK_ILS         = _f("SUB_PRICE_WEEK_ILS", 19.90)
+SUB_PRICE_TWO_WEEKS_ILS    = _f("SUB_PRICE_TWO_WEEKS_ILS", 29.90)
+SUB_PRICE_MONTH_ILS        = _f("SUB_PRICE_MONTH_ILS", 39.90)
+SUB_PRICE_SEARCH_ALERT_ILS = _f("SUB_PRICE_SEARCH_ALERT_ILS", 39.90)
+
+# USD prices for CryptoPay (paid in USDT/TON/BTC/ETH equivalent)
+SUB_PRICE_WEEK_USD      = os.environ.get("SUB_PRICE_WEEK_USD", "5.50")
+SUB_PRICE_TWO_WEEKS_USD = os.environ.get("SUB_PRICE_TWO_WEEKS_USD", "8.00")
+SUB_PRICE_MONTH_USD     = os.environ.get("SUB_PRICE_MONTH_USD", "11.00")
+
+# Telegram Stars amount per plan (XTR currency)
+SUB_STARS_WEEK         = _i("SUB_STARS_WEEK", 399)
+SUB_STARS_TWO_WEEKS    = _i("SUB_STARS_TWO_WEEKS", 399)
+SUB_STARS_MONTH        = _i("SUB_STARS_MONTH", 399)
+SUB_STARS_SEARCH_ALERT = _i("SUB_STARS_SEARCH_ALERT", 399)
+SUB_STARS_DEFAULT      = _i("SUB_STARS_DEFAULT", 399)
+
+# Aggregated dictionaries — preferred for downstream consumers
+PLAN_PRICES_ILS = {
+    "week":         SUB_PRICE_WEEK_ILS,
+    "two_weeks":    SUB_PRICE_TWO_WEEKS_ILS,
+    "month":        SUB_PRICE_MONTH_ILS,
+    "search_alert": SUB_PRICE_SEARCH_ALERT_ILS,
+}
+PLAN_PRICES_USD = {
+    "week":      SUB_PRICE_WEEK_USD,
+    "two_weeks": SUB_PRICE_TWO_WEEKS_USD,
+    "month":     SUB_PRICE_MONTH_USD,
+}
+PLAN_DAYS = {
+    "week":         SUB_DAYS_WEEK,
+    "two_weeks":    SUB_DAYS_TWO_WEEKS,
+    "month":        SUB_DAYS_MONTH,
+    "search_alert": SUB_DAYS_SEARCH_ALERT,
+}
+PLAN_STARS = {
+    "week":         SUB_STARS_WEEK,
+    "two_weeks":    SUB_STARS_TWO_WEEKS,
+    "month":        SUB_STARS_MONTH,
+    "search_alert": SUB_STARS_SEARCH_ALERT,
+}
+
+
 PROPERTY_TYPES = {
     "apartment": "🏢 Квартира",
     "house": "🏠 Дом",
