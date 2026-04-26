@@ -168,12 +168,9 @@ def main():
     # Start weekly email reporter (Sunday 10:00)
     _start_email_scheduler()
 
-    # Start morning digest (every day 09:00 Israel time)
-    try:
-        from morning_digest import schedule_daily_digest
-        schedule_daily_digest(app.bot, hour=9, minute=0)
-    except Exception as _md_err:
-        logger.warning(f"Morning digest scheduler not started: {_md_err}")
+    # Morning digest auto-scheduling DISABLED — available on-demand only via /digest command
+    # (was: schedule_daily_digest(app.bot, hour=9, minute=0))
+    logger.info("Morning digest auto-broadcast is disabled; available via /digest on demand")
 
     # Start Facebook parser if cookies are configured
     if os.environ.get("FB_COOKIES_JSON"):
