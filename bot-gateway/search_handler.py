@@ -25,14 +25,14 @@ from analytics import track_search, track_user
 
 def _price_label(value, deal_type, lang):
     if value == 0:
-        return {"ru": "любая", "en": "any", "he": "כל מחיר"}.get(lang, "any")
+        return {"ru": "любая", "en": "any", "he": "כל מחיר", "fr": "tout"}.get(lang, "any")
     if value >= 999_000_000:
-        return {"ru": "без лимита", "en": "no limit", "he": "ללא הגבלה"}.get(lang)
+        return {"ru": "без лимита", "en": "no limit", "he": "ללא הגבלה", "fr": "sans limite"}.get(lang)
     if deal_type == "rent":
-        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש"}.get(lang, "₪")
+        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש", "fr": "₪/mois"}.get(lang, "₪")
         return f"{value:,} {unit}".replace(",", " ")
     if value >= 1_000_000:
-        mln = {"ru": "млн ₪", "en": "M ₪", "he": "מיל' ₪"}.get(lang)
+        mln = {"ru": "млн ₪", "en": "M ₪", "he": "מיל' ₪", "fr": "M ₪"}.get(lang)
         return f"{value / 1_000_000:.1f} {mln}"
     return f"{value:,} ₪".replace(",", " ")
 
@@ -172,13 +172,13 @@ class SearchHandler:
             return SEARCH_ROOMS_MAX
         elif state == SEARCH_PRICE_MAX:
             options = _get_price_options(deal_type, lang, True)
-            unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש"}.get(lang, "₪")
+            unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש", "fr": "₪/mois"}.get(lang, "₪")
             await query.edit_message_text(t("step_price_min", context, unit=unit), reply_markup=price_keyboard(context, options, "pricemin"), parse_mode="HTML")
             context.user_data["current_state"] = SEARCH_PRICE_MIN
             return SEARCH_PRICE_MIN
         elif state == SEARCH_PARKING:
             options = _get_price_options(deal_type, lang, False)
-            unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש"}.get(lang, "₪")
+            unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש", "fr": "₪/mois"}.get(lang, "₪")
             await query.edit_message_text(t("step_price_max", context, unit=unit), reply_markup=price_keyboard(context, options, "pricemax"), parse_mode="HTML")
             context.user_data["current_state"] = SEARCH_PRICE_MAX
             return SEARCH_PRICE_MAX
@@ -373,7 +373,7 @@ class SearchHandler:
         deal_type = f.get("deal_type", "rent")
         lang = get_lang(context)
         options = _get_price_options(deal_type, lang, True)
-        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש"}.get(lang, "₪")
+        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש", "fr": "₪/mois"}.get(lang, "₪")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=t("step_price_min", context, unit=unit), reply_markup=price_keyboard(context, options, "pricemin"), parse_mode="HTML")
         return SEARCH_PRICE_MIN
 
@@ -388,7 +388,7 @@ class SearchHandler:
         deal_type = f.get("deal_type", "rent")
         lang = get_lang(context)
         options = _get_price_options(deal_type, lang, False)
-        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש"}.get(lang, "₪")
+        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש", "fr": "₪/mois"}.get(lang, "₪")
         min_label = _price_label(val, deal_type, lang)
         await query.edit_message_text("✅ " + _confirmed(context, "Цена от", "Price from", "מחיר מ", min_label), parse_mode="HTML")
         await context.bot.send_message(chat_id=update.effective_chat.id, text=t("step_price_max", context, unit=unit), reply_markup=price_keyboard(context, options, "pricemax"), parse_mode="HTML")
@@ -668,14 +668,14 @@ def _sort_by_proximity(results: list, infra_types: list) -> list:
 
 def _price_label(value, deal_type, lang):
     if value == 0:
-        return {"ru": "любая", "en": "any", "he": "כל מחיר"}.get(lang, "any")
+        return {"ru": "любая", "en": "any", "he": "כל מחיר", "fr": "tout"}.get(lang, "any")
     if value >= 999_000_000:
-        return {"ru": "без лимита", "en": "no limit", "he": "ללא הגבלה"}.get(lang)
+        return {"ru": "без лимита", "en": "no limit", "he": "ללא הגבלה", "fr": "sans limite"}.get(lang)
     if deal_type == "rent":
-        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש"}.get(lang, "₪")
+        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש", "fr": "₪/mois"}.get(lang, "₪")
         return f"{value:,} {unit}".replace(",", " ")
     if value >= 1_000_000:
-        mln = {"ru": "млн ₪", "en": "M ₪", "he": "מיל' ₪"}.get(lang)
+        mln = {"ru": "млн ₪", "en": "M ₪", "he": "מיל' ₪", "fr": "M ₪"}.get(lang)
         return f"{value / 1_000_000:.1f} {mln}"
     return f"{value:,} ₪".replace(",", " ")
 

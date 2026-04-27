@@ -22,21 +22,21 @@ import upload_handler as uploader
 ) = range(23)
 
 PROPERTY_TYPES = {
-    "apartment": {"ru": "🏢 Квартира", "en": "🏢 Apartment", "he": "🏢 דירה"},
-    "house": {"ru": "🏠 Дом", "en": "🏠 House", "he": "🏠 בית"},
-    "villa": {"ru": "🏡 Вилла", "en": "🏡 Villa", "he": "🏡 וילה"},
-    "penthouse": {"ru": "🌆 Пентхаус", "en": "🌆 Penthouse", "he": "🌆 פנטהאוס"},
-    "studio": {"ru": "🛋 Студия", "en": "🛋 Studio", "he": "🛋 סטודיו"},
-    "duplex": {"ru": "🏘 Дуплекс", "en": "🏘 Duplex", "he": "🏘 דופלקס"},
+    "apartment": {"ru": "🏢 Квартира", "en": "🏢 Apartment", "he": "🏢 דירה", "fr": "🏢 Appartement"},
+    "house": {"ru": "🏠 Дом", "en": "🏠 House", "he": "🏠 בית", "fr": "🏠 Maison"},
+    "villa": {"ru": "🏡 Вилла", "en": "🏡 Villa", "he": "🏡 וילה", "fr": "🏡 Villa"},
+    "penthouse": {"ru": "🌆 Пентхаус", "en": "🌆 Penthouse", "he": "🌆 פנטהאוס", "fr": "🌆 Penthouse"},
+    "studio": {"ru": "🛋 Студия", "en": "🛋 Studio", "he": "🛋 סטודיו", "fr": "🛋 Studio"},
+    "duplex": {"ru": "🏘 Дуплекс", "en": "🏘 Duplex", "he": "🏘 דופלקס", "fr": "🏘 Duplex"},
 }
 
 COMMERCIAL_TYPES = {
-    "office": {"ru": "🏢 Офис", "en": "🏢 Office", "he": "🏢 משרד"},
-    "retail": {"ru": "🏪 Магазин/Ретейл", "en": "🏪 Shop/Retail", "he": "🏪 חנות/קמעונאות"},
-    "warehouse": {"ru": "🏭 Склад", "en": "🏭 Warehouse", "he": "🏭 מחסן"},
-    "coworking": {"ru": "💼 Коворкинг", "en": "💼 Coworking", "he": "💼 קוורקינג"},
-    "restaurant_space": {"ru": "🍽 Кафе/Ресторан", "en": "🍽 Cafe/Restaurant", "he": "🍽 קפה/מסעדה"},
-    "other_commercial": {"ru": "🏗 Другое", "en": "🏗 Other", "he": "🏗 אחר"},
+    "office": {"ru": "🏢 Офис", "en": "🏢 Office", "he": "🏢 משרד", "fr": "🏢 Bureau"},
+    "retail": {"ru": "🏪 Магазин/Ретейл", "en": "🏪 Shop/Retail", "he": "🏪 חנות/קמעונאות", "fr": "🏪 Magasin/Commerce"},
+    "warehouse": {"ru": "🏭 Склад", "en": "🏭 Warehouse", "he": "🏭 מחסן", "fr": "🏭 Entrepôt"},
+    "coworking": {"ru": "💼 Коворкинг", "en": "💼 Coworking", "he": "💼 קוורקינג", "fr": "💼 Coworking"},
+    "restaurant_space": {"ru": "🍽 Кафе/Ресторан", "en": "🍽 Cafe/Restaurant", "he": "🍽 קפה/מסעדה", "fr": "🍽 Café/Restaurant"},
+    "other_commercial": {"ru": "🏗 Другое", "en": "🏗 Other", "he": "🏗 אחר", "fr": "🏗 Autre"},
 }
 
 COMMERCIAL_KEYS = list(COMMERCIAL_TYPES.keys())
@@ -63,9 +63,9 @@ def _confirmed(context, ru, en, he, value):
 
 def _seller_type_keyboard(ctx):
     lang = get_lang(ctx)
-    agent   = _L({"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך"}, lang)
-    private = _L({"ru": "👤 Частное лицо",     "en": "👤 Private person",  "he": "👤 אדם פרטי"}, lang)
-    menu    = _L({"ru": "🏠 Главное меню",      "en": "🏠 Main menu",       "he": "🏠 תפריט ראשי"}, lang)
+    agent   = _L({"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך", "fr": "🏢 Agent / Courtier"}, lang)
+    private = _L({"ru": "👤 Частное лицо",     "en": "👤 Private person",  "he": "👤 אדם פרטי", "fr": "👤 Personne privée"}, lang)
+    menu    = _L({"ru": "🏠 Главное меню",      "en": "🏠 Main menu",       "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(agent,   callback_data="add_seller_agent")],
         [InlineKeyboardButton(private, callback_data="add_seller_private")],
@@ -76,10 +76,10 @@ def _seller_type_keyboard(ctx):
 def _agent_method_keyboard(ctx):
     """After agent is selected: choose manual entry or CSV upload."""
     lang = get_lang(ctx)
-    manual   = _L({"ru": "✍️ Добавить вручную",      "en": "✍️ Add manually",      "he": "✍️ הוסף ידנית"}, lang)
-    upload   = _L({"ru": "📤 Загрузить CSV/XLSX",    "en": "📤 Upload CSV/XLSX",    "he": "📤 העלה CSV/XLSX"}, lang)
-    template = _L({"ru": "📄 Скачать шаблон",         "en": "📄 Download template",  "he": "📄 הורד תבנית"}, lang)
-    back     = _L({"ru": "« Назад",                   "en": "« Back",               "he": "« חזרה"}, lang)
+    manual   = _L({"ru": "✍️ Добавить вручную",      "en": "✍️ Add manually",      "he": "✍️ הוסף ידנית", "fr": "✍️ Ajouter manuellement"}, lang)
+    upload   = _L({"ru": "📤 Загрузить CSV/XLSX",    "en": "📤 Upload CSV/XLSX",    "he": "📤 העלה CSV/XLSX", "fr": "📤 Téléverser CSV/XLSX"}, lang)
+    template = _L({"ru": "📄 Скачать шаблон",         "en": "📄 Download template",  "he": "📄 הורד תבנית", "fr": "📄 Télécharger le modèle"}, lang)
+    back     = _L({"ru": "« Назад",                   "en": "« Back",               "he": "« חזרה", "fr": "« Retour"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(manual,   callback_data="add_agent_manual")],
         [InlineKeyboardButton(upload,   callback_data="add_agent_upload")],
@@ -90,12 +90,12 @@ def _agent_method_keyboard(ctx):
 
 def _deal_keyboard(ctx):
     lang = get_lang(ctx)
-    rent = _L({"ru": "🔑 Аренда", "en": "🔑 Rent", "he": "🔑 השכרה"}, lang)
-    buy = _L({"ru": "💰 Продажа", "en": "💰 Sale", "he": "💰 מכירה"}, lang)
-    sublet = _L({"ru": "🔄 Сублет", "en": "🔄 Sublet", "he": "🔄 סאבלט"}, lang)
-    commercial = _L({"ru": "🏢 Коммерческая", "en": "🏢 Commercial", "he": "🏢 מסחרי"}, lang)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
-    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
+    rent = _L({"ru": "🔑 Аренда", "en": "🔑 Rent", "he": "🔑 השכרה", "fr": "🔑 Location"}, lang)
+    buy = _L({"ru": "💰 Продажа", "en": "💰 Sale", "he": "💰 מכירה", "fr": "💰 Vente"}, lang)
+    sublet = _L({"ru": "🔄 Сублет", "en": "🔄 Sublet", "he": "🔄 סאבלט", "fr": "🔄 Sous-location"}, lang)
+    commercial = _L({"ru": "🏢 Коммерческая", "en": "🏢 Commercial", "he": "🏢 מסחרי", "fr": "🏢 Commercial"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
+    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(rent, callback_data="add_deal_rent"),
          InlineKeyboardButton(buy, callback_data="add_deal_buy")],
@@ -116,7 +116,7 @@ def _ptype_keyboard(ctx):
             row = []
     if row:
         buttons.append(row)
-    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
@@ -131,14 +131,14 @@ def _comm_type_keyboard(ctx):
             row = []
     if row:
         buttons.append(row)
-    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
 def _district_keyboard(ctx):
     lang = get_lang(ctx)
     buttons = [[InlineKeyboardButton(get_district_name(k, lang), callback_data=f"add_dist_{k}")] for k in DISTRICT_KEYS]
-    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
@@ -154,7 +154,7 @@ def _city_keyboard(ctx, district):
             row = []
     if row:
         buttons.append(row)
-    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
@@ -170,15 +170,15 @@ def _rooms_keyboard(ctx):
             row = []
     if row:
         buttons.append(row)
-    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     buttons.append([InlineKeyboardButton(back_label, callback_data="add_back")])
     return InlineKeyboardMarkup(buttons)
 
 def _yes_no_keyboard(ctx, prefix):
     lang = get_lang(ctx)
-    yes = _L({"ru": "✅ Есть", "en": "✅ Yes", "he": "✅ יש"}, lang)
-    no = _L({"ru": "❌ Нет", "en": "❌ No", "he": "❌ אין"}, lang)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    yes = _L({"ru": "✅ Есть", "en": "✅ Yes", "he": "✅ יש", "fr": "✅ Oui"}, lang)
+    no = _L({"ru": "❌ Нет", "en": "❌ No", "he": "❌ אין", "fr": "❌ Non"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(yes, callback_data=f"{prefix}_yes"),
          InlineKeyboardButton(no, callback_data=f"{prefix}_no")],
@@ -188,11 +188,11 @@ def _yes_no_keyboard(ctx, prefix):
 def _shelter_keyboard(ctx):
     lang = get_lang(ctx)
     opts = {
-        "mamad": {"ru": "🛡 Мамад", "en": "🛡 Mamad", "he": "🛡 ממ\"ד"},
-        "miklat": {"ru": "🏗 Миклат", "en": "🏗 Miklat", "he": "🏗 מקלט"},
-        "none": {"ru": "❌ Нет", "en": "❌ None", "he": "❌ אין"},
+        "mamad": {"ru": "🛡 Мамад", "en": "🛡 Mamad", "he": "🛡 ממ\"ד", "fr": "🛡 Mamad"},
+        "miklat": {"ru": "🏗 Миклат", "en": "🏗 Miklat", "he": "🏗 מקלט", "fr": "🏗 Miklat"},
+        "none": {"ru": "❌ Нет", "en": "❌ None", "he": "❌ אין", "fr": "❌ Aucun"},
     }
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(_L(opts["mamad"], lang), callback_data="add_shelter_mamad"),
          InlineKeyboardButton(_L(opts["miklat"], lang), callback_data="add_shelter_miklat")],
@@ -205,18 +205,18 @@ def _infra_keyboard(ctx, selected=None):
         selected = []
     lang = get_lang(ctx)
     infra_names = {
-        "school": {"ru": "🏫 Школа", "en": "🏫 School", "he": "🏫 בית ספר"},
-        "kindergarten": {"ru": "🎠 Садик", "en": "🎠 Kindergarten", "he": "🎠 גן ילדים"},
-        "transport": {"ru": "🚌 Транспорт", "en": "🚌 Transport", "he": "🚌 תחבורה"},
-        "mall": {"ru": "🛍 Торг.центр", "en": "🛍 Mall", "he": "🛍 קניון"},
-        "park": {"ru": "🌳 Парк", "en": "🌳 Park", "he": "🌳 פארק"},
-        "gym": {"ru": "💪 Спортзал", "en": "💪 Gym", "he": "💪 חדר כושר"},
-        "beach": {"ru": "🏖 Пляж", "en": "🏖 Beach", "he": "🏖 חוף"},
-        "restaurant": {"ru": "🍽 Рестораны", "en": "🍽 Restaurants", "he": "🍽 מסעדות"},
-        "synagogue": {"ru": "✡️ Синагога", "en": "✡️ Synagogue", "he": "✡️ בית כנסת"},
+        "school": {"ru": "🏫 Школа", "en": "🏫 School", "he": "🏫 בית ספר", "fr": "🏫 École"},
+        "kindergarten": {"ru": "🎠 Садик", "en": "🎠 Kindergarten", "he": "🎠 גן ילדים", "fr": "🎠 École maternelle"},
+        "transport": {"ru": "🚌 Транспорт", "en": "🚌 Transport", "he": "🚌 תחבורה", "fr": "🚌 Transport"},
+        "mall": {"ru": "🛍 Торг.центр", "en": "🛍 Mall", "he": "🛍 קניון", "fr": "🛍 Centre commercial"},
+        "park": {"ru": "🌳 Парк", "en": "🌳 Park", "he": "🌳 פארק", "fr": "🌳 Parc"},
+        "gym": {"ru": "💪 Спортзал", "en": "💪 Gym", "he": "💪 חדר כושר", "fr": "💪 Salle de sport"},
+        "beach": {"ru": "🏖 Пляж", "en": "🏖 Beach", "he": "🏖 חוף", "fr": "🏖 Plage"},
+        "restaurant": {"ru": "🍽 Рестораны", "en": "🍽 Restaurants", "he": "🍽 מסעדות", "fr": "🍽 Restaurants"},
+        "synagogue": {"ru": "✡️ Синагога", "en": "✡️ Synagogue", "he": "✡️ בית כנסת", "fr": "✡️ Synagogue"},
     }
-    done = _L({"ru": "✅ Готово", "en": "✅ Done", "he": "✅ סיום"}, lang)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    done = _L({"ru": "✅ Готово", "en": "✅ Done", "he": "✅ סיום", "fr": "✅ Terminé"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     buttons = []
     row = []
     for key in INFRA_KEYS_ADD:
@@ -239,9 +239,9 @@ def _photos_keyboard(ctx, count):
     if count:
         label = _L({"ru": f"✅ Готово ({count} фото)", "en": f"✅ Done ({count} photos)", "he": f"✅ סיום ({count} תמונות)"}, lang)
     else:
-        label = _L({"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}, lang)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
-    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
+        label = _L({"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג", "fr": "⏭ Passer"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
+    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(label, callback_data="add_photos_done")],
         [InlineKeyboardButton(back, callback_data="add_back"),
@@ -251,9 +251,9 @@ def _photos_keyboard(ctx, count):
 
 def _confirm_keyboard(ctx):
     lang = get_lang(ctx)
-    publish = _L({"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם"}, lang)
-    cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}, lang)
-    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
+    publish = _L({"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם", "fr": "✅ Publier"}, lang)
+    cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול", "fr": "❌ Annuler"}, lang)
+    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(publish, callback_data="add_confirm_yes")],
         [InlineKeyboardButton(cancel, callback_data="add_confirm_no")],
@@ -266,8 +266,8 @@ def _step_text(ctx, ru, en, he):
 
 def _back_kb(ctx):
     lang = get_lang(ctx)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
-    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
+    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(back, callback_data="add_back"),
          InlineKeyboardButton(menu, callback_data="back_to_menu")],
@@ -417,7 +417,7 @@ class ListingHandler:
                     "• חודש — ₪39.90\n"
                     "• 🔔 התראות חיפוש — ₪39.90/חודש"
                 ),
-            }.get(lang, "")
+             "fr": "🔒 <b>Période d'essai terminée</b>\n\nL'ajout d'annonces nécessite un abonnement actif.\n\n• 1 semaine — ₪19,90\n• 2 semaines — ₪29,90 ⭐\n• 1 mois — ₪39,90\n• 🔔 Alertes de recherche — ₪39,90/mois"}.get(lang, "")
             if update.callback_query:
                 await update.callback_query.answer()
                 await update.callback_query.edit_message_text(paywall_text, reply_markup=paywall_keyboard(context), parse_mode="HTML")
@@ -458,7 +458,7 @@ class ListingHandler:
             return ADD_UPLOAD_FILE
 
         # Private person — go straight to deal type
-        label = _L({"ru": "👤 Частное лицо", "en": "👤 Private person", "he": "👤 אדם פרטי"}, lang)
+        label = _L({"ru": "👤 Частное лицо", "en": "👤 Private person", "he": "👤 אדם פרטי", "fr": "👤 Personne privée"}, lang)
         await query.edit_message_text(
             _confirmed(context, "Тип продавца", "Seller type", "סוג המוכר", label),
             parse_mode="HTML"
@@ -527,13 +527,13 @@ class ListingHandler:
                     "כל העמודות חובה — קבצים עם חוסרים נדחים.\n\n"
                     "אין תבנית? לחץ «📄 הורד תבנית»."
                 ),
-            }, lang)
+             "fr": "📤 <b>Téléversement groupé d'annonces</b>\n\nEnvoyez un fichier <b>CSV</b> ou <b>XLSX</b>.\nToutes les colonnes sont obligatoires — les fichiers incomplets sont rejetés.\n\nPas de modèle ? Appuyez sur «📄 Télécharger le modèle»."}, lang)
             await query.edit_message_text(prompt, reply_markup=_agent_method_keyboard(context), parse_mode="HTML")
             return ADD_UPLOAD_FILE
 
         if action == "add_agent_manual":
             lang = get_lang(context)
-            label = _L({"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך"}, lang)
+            label = _L({"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך", "fr": "🏢 Agent / Courtier"}, lang)
             await query.edit_message_text(
                 _confirmed(context, "Тип продавца", "Seller type", "סוג המוכר", label),
                 parse_mode="HTML"
@@ -556,7 +556,7 @@ class ListingHandler:
             await update.message.reply_text(
                 _L({"ru": "❌ Отправьте файл CSV или XLSX.",
                  "en": "❌ Please send a CSV or XLSX file.",
-                 "he": "❌ שלח קובץ CSV או XLSX."}, lang),
+                 "he": "❌ שלח קובץ CSV או XLSX.", "fr": "❌ Veuillez envoyer un fichier CSV ou XLSX."}, lang),
                 reply_markup=_agent_method_keyboard(context)
             )
             return ADD_UPLOAD_FILE
@@ -754,10 +754,10 @@ class ListingHandler:
         context.user_data["add_listing"]["deal_type"] = deal
         context.user_data["add_state"] = ADD_PROPERTY_TYPE
         deal_labels = {
-            "rent": {"ru": "Аренда", "en": "Rent", "he": "השכרה"},
-            "buy": {"ru": "Продажа", "en": "Sale", "he": "מכירה"},
-            "sublet": {"ru": "Сублет", "en": "Sublet", "he": "סאבלט"},
-            "commercial": {"ru": "Коммерческая", "en": "Commercial", "he": "מסחרי"},
+            "rent": {"ru": "Аренда", "en": "Rent", "he": "השכרה", "fr": "Location"},
+            "buy": {"ru": "Продажа", "en": "Sale", "he": "מכירה", "fr": "Vente"},
+            "sublet": {"ru": "Сублет", "en": "Sublet", "he": "סאבלט", "fr": "Sous-location"},
+            "commercial": {"ru": "Коммерческая", "en": "Commercial", "he": "מסחרי", "fr": "Commercial"},
         }
         lang = get_lang(context)
         deal_label = _L(deal_labels.get(deal, deal_labels["rent"]), lang)
@@ -827,7 +827,7 @@ class ListingHandler:
         context.user_data["add_listing"]["map_url"] = map_url
 
         lang = get_lang(context)
-        map_label = {"ru": "🗺 Посмотреть на карте", "en": "🗺 View on map", "he": "🗺 הצג במפה"}.get(lang, "🗺 Map")
+        map_label = {"ru": "🗺 Посмотреть на карте", "en": "🗺 View on map", "he": "🗺 הצג במפה", "fr": "🗺 Voir sur la carte"}.get(lang, "🗺 Map")
         confirmed_text = _confirmed(context, "Адрес", "Address", "כתובת", address)
         await update.message.reply_text(
             f"{confirmed_text}\n\n<a href=\"{map_url}\">{map_label}</a>",
@@ -943,7 +943,7 @@ class ListingHandler:
         shelter = query.data.replace("add_shelter_", "")
         context.user_data["add_listing"]["shelter"] = shelter if shelter != "none" else None
         context.user_data["add_state"] = ADD_ELEVATOR
-        labels = {"mamad": {"ru":"Мамад","en":"Mamad","he":"ממ\"ד"}, "miklat": {"ru":"Миклат","en":"Miklat","he":"מקלט"}, "none": {"ru":"Нет","en":"None","he":"אין"}}
+        labels = {"mamad": {"ru":"Мамад","en":"Mamad","he":"ממ\"ד", "fr": "Mamad"}, "miklat": {"ru":"Миклат","en":"Miklat","he":"מקלט", "fr": "Miklat"}, "none": {"ru":"Нет","en":"None","he":"אין", "fr": "Aucun"}}
         lang = get_lang(context)
         label = _L(labels[shelter], lang)
         await query.edit_message_text(_confirmed(context, "Мамад/Миклат", "Mamad/Miklat", "ממ\"ד/מקלט", label), parse_mode="HTML")
@@ -1079,7 +1079,7 @@ class ListingHandler:
                 hint = ""
             skip_btn = InlineKeyboardMarkup([[
                 InlineKeyboardButton(
-                    _L({"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}, lang),
+                    _L({"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג", "fr": "⏭ Passer"}, lang),
                     callback_data="add_email_skip"
                 )
             ]])
@@ -1109,7 +1109,7 @@ class ListingHandler:
             await update.message.reply_text(
                 _L({"ru": "❌ Неверный формат e-mail. Попробуйте ещё раз или нажмите Пропустить.",
                  "en": "❌ Invalid e-mail format. Try again or press Skip.",
-                 "he": "❌ כתובת אימייל שגויה. נסה שוב או לחץ דלג."}, lang)
+                 "he": "❌ כתובת אימייל שגויה. נסה שוב או לחץ דלג.", "fr": "❌ Format d'e-mail invalide. Réessayez ou appuyez sur Passer."}, lang)
             )
             return ADD_EMAIL
         user_id = update.effective_user.id
@@ -1177,8 +1177,8 @@ class ListingHandler:
         contact = d.get("contact", "")
         seller_type = d.get("seller_type", "private")
         seller_label = {
-            "agent":   {"ru": "🏢 Агент", "en": "🏢 Agent", "he": "🏢 סוכן"},
-            "private": {"ru": "👤 Частное лицо", "en": "👤 Private", "he": "👤 פרטי"},
+            "agent":   {"ru": "🏢 Агент", "en": "🏢 Agent", "he": "🏢 סוכן", "fr": "🏢 Agent"},
+            "private": {"ru": "👤 Частное лицо", "en": "👤 Private", "he": "👤 פרטי", "fr": "👤 Particulier"},
         }.get(seller_type, {}).get(lang, seller_type)
 
         summary = f"""{summary_title}
@@ -1280,10 +1280,10 @@ async def _send_welcome_message(context, user_id: int, listing: dict, listing_id
     import database as db
 
     deal_label = {
-        "rent":       {"ru": "Аренда",       "en": "Rent",       "he": "שכירות"},
-        "buy":        {"ru": "Продажа",       "en": "Sale",       "he": "מכירה"},
-        "sublet":     {"ru": "Сублет",        "en": "Sublet",     "he": "סאבלט"},
-        "commercial": {"ru": "Коммерческая",  "en": "Commercial", "he": "מסחרי"},
+        "rent":       {"ru": "Аренда",       "en": "Rent",       "he": "שכירות", "fr": "Location"},
+        "buy":        {"ru": "Продажа",       "en": "Sale",       "he": "מכירה", "fr": "Vente"},
+        "sublet":     {"ru": "Сублет",        "en": "Sublet",     "he": "סאבלט", "fr": "Sous-location"},
+        "commercial": {"ru": "Коммерческая",  "en": "Commercial", "he": "מסחרי", "fr": "Commercial"},
     }.get(listing.get("deal_type","rent"), {}).get(lang, listing.get("deal_type",""))
 
     name = listing.get("owner_name") or ""
@@ -1418,13 +1418,13 @@ async def _send_welcome_message(context, user_id: int, listing: dict, listing_id
 
     rtl = 'direction:rtl;text-align:right;' if lang == "he" else ''
     header_icon = "🏢" if is_agent else "🏠"
-    platform_sub = {"ru":"Поиск недвижимости в Израиле","en":"Real Estate Search in Israel","he":'חיפוש נדל"ן בישראל'}.get(lang,"")
-    lbl_id    = {"ru":"Номер объявления","en":"Listing ID","he":"מזהה מודעה"}.get(lang,"ID")
-    lbl_city  = {"ru":"Город","en":"City","he":"עיר"}.get(lang,"City")
-    lbl_type  = {"ru":"Тип сделки","en":"Deal type","he":"סוג עסקה"}.get(lang,"Type")
-    lbl_price = {"ru":"Цена","en":"Price","he":"מחיר"}.get(lang,"Price")
-    badge_agent   = {"ru":"🏢 Агент","en":"🏢 Agent","he":"🏢 סוכן"}.get(lang,"")
-    badge_private = {"ru":"👤 Частное лицо","en":"👤 Private","he":"👤 פרטי"}.get(lang,"")
+    platform_sub = {"ru":"Поиск недвижимости в Израиле","en":"Real Estate Search in Israel","he":'חיפוש נדל"ן בישראל', "fr": "Recherche immobilière en Israël"}.get(lang,"")
+    lbl_id    = {"ru":"Номер объявления","en":"Listing ID","he":"מזהה מודעה", "fr": "ID annonce"}.get(lang,"ID")
+    lbl_city  = {"ru":"Город","en":"City","he":"עיר", "fr": "Ville"}.get(lang,"City")
+    lbl_type  = {"ru":"Тип сделки","en":"Deal type","he":"סוג עסקה", "fr": "Type de transaction"}.get(lang,"Type")
+    lbl_price = {"ru":"Цена","en":"Price","he":"מחיר", "fr": "Prix"}.get(lang,"Price")
+    badge_agent   = {"ru":"🏢 Агент","en":"🏢 Agent","he":"🏢 סוכן", "fr": "🏢 Agent"}.get(lang,"")
+    badge_private = {"ru":"👤 Частное лицо","en":"👤 Private","he":"👤 פרטי", "fr": "👤 Particulier"}.get(lang,"")
     seller_badge  = badge_agent if is_agent else badge_private
 
     if is_agent:
@@ -1438,7 +1438,7 @@ async def _send_welcome_message(context, user_id: int, listing: dict, listing_id
             "he": ("<li>תקבל/י דוח שבועי על צפיות לכתובת זו</li>"
                    "<li>נהל/י את המודעה תחת <b>המודעות שלי</b> בבוט</li>"
                    "<li>העלה/י מספר מודעות בבת אחת דרך CSV בלוח הסוכן</li>"),
-        }.get(lang, "")
+         "fr": "<li>Vous recevrez un rapport hebdomadaire des vues à cette adresse</li><li>Gérez votre annonce dans <b>Mes annonces</b> dans le bot</li><li>Téléversez plusieurs annonces à la fois via CSV dans votre espace agent</li>"}.get(lang, "")
     else:
         tips_html = {
             "ru": ("<li>Вы получите уведомление когда кто-то захочет связаться</li>"
@@ -1447,7 +1447,7 @@ async def _send_welcome_message(context, user_id: int, listing: dict, listing_id
                    "<li>Manage your listing in <b>My Listings</b> in the bot</li>"),
             "he": ("<li>תקבל/י התראה כשמישהו ירצה ליצור קשר</li>"
                    "<li>נהל/י את המודעה תחת <b>המודעות שלי</b> בבוט</li>"),
-        }.get(lang, "")
+         "fr": "<li>Vous serez notifié lorsque quelqu'un voudra vous contacter</li><li>Gérez votre annonce dans <b>Mes annonces</b> dans le bot</li>"}.get(lang, "")
 
     html = f"""<!DOCTYPE html>
 <html lang="{lang}">

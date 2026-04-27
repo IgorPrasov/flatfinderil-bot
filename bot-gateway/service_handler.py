@@ -18,15 +18,15 @@ def _L(d, lang):
 ) = range(10, 23)
 
 SERVICE_TYPES = {
-    "moving":   {"ru": "🚚 Перевозки",   "en": "🚚 Moving",   "he": "🚚 הובלות"},
-    "packing":  {"ru": "📦 Упаковка",    "en": "📦 Packing",  "he": "📦 אריזה"},
-    "cleaning": {"ru": "🧹 Клининг",     "en": "🧹 Cleaning", "he": "🧹 ניקיון"},
+    "moving":   {"ru": "🚚 Перевозки",   "en": "🚚 Moving",   "he": "🚚 הובלות", "fr": "🚚 Déménagement"},
+    "packing":  {"ru": "📦 Упаковка",    "en": "📦 Packing",  "he": "📦 אריזה", "fr": "📦 Emballage"},
+    "cleaning": {"ru": "🧹 Клининг",     "en": "🧹 Cleaning", "he": "🧹 ניקיון", "fr": "🧹 Ménage"},
 }
 
 REGIONS = {
-    "north":  {"ru": "🌿 Север",  "en": "🌿 North",  "he": "🌿 צפון"},
-    "center": {"ru": "🏙 Центр",  "en": "🏙 Center", "he": "🏙 מרכז"},
-    "south":  {"ru": "☀️ Юг",     "en": "☀️ South",  "he": "☀️ דרום"},
+    "north":  {"ru": "🌿 Север",  "en": "🌿 North",  "he": "🌿 צפון", "fr": "🌿 Nord"},
+    "center": {"ru": "🏙 Центр",  "en": "🏙 Center", "he": "🏙 מרכז", "fr": "🏙 Centre"},
+    "south":  {"ru": "☀️ Юг",     "en": "☀️ South",  "he": "☀️ דרום", "fr": "☀️ Sud"},
 }
 
 # Cities per region
@@ -56,7 +56,7 @@ def _lbl(ctx, key, mapping):
 
 def _back_kb(ctx):
     lang = get_lang(ctx)
-    back = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
+    back = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
     return InlineKeyboardMarkup([[InlineKeyboardButton(back, callback_data="back_to_menu")]])
 
 
@@ -65,8 +65,8 @@ def _services_menu_kb(ctx):
     rows = []
     for key, names in SERVICE_TYPES.items():
         rows.append([InlineKeyboardButton(_L(names, lang), callback_data=f"svc_type_{key}")])
-    add_label = _L({"ru": "➕ Разместить услугу", "en": "➕ Add service", "he": "➕ הוסף שירות"}, lang)
-    back_label = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
+    add_label = _L({"ru": "➕ Разместить услугу", "en": "➕ Add service", "he": "➕ הוסף שירות", "fr": "➕ Ajouter service"}, lang)
+    back_label = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
     rows.append([InlineKeyboardButton(add_label, callback_data="svc_add")])
     rows.append([InlineKeyboardButton(back_label, callback_data="back_to_menu")])
     return InlineKeyboardMarkup(rows)
@@ -75,8 +75,8 @@ def _services_menu_kb(ctx):
 def _region_kb(ctx, prefix):
     lang = get_lang(ctx)
     rows = [[InlineKeyboardButton(_L(REGIONS[r], lang), callback_data=f"{prefix}_{r}")] for r in REGIONS]
-    all_label = _L({"ru": "🌍 Вся страна", "en": "🌍 All country", "he": "🌍 כל הארץ"}, lang)
-    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    all_label = _L({"ru": "🌍 Вся страна", "en": "🌍 All country", "he": "🌍 כל הארץ", "fr": "🌍 Tout le pays"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     rows.append([InlineKeyboardButton(all_label, callback_data=f"{prefix}_all")])
     rows.append([InlineKeyboardButton(back_label, callback_data="svc_back")])
     return InlineKeyboardMarkup(rows)
@@ -86,7 +86,7 @@ def _add_type_kb(ctx):
     lang = get_lang(ctx)
     rows = [[InlineKeyboardButton(_L(names, lang), callback_data=f"addsvc_type_{key}")]
             for key, names in SERVICE_TYPES.items()]
-    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     rows.append([InlineKeyboardButton(back_label, callback_data="back_to_menu")])
     return InlineKeyboardMarkup(rows)
 
@@ -94,8 +94,8 @@ def _add_type_kb(ctx):
 def _add_region_kb(ctx):
     lang = get_lang(ctx)
     rows = [[InlineKeyboardButton(_L(REGIONS[r], lang), callback_data=f"addsvc_region_{r}")] for r in REGIONS]
-    all_label = _L({"ru": "🌍 Вся страна", "en": "🌍 All country", "he": "🌍 כל הארץ"}, lang)
-    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    all_label = _L({"ru": "🌍 Вся страна", "en": "🌍 All country", "he": "🌍 כל הארץ", "fr": "🌍 Tout le pays"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     rows.append([InlineKeyboardButton(all_label, callback_data="addsvc_region_all")])
     rows.append([InlineKeyboardButton(back_label, callback_data="svc_back")])
     return InlineKeyboardMarkup(rows)
@@ -113,8 +113,8 @@ def _city_kb(ctx, region, prefix):
             row = []
     if row:
         rows.append(row)
-    all_label = _L({"ru": "🌍 Весь район", "en": "🌍 All region", "he": "🌍 כל האזור"}, lang)
-    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    all_label = _L({"ru": "🌍 Весь район", "en": "🌍 All region", "he": "🌍 כל האזור", "fr": "🌍 Toute la région"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     rows.append([InlineKeyboardButton(all_label, callback_data=f"{prefix}_all")])
     rows.append([InlineKeyboardButton(back_label, callback_data="svc_back")])
     return InlineKeyboardMarkup(rows)
@@ -122,14 +122,14 @@ def _city_kb(ctx, region, prefix):
 
 def _back_step_kb(ctx):
     lang = get_lang(ctx)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     return InlineKeyboardMarkup([[InlineKeyboardButton(back, callback_data="svc_back")]])
 
 
 def _confirm_kb(ctx):
     lang = get_lang(ctx)
-    pub = _L({"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם"}, lang)
-    cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}, lang)
+    pub = _L({"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם", "fr": "✅ Publier"}, lang)
+    cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול", "fr": "❌ Annuler"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(pub, callback_data="addsvc_confirm_yes")],
         [InlineKeyboardButton(cancel, callback_data="back_to_menu")],
@@ -141,11 +141,11 @@ def _format_service_card(s, lang):
     region_key = s.get("region", "")
     region = REGIONS.get(region_key, {}).get(lang, region_key) if region_key not in ("all", "") else {
         "ru": "Вся страна", "en": "All country", "he": "כל הארץ"
-    }.get(lang, "All")
+    , "fr": "Tout le pays"}.get(lang, "All")
     city = s.get("city", "")
     location = city if city else region
     price = s.get("price", 0)
-    price_str = f"{price:,} ₪".replace(",", " ") if price else {"ru": "Договорная", "en": "Negotiable", "he": "לפי הסכמה"}.get(lang)
+    price_str = f"{price:,} ₪".replace(",", " ") if price else {"ru": "Договорная", "en": "Negotiable", "he": "לפי הסכמה", "fr": "Négociable"}.get(lang)
     desc = s.get("description", "")
     name = s.get("owner_name", "")
     phone = s.get("phone", "")
@@ -269,7 +269,7 @@ class ServiceHandler:
         lang = get_lang(context)
         region_label = REGIONS.get(region, {}).get(lang, region) if region != "all" else _L({
             "ru": "Вся страна", "en": "All country", "he": "כל הארץ"
-        }, lang)
+        , "fr": "Tout le pays"}, lang)
         if region == "all":
             # Skip city selection, search all
             context.user_data["svc"]["city"] = "all"
@@ -330,8 +330,8 @@ class ServiceHandler:
         if idx < len(results) - 1:
             nav_buttons.append(InlineKeyboardButton("▶️", callback_data="svc_next"))
 
-        order_label = _L({"ru": "✅ Заказать", "en": "✅ Order", "he": "✅ להזמין"}, lang)
-        back_label  = _L({"ru": "🏠 Меню",    "en": "🏠 Menu",  "he": "🏠 תפריט"}, lang)
+        order_label = _L({"ru": "✅ Заказать", "en": "✅ Order", "he": "✅ להזמין", "fr": "✅ Commander"}, lang)
+        back_label  = _L({"ru": "🏠 Меню",    "en": "🏠 Menu",  "he": "🏠 תפריט", "fr": "🏠 Menu"}, lang)
         sid = s.get("id", "")
         rows = []
         if nav_buttons:
@@ -371,7 +371,7 @@ class ServiceHandler:
         results = context.user_data.get("svc_results", [])
         s = next((x for x in results if str(x.get("id", "")) == str(sid_str)), None)
         if not s:
-            await query.answer({"ru": "Услуга не найдена", "en": "Service not found", "he": "שירות לא נמצא"}.get(lang, "Not found"), show_alert=True)
+            await query.answer({"ru": "Услуга не найдена", "en": "Service not found", "he": "שירות לא נמצא", "fr": "Service introuvable"}.get(lang, "Not found"), show_alert=True)
             return SVC_RESULTS
 
         user = update.effective_user
@@ -412,7 +412,7 @@ class ServiceHandler:
             "en": f"✅ Request sent!\n\nProvider <b>{s.get('owner_name','')}</b> has been notified and will contact you.\n📞 {owner_phone}" if owner_phone else "✅ Request sent to provider!",
             "he": f"✅ הבקשה נשלחה!\n\n<b>{s.get('owner_name','')}</b> קיבל הודעה ויצור איתך קשר.\n📞 {owner_phone}" if owner_phone else "✅ הבקשה נשלחה!",
         }.get(lang, "✅ Order sent!")
-        back_label = _L({"ru": "🏠 Меню", "en": "🏠 Menu", "he": "🏠 תפריט"}, lang)
+        back_label = _L({"ru": "🏠 Меню", "en": "🏠 Menu", "he": "🏠 תפריט", "fr": "🏠 Menu"}, lang)
         kb = InlineKeyboardMarkup([[InlineKeyboardButton(back_label, callback_data="back_to_menu")]])
         await query.edit_message_text(confirm_text, reply_markup=kb, parse_mode="HTML")
         return SVC_RESULTS
@@ -521,7 +521,7 @@ class ServiceHandler:
                 f"📧 Email for weekly view reports:{hint}\n\n<i>Report arrives every Sunday at 10:00</i>",
                 f"📧 אימייל לדוחות שבועיים:{hint}\n\n<i>הדוח מגיע כל יום ראשון ב-10:00</i>"
             )
-            skip_btn_label = {"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}.get(lang, "⏭ Skip")
+            skip_btn_label = {"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג", "fr": "⏭ Passer"}.get(lang, "⏭ Skip")
             skip_kb = InlineKeyboardMarkup([[InlineKeyboardButton(skip_btn_label, callback_data="svc_email_skip")]])
             await update.message.reply_text(email_text, reply_markup=skip_kb, parse_mode="HTML")
             return ADD_SVC_EMAIL
@@ -619,9 +619,9 @@ class ServiceHandler:
         svc_name = svc.get("name") or svc.get("company") or ""
         svc_type = svc.get("service_type") or svc.get("type") or ""
         type_label = {
-            "movers":   {"ru":"Перевозчики","en":"Movers","he":"הובלות"},
-            "packers":  {"ru":"Упаковщики","en":"Packers","he":"אריזה"},
-            "cleaning": {"ru":"Уборка","en":"Cleaning","he":"ניקיון"},
+            "movers":   {"ru":"Перевозчики","en":"Movers","he":"הובלות", "fr": "Déménageurs"},
+            "packers":  {"ru":"Упаковщики","en":"Packers","he":"אריזה", "fr": "Emballeurs"},
+            "cleaning": {"ru":"Уборка","en":"Cleaning","he":"ניקיון", "fr": "Ménage"},
         }.get(svc_type, {}).get(lang, svc_type)
 
         text = _t(context,

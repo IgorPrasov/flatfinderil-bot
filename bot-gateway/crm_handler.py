@@ -22,16 +22,16 @@ def _L(d, lang):
 ) = range(100, 116)
 
 CONTACT_TYPES = {
-    "agent":   {"ru": "🏘 Агент",      "en": "🏘 Agent",   "he": "🏘 סוכן"},
-    "mover":   {"ru": "🚚 Перевозчик", "en": "🚚 Mover",   "he": "🚚 הובלה"},
-    "packer":  {"ru": "📦 Упаковщик",  "en": "📦 Packer",  "he": "📦 אורזים"},
-    "cleaner": {"ru": "🧹 Клининг",    "en": "🧹 Cleaning","he": "🧹 ניקיון"},
+    "agent":   {"ru": "🏘 Агент",      "en": "🏘 Agent",   "he": "🏘 סוכן", "fr": "🏘 Agent"},
+    "mover":   {"ru": "🚚 Перевозчик", "en": "🚚 Mover",   "he": "🚚 הובלה", "fr": "🚚 Déménageur"},
+    "packer":  {"ru": "📦 Упаковщик",  "en": "📦 Packer",  "he": "📦 אורזים", "fr": "📦 Emballeur"},
+    "cleaner": {"ru": "🧹 Клининг",    "en": "🧹 Cleaning","he": "🧹 ניקיון", "fr": "🧹 Ménage"},
 }
 
 REGIONS = {
-    "north":  {"ru": "🌿 Север",  "en": "🌿 North",  "he": "🌿 צפון"},
-    "center": {"ru": "🏙 Центр",  "en": "🏙 Center", "he": "🏙 מרכז"},
-    "south":  {"ru": "☀️ Юг",     "en": "☀️ South",  "he": "☀️ דרום"},
+    "north":  {"ru": "🌿 Север",  "en": "🌿 North",  "he": "🌿 צפון", "fr": "🌿 Nord"},
+    "center": {"ru": "🏙 Центр",  "en": "🏙 Center", "he": "🏙 מרכז", "fr": "🏙 Centre"},
+    "south":  {"ru": "☀️ Юг",     "en": "☀️ South",  "he": "☀️ דרום", "fr": "☀️ Sud"},
 }
 
 REGION_CITIES = {
@@ -41,10 +41,10 @@ REGION_CITIES = {
 }
 
 DEAL_STATUSES = {
-    "new":         {"ru": "🆕 Новая",     "en": "🆕 New",        "he": "🆕 חדשה"},
-    "in_progress": {"ru": "⏳ В работе",  "en": "⏳ In progress","he": "⏳ בתהליך"},
-    "done":        {"ru": "✅ Завершена", "en": "✅ Done",       "he": "✅ הושלם"},
-    "cancelled":   {"ru": "❌ Отменена",  "en": "❌ Cancelled",  "he": "❌ בוטל"},
+    "new":         {"ru": "🆕 Новая",     "en": "🆕 New",        "he": "🆕 חדשה", "fr": "🆕 Nouveau"},
+    "in_progress": {"ru": "⏳ В работе",  "en": "⏳ In progress","he": "⏳ בתהליך", "fr": "⏳ En cours"},
+    "done":        {"ru": "✅ Завершена", "en": "✅ Done",       "he": "✅ הושלם", "fr": "✅ Terminé"},
+    "cancelled":   {"ru": "❌ Отменена",  "en": "❌ Cancelled",  "he": "❌ בוטל", "fr": "❌ Annulé"},
 }
 
 STATUS_ICONS = {"new": "🆕", "in_progress": "⏳", "done": "✅", "cancelled": "❌"}
@@ -72,8 +72,8 @@ def _crm_main_kb(ctx):
             row = []
     if row:
         rows.append(row)
-    add = _L({"ru": "➕ Добавить контакт", "en": "➕ Add contact", "he": "➕ הוסף איש קשר"}, lang)
-    back = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
+    add = _L({"ru": "➕ Добавить контакт", "en": "➕ Add contact", "he": "➕ הוסף איש קשר", "fr": "➕ Ajouter contact"}, lang)
+    back = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
     rows.append([InlineKeyboardButton(add, callback_data="crm_add")])
     rows.append([InlineKeyboardButton(back, callback_data="back_to_menu")])
     return InlineKeyboardMarkup(rows)
@@ -90,7 +90,7 @@ def _contact_type_kb(ctx, prefix="crm_add_type"):
             row = []
     if row:
         rows.append(row)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     rows.append([InlineKeyboardButton(back, callback_data="crm_back")])
     return InlineKeyboardMarkup(rows)
 
@@ -98,8 +98,8 @@ def _contact_type_kb(ctx, prefix="crm_add_type"):
 def _region_kb(ctx, prefix):
     lang = get_lang(ctx)
     rows = [[InlineKeyboardButton(_L(REGIONS[r], lang), callback_data=f"{prefix}_{r}")] for r in REGIONS]
-    all_lbl = _L({"ru": "🌍 Вся страна", "en": "🌍 All country", "he": "🌍 כל הארץ"}, lang)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    all_lbl = _L({"ru": "🌍 Вся страна", "en": "🌍 All country", "he": "🌍 כל הארץ", "fr": "🌍 Tout le pays"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     rows.append([InlineKeyboardButton(all_lbl, callback_data=f"{prefix}_all")])
     rows.append([InlineKeyboardButton(back, callback_data="crm_back")])
     return InlineKeyboardMarkup(rows)
@@ -115,8 +115,8 @@ def _city_kb(ctx, region, prefix):
             rows.append(row); row = []
     if row:
         rows.append(row)
-    all_lbl = _L({"ru": "🌍 Весь район", "en": "🌍 All region", "he": "🌍 כל האזור"}, lang)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    all_lbl = _L({"ru": "🌍 Весь район", "en": "🌍 All region", "he": "🌍 כל האזור", "fr": "🌍 Toute la région"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     rows.append([InlineKeyboardButton(all_lbl, callback_data=f"{prefix}_all")])
     rows.append([InlineKeyboardButton(back, callback_data="crm_back")])
     return InlineKeyboardMarkup(rows)
@@ -124,8 +124,8 @@ def _city_kb(ctx, region, prefix):
 
 def _skip_back_kb(ctx, skip_data):
     lang = get_lang(ctx)
-    skip = _L({"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג"}, lang)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    skip = _L({"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג", "fr": "⏭ Passer"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     return InlineKeyboardMarkup([[
         InlineKeyboardButton(back, callback_data="crm_back"),
         InlineKeyboardButton(skip, callback_data=skip_data),
@@ -134,8 +134,8 @@ def _skip_back_kb(ctx, skip_data):
 
 def _confirm_kb(ctx):
     lang = get_lang(ctx)
-    yes = _L({"ru": "✅ Сохранить", "en": "✅ Save", "he": "✅ שמור"}, lang)
-    no = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}, lang)
+    yes = _L({"ru": "✅ Сохранить", "en": "✅ Save", "he": "✅ שמור", "fr": "✅ Enregistrer"}, lang)
+    no = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול", "fr": "❌ Annuler"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(yes, callback_data="crm_confirm_yes")],
         [InlineKeyboardButton(no, callback_data="back_to_menu")],
@@ -144,11 +144,11 @@ def _confirm_kb(ctx):
 
 def _contact_actions_kb(ctx, contact_id):
     lang = get_lang(ctx)
-    deal = _L({"ru": "➕ Добавить сделку", "en": "➕ Add deal", "he": "➕ הוסף עסקה"}, lang)
-    deals = _L({"ru": "📋 Сделки", "en": "📋 Deals", "he": "📋 עסקאות"}, lang)
-    note = _L({"ru": "📝 Заметка", "en": "📝 Note", "he": "📝 הערה"}, lang)
-    deact = _L({"ru": "🗑 Деактивировать", "en": "🗑 Deactivate", "he": "🗑 השבת"}, lang)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    deal = _L({"ru": "➕ Добавить сделку", "en": "➕ Add deal", "he": "➕ הוסף עסקה", "fr": "➕ Ajouter transaction"}, lang)
+    deals = _L({"ru": "📋 Сделки", "en": "📋 Deals", "he": "📋 עסקאות", "fr": "📋 Transactions"}, lang)
+    note = _L({"ru": "📝 Заметка", "en": "📝 Note", "he": "📝 הערה", "fr": "📝 Note"}, lang)
+    deact = _L({"ru": "🗑 Деактивировать", "en": "🗑 Deactivate", "he": "🗑 השבת", "fr": "🗑 Désactiver"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(deal, callback_data=f"crm_deal_new_{contact_id}"),
          InlineKeyboardButton(deals, callback_data=f"crm_deals_{contact_id}")],
@@ -162,15 +162,15 @@ def _deal_status_kb(ctx):
     lang = get_lang(ctx)
     rows = [[InlineKeyboardButton(_L(DEAL_STATUSES[s], lang), callback_data=f"crm_deal_status_{s}")]
             for s in DEAL_STATUSES]
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     rows.append([InlineKeyboardButton(back, callback_data="crm_back")])
     return InlineKeyboardMarkup(rows)
 
 
 def _back_kb(ctx):
     lang = get_lang(ctx)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
-    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}, lang)
+    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
+    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
     return InlineKeyboardMarkup([[
         InlineKeyboardButton(back, callback_data="crm_back"),
         InlineKeyboardButton(menu, callback_data="back_to_menu"),
@@ -184,7 +184,7 @@ def _format_contact(c, lang, deals=None, notes=None):
     region_key = c.get("region", "")
     region = REGIONS.get(region_key, {}).get(lang, region_key) if region_key not in ("all", "") else {
         "ru": "Вся страна", "en": "All country", "he": "כל הארץ"
-    }.get(lang, "All")
+    , "fr": "Tout le pays"}.get(lang, "All")
     city = c.get("city", "")
     location = city if city and city != "all" else region
     lines = [
@@ -320,8 +320,8 @@ class CRMHandler:
                 f"👥 <b>{type_name}</b>\n\nNo contacts found. Add the first one!",
                 f"👥 <b>{type_name}</b>\n\nאין אנשי קשר. הוסף את הראשון!"
             )
-            back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
-            add = _L({"ru": "➕ Добавить", "en": "➕ Add", "he": "➕ הוסף"}, lang)
+            back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
+            add = _L({"ru": "➕ Добавить", "en": "➕ Add", "he": "➕ הוסף", "fr": "➕ Ajouter"}, lang)
             kb = InlineKeyboardMarkup([[
                 InlineKeyboardButton(back, callback_data="crm_back"),
                 InlineKeyboardButton(add, callback_data="crm_add"),
@@ -333,7 +333,7 @@ class CRMHandler:
             city = c.get("city", "") or c.get("region", "")
             label = f"{c['name']} · {city}" if city and city != "all" else c["name"]
             rows.append([InlineKeyboardButton(label, callback_data=f"crm_contact_{c['id']}")])
-        back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+        back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
         rows.append([InlineKeyboardButton(back, callback_data="crm_back")])
         text = _t(context,
             f"👥 <b>{type_name}</b> — {len(contacts)} контактов",
@@ -384,7 +384,7 @@ class CRMHandler:
                 desc = d.get("description", "")[:40]
                 lines.append(f"{status_icon} <b>{amount}</b> — {desc}\n    📅 {d.get('date','')}")
             text = "\n\n".join(lines)
-        back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+        back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
         kb = InlineKeyboardMarkup([[InlineKeyboardButton(back, callback_data=f"crm_contact_{contact_id}")]])
         await query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
         return CRM_VIEW
@@ -395,7 +395,7 @@ class CRMHandler:
         contact_id = int(query.data.replace("crm_deactivate_", ""))
         db.deactivate_crm_contact(contact_id)
         text = _t(context, "🗑 Контакт деактивирован.", "🗑 Contact deactivated.", "🗑 איש הקשר הושבת.")
-        back = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[get_lang(context)]
+        back = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}[get_lang(context)]
         kb = InlineKeyboardMarkup([[InlineKeyboardButton(back, callback_data="back_to_menu")]])
         await query.edit_message_text(text, reply_markup=kb)
         return ConversationHandler.END
@@ -515,7 +515,7 @@ class CRMHandler:
         lang = get_lang(context)
         if region == "all":
             context.user_data["crm_draft"]["city"] = ""
-            await query.edit_message_text("✅ " + _L({"ru": "Вся страна", "en": "All country", "he": "כל הארץ"}, lang))
+            await query.edit_message_text("✅ " + _L({"ru": "Вся страна", "en": "All country", "he": "כל הארץ", "fr": "Tout le pays"}, lang))
             return await self._ask_notes(update, context)
         region_name = REGIONS.get(region, {}).get(lang, region)
         await query.edit_message_text(f"✅ {region_name}")
@@ -539,7 +539,7 @@ class CRMHandler:
         city = query.data.replace("crm_add_city_", "")
         context.user_data["crm_draft"]["city"] = "" if city == "all" else city
         lang = get_lang(context)
-        await query.edit_message_text(f"✅ {city}" if city != "all" else "✅ " + _L({"ru": "Весь район", "en": "All region", "he": "כל האזור"}, lang))
+        await query.edit_message_text(f"✅ {city}" if city != "all" else "✅ " + _L({"ru": "Весь район", "en": "All region", "he": "כל האזור", "fr": "Toute la région"}, lang))
         return await self._ask_notes(update, context)
 
     async def add_back_to_city(self, update, context):
@@ -580,7 +580,7 @@ class CRMHandler:
         d = context.user_data.get("crm_draft", {})
         ctype = CONTACT_TYPES.get(d.get("contact_type", ""), {}).get(lang, "")
         region_key = d.get("region", "")
-        region = REGIONS.get(region_key, {}).get(lang, region_key) if region_key not in ("all", "") else {"ru": "Вся страна", "en": "All country", "he": "כל הארץ"}.get(lang)
+        region = REGIONS.get(region_key, {}).get(lang, region_key) if region_key not in ("all", "") else {"ru": "Вся страна", "en": "All country", "he": "כל הארץ", "fr": "Tout le pays"}.get(lang)
         city = d.get("city", "")
         location = city if city else region
         lines = [
@@ -608,8 +608,8 @@ class CRMHandler:
             f"✅ Contact saved (ID: #{contact_id})",
             f"✅ איש קשר נשמר (ID: #{contact_id})"
         )
-        back = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי"}[get_lang(context)]
-        crm = {"ru": "👥 CRM", "en": "👥 CRM", "he": "👥 CRM"}[get_lang(context)]
+        back = {"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}[get_lang(context)]
+        crm = {"ru": "👥 CRM", "en": "👥 CRM", "he": "👥 CRM", "fr": "👥 CRM"}[get_lang(context)]
         kb = InlineKeyboardMarkup([[
             InlineKeyboardButton(crm, callback_data="crm"),
             InlineKeyboardButton(back, callback_data="back_to_menu"),
@@ -682,8 +682,8 @@ class CRMHandler:
         d = context.user_data["crm_deal_draft"]
         desc = d.get("description", "") or "—"
         summary = f"💼 <b>Сделка</b>\nСумма: {d.get('amount', 0):,} ₪\nОписание: {desc[:50]}\nСтатус: {status_name}"
-        yes = _L({"ru": "✅ Сохранить", "en": "✅ Save", "he": "✅ שמור"}, lang)
-        no = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}, lang)
+        yes = _L({"ru": "✅ Сохранить", "en": "✅ Save", "he": "✅ שמור", "fr": "✅ Enregistrer"}, lang)
+        no = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול", "fr": "❌ Annuler"}, lang)
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton(yes, callback_data="crm_deal_save")],
             [InlineKeyboardButton(no, callback_data="back_to_menu")],
@@ -725,7 +725,7 @@ class CRMHandler:
             "📝 Enter note:",
             "📝 הזן הערה:"
         )
-        back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה"}[get_lang(context)]
+        back = {"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}[get_lang(context)]
         kb = InlineKeyboardMarkup([[InlineKeyboardButton(back, callback_data="crm_back")]])
         await query.edit_message_text(text, reply_markup=kb)
         return CRM_ADD_NOTE
@@ -736,7 +736,7 @@ class CRMHandler:
         if contact_id:
             db.add_crm_note(contact_id, text, update.effective_user.id)
         lang = get_lang(context)
-        done = _L({"ru": "✅ Заметка сохранена", "en": "✅ Note saved", "he": "✅ הערה נשמרה"}, lang)
+        done = _L({"ru": "✅ Заметка сохранена", "en": "✅ Note saved", "he": "✅ הערה נשמרה", "fr": "✅ Note enregistrée"}, lang)
         back_kb = InlineKeyboardMarkup([[
             InlineKeyboardButton("👤 К контакту", callback_data=f"crm_contact_{contact_id}"),
             InlineKeyboardButton("🏠 Меню", callback_data="back_to_menu"),
