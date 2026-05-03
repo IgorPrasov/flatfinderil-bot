@@ -18,6 +18,7 @@ from listing_handler import ListingHandler
 from commercial_handler import CommercialHandler
 from service_handler import ServiceHandler
 from crm_handler import CRMHandler
+from support_handler import get_conversation_handler as get_support_handler, handle_admin_reply
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -151,6 +152,8 @@ def main():
     app.add_handler(crm.get_conversation_handler())
     app.add_handler(search.get_conversation_handler())
     app.add_handler(listing.get_conversation_handler())
+    app.add_handler(get_support_handler())
+    app.add_handler(MessageHandler(filters.REPLY & filters.TEXT & ~filters.COMMAND, handle_admin_reply))
     app.add_handler(CallbackQueryHandler(handle_menu))
     # Payment handlers in group=-1 so they run BEFORE any ConversationHandler
     # (prevents a mid-conversation state from swallowing the pre_checkout_query)
@@ -207,6 +210,22 @@ import json as json_module
 
 DASHBOARD_FILE  = os.path.join(os.path.dirname(__file__), "dashboard.html")
 BACKOFFICE_FILE = os.path.join(os.path.dirname(__file__), "backoffice.html")
+LANDING_FILE    = os.path.join(os.path.dirname(__file__), "landing.html")
+LEGAL_FILE      = os.path.join(os.path.dirname(__file__), "legal.html")
+
+# Public-facing domains — show landing page only, block internal tools
+_PUBLIC_DOMAINS = {
+    "flatfinderil.com", "www.flatfinderil.com",
+    "flatfinderil.co.il", "www.flatfinderil.co.il",
+}
+
+def _request_host(headers) -> str:
+    """Return the real public hostname from request headers."""
+    for h in ("X-Forwarded-Host", "X-Original-Host", "Host"):
+        val = headers.get(h, "")
+        if val:
+            return val.split(":")[0].split(",")[0].strip().lower()
+    return ""
 BACKOFFICE_PASSWORD = os.environ.get("BACKOFFICE_PASSWORD", "FlatFinderIL2026")
 
 _BO_SESSIONS: dict = {}
@@ -556,6 +575,36 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
+
+        # ── Public domain guard ───────────────────────────────────────────
+        host = _request_host(self.headers)
+        if host in _PUBLIC_DOMAINS:
+            default_lang = "he" if "co.il" in host else "ru"
+            if path in ("/", "/legal"):
+                file_path = LEGAL_FILE if path == "/legal" else LANDING_FILE
+                try:
+                    with open(file_path, "rb") as f:
+                        content = f.read()
+                    content = content.replace(
+                        b'data-default-lang="auto"',
+                        f'data-default-lang="{default_lang}"'.encode()
+                    )
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", len(content))
+                    self.end_headers()
+                    self.wfile.write(content)
+                except Exception:
+                    self.send_response(500); self.end_headers()
+                return
+            # Block ALL internal pages/API on public domains
+            body = b"Not found"
+            self.send_response(404)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+            return
 
         # Back-office routes
         if path.startswith("/backoffice"):
