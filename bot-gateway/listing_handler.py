@@ -65,11 +65,11 @@ def _seller_type_keyboard(ctx):
     lang = get_lang(ctx)
     agent   = _L({"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך", "fr": "🏢 Agent / Courtier"}, lang)
     private = _L({"ru": "👤 Частное лицо",     "en": "👤 Private person",  "he": "👤 אדם פרטי", "fr": "👤 Personne privée"}, lang)
-    menu    = _L({"ru": "🏠 Главное меню",      "en": "🏠 Main menu",       "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
+    cancel  = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול", "fr": "❌ Annuler"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(agent,   callback_data="add_seller_agent")],
         [InlineKeyboardButton(private, callback_data="add_seller_private")],
-        [InlineKeyboardButton(menu,    callback_data="back_to_menu")],
+        [InlineKeyboardButton(cancel,  callback_data="add_cancel")],
     ])
 
 
@@ -94,15 +94,15 @@ def _deal_keyboard(ctx):
     buy = _L({"ru": "💰 Продажа", "en": "💰 Sale", "he": "💰 מכירה", "fr": "💰 Vente"}, lang)
     sublet = _L({"ru": "🔄 Сублет", "en": "🔄 Sublet", "he": "🔄 סאבלט", "fr": "🔄 Sous-location"}, lang)
     commercial = _L({"ru": "🏢 Коммерческая", "en": "🏢 Commercial", "he": "🏢 מסחרי", "fr": "🏢 Commercial"}, lang)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
-    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
+    back   = _L({"ru": "« Назад",   "en": "« Back",    "he": "« חזרה",   "fr": "« Retour"}, lang)
+    cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel",  "he": "❌ ביטול",  "fr": "❌ Annuler"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(rent, callback_data="add_deal_rent"),
          InlineKeyboardButton(buy, callback_data="add_deal_buy")],
         [InlineKeyboardButton(sublet, callback_data="add_deal_sublet"),
          InlineKeyboardButton(commercial, callback_data="add_deal_commercial")],
-        [InlineKeyboardButton(back, callback_data="back_to_menu"),
-         InlineKeyboardButton(menu, callback_data="back_to_menu")],
+        [InlineKeyboardButton(back, callback_data="add_back"),
+         InlineKeyboardButton(cancel, callback_data="add_cancel")],
     ])
 
 def _ptype_keyboard(ctx):
@@ -240,24 +240,22 @@ def _photos_keyboard(ctx, count):
         label = _L({"ru": f"✅ Готово ({count} фото)", "en": f"✅ Done ({count} photos)", "he": f"✅ סיום ({count} תמונות)"}, lang)
     else:
         label = _L({"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג", "fr": "⏭ Passer"}, lang)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
-    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
+    back   = _L({"ru": "« Назад",   "en": "« Back",   "he": "« חזרה",  "fr": "« Retour"}, lang)
+    cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול", "fr": "❌ Annuler"}, lang)
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(label, callback_data="add_photos_done")],
-        [InlineKeyboardButton(back, callback_data="add_back"),
-         InlineKeyboardButton(menu, callback_data="back_to_menu")],
+        [InlineKeyboardButton(label,  callback_data="add_photos_done")],
+        [InlineKeyboardButton(back,   callback_data="add_back"),
+         InlineKeyboardButton(cancel, callback_data="add_cancel")],
     ])
 
 
 def _confirm_keyboard(ctx):
     lang = get_lang(ctx)
     publish = _L({"ru": "✅ Опубликовать", "en": "✅ Publish", "he": "✅ פרסם", "fr": "✅ Publier"}, lang)
-    cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול", "fr": "❌ Annuler"}, lang)
-    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
+    cancel  = _L({"ru": "❌ Отмена",       "en": "❌ Cancel",  "he": "❌ ביטול", "fr": "❌ Annuler"}, lang)
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(publish, callback_data="add_confirm_yes")],
-        [InlineKeyboardButton(cancel, callback_data="add_confirm_no")],
-        [InlineKeyboardButton(menu, callback_data="back_to_menu")],
+        [InlineKeyboardButton(cancel,  callback_data="add_cancel")],
     ])
 
 def _step_text(ctx, ru, en, he):
@@ -266,11 +264,11 @@ def _step_text(ctx, ru, en, he):
 
 def _back_kb(ctx):
     lang = get_lang(ctx)
-    back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
-    menu = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
+    back   = _L({"ru": "« Назад",   "en": "« Back",   "he": "« חזרה",  "fr": "« Retour"}, lang)
+    cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול", "fr": "❌ Annuler"}, lang)
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(back, callback_data="add_back"),
-         InlineKeyboardButton(menu, callback_data="back_to_menu")],
+        [InlineKeyboardButton(back,   callback_data="add_back"),
+         InlineKeyboardButton(cancel, callback_data="add_cancel")],
     ])
 
 
@@ -284,7 +282,7 @@ class ListingHandler:
             states={
                 ADD_SELLER_TYPE: [
                     CallbackQueryHandler(self.handle_seller_type, pattern="^add_seller_"),
-                    CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),
+                    CallbackQueryHandler(self.cancel, pattern="^add_cancel$"),
                 ],
                 ADD_UPLOAD_FILE: [
                     CallbackQueryHandler(self.handle_agent_method, pattern="^add_agent_"),
@@ -293,7 +291,7 @@ class ListingHandler:
                 ADD_DEAL_TYPE: [
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
                     CallbackQueryHandler(self.handle_deal, pattern="^add_deal_"),
-                    CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),
+                    CallbackQueryHandler(self.cancel, pattern="^add_cancel$"),
                 ],
                 ADD_PROPERTY_TYPE: [
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
@@ -376,12 +374,19 @@ class ListingHandler:
                 ADD_CONFIRM: [
                     CallbackQueryHandler(self.handle_confirm, pattern="^add_confirm_"),
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
+                    CallbackQueryHandler(self.cancel, pattern="^add_cancel$"),
                 ],
             },
             fallbacks=[
-                CommandHandler("start", self.cancel),
                 CommandHandler("cancel", self.cancel),
-                CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),
+                CallbackQueryHandler(self.cancel, pattern="^add_cancel$"),
+                # Catch-all: block any other button/command during add flow
+                # Exclude entry-points of other ConversationHandlers so they work normally
+                CallbackQueryHandler(self._warn_navigation,
+                    pattern="^(?!(contact_admin|back_to_menu|search|add_listing|commercial_add|service_add|crm_))"),
+                CommandHandler("start",  self._warn_command),
+                CommandHandler("search", self._warn_command),
+                CommandHandler("help",   self._warn_command),
             ],
             per_message=False,
             allow_reentry=True,
@@ -1255,6 +1260,33 @@ class ListingHandler:
             logging.getLogger(__name__).warning(f"Welcome message failed: {e}")
 
         return ConversationHandler.END
+
+    async def _warn_navigation(self, update, context):
+        """Block any stray button press during the add-listing flow."""
+        query = update.callback_query
+        if query:
+            lang = get_lang(context)
+            msg = {
+                "ru": "⚠️ Вы заполняете объявление.\nЧтобы выйти нажмите кнопку «❌ Отмена» или /cancel.",
+                "en": "⚠️ You are filling in a listing.\nPress «❌ Cancel» or /cancel to exit.",
+                "he": "⚠️ אתה ממלא מודעה כעת.\nלחץ «❌ ביטול» או /cancel כדי לצאת.",
+                "fr": "⚠️ Vous remplissez une annonce.\nAppuyez sur «❌ Annuler» ou /cancel pour quitter.",
+            }.get(lang, "⚠️ Listing in progress. Press ❌ Cancel to exit.")
+            await query.answer(msg, show_alert=True)
+        # Stay in current state
+        return context.user_data.get("add_state", ADD_SELLER_TYPE)
+
+    async def _warn_command(self, update, context):
+        """Block commands like /start, /search during the add-listing flow."""
+        lang = get_lang(context)
+        msg = {
+            "ru": "⚠️ Вы заполняете объявление. Сначала завершите его или отправьте /cancel для отмены.",
+            "en": "⚠️ You are filling in a listing. Complete it or send /cancel to exit.",
+            "he": "⚠️ אתה ממלא מודעה. השלם אותה או שלח /cancel לביטול.",
+            "fr": "⚠️ Vous remplissez une annonce. Terminez-la ou envoyez /cancel pour annuler.",
+        }.get(lang, "⚠️ Listing in progress. Send /cancel to exit.")
+        await update.message.reply_text(msg)
+        return context.user_data.get("add_state", ADD_SELLER_TYPE)
 
     async def cancel(self, update, context):
         from keyboards import main_menu_keyboard
