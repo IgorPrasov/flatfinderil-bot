@@ -570,6 +570,16 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             if method == "GET":
                 msgs = db.get_support_messages(limit=200)
                 return self._send_json({"total": len(msgs), "items": msgs})
+            if method == "POST" and not rid:
+                body = self._read_body()
+                msg_id = db.add_support_message(
+                    user_id=int(body.get("user_id", 0)),
+                    username=body.get("username", ""),
+                    first_name=body.get("first_name", ""),
+                    lang=body.get("lang", "ru"),
+                    text=body.get("text", ""),
+                )
+                return self._send_json({"ok": True, "id": msg_id})
             if method == "DELETE" and rid:
                 ok = db.delete_support_message(int(rid))
                 return self._send_json({"ok": ok})
