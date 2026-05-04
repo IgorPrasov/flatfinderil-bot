@@ -481,7 +481,7 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     return self._send_json({"total":len(contacts),"items":contacts})
                 if method=="POST":
                     b=self._read_body()
-                    new_id=db.add_crm_contact(0,b.get("contact_type","agent"),b.get("name",""),b.get("phone",""),b.get("telegram",""),b.get("region",""),b.get("city",""),b.get("notes",""))
+                    new_id=db.add_crm_contact({"contact_type":b.get("contact_type","agent"),"name":b.get("name",""),"phone":b.get("phone",""),"telegram":b.get("telegram",""),"region":b.get("region",""),"city":b.get("city",""),"notes":b.get("notes","")})
                     return self._send_json({"ok":True,"id":new_id})
                 if method=="PATCH" and cid:
                     return self._send_json({"ok":db.update_crm_contact(cid,self._read_body())})
@@ -490,7 +490,7 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 if method=="GET" and cid and act=="notes":
                     return self._send_json({"items":db.get_crm_notes(cid)})
                 if method=="POST" and cid and act=="notes":
-                    b=self._read_body(); db.add_crm_note(0,cid,b.get("text",""))
+                    b=self._read_body(); db.add_crm_note(int(cid),b.get("text",""),0)
                     return self._send_json({"ok":True})
             if sub == "deals":
                 if method=="GET":
@@ -498,7 +498,7 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     if status: deals=[d for d in deals if d.get("status")==status]
                     return self._send_json({"total":len(deals),"items":deals})
                 if method=="POST":
-                    b=self._read_body(); db.add_crm_deal(0,b.get("contact_id",""),b.get("description",""),b.get("amount",0),b.get("status","new"))
+                    b=self._read_body(); db.add_crm_deal({"contact_id":b.get("contact_id",""),"description":b.get("description",""),"amount":b.get("amount",0),"status":b.get("status","new")})
                     return self._send_json({"ok":True})
                 if method=="PATCH" and cid:
                     b=self._read_body()

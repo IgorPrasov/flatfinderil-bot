@@ -479,6 +479,7 @@ async function loadDailyStats() {
 
 // ── Tab navigation ─────────────────────────────────────────────────────────────
 function showTab(name) {
+  closeDetail();   // always dismiss any open detail panel / overlay
   currentTab = name;
   document.querySelectorAll('.tab-page').forEach(el => el.style.display = 'none');
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
