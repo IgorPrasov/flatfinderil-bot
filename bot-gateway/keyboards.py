@@ -38,7 +38,7 @@ def main_menu_keyboard(ctx):
         [InlineKeyboardButton(t("btn_all_listings", ctx), callback_data="all_listings"), InlineKeyboardButton(t("btn_help", ctx), callback_data="help")],
         [InlineKeyboardButton(sub_label, callback_data="subscription"), InlineKeyboardButton(t("btn_my_subscriptions", ctx), callback_data="my_subscriptions")],
         [InlineKeyboardButton(t("btn_cabinet", ctx), callback_data="cabinet"), InlineKeyboardButton(t("btn_language", ctx), callback_data="choose_lang")],
-        [InlineKeyboardButton(contact_label, callback_data="contact_admin"), InlineKeyboardButton(insta_label, url="https://www.instagram.com/flatfinderil.il/")],
+        [InlineKeyboardButton(contact_label, callback_data="contact_admin"), InlineKeyboardButton(insta_label, url="https://www.instagram.com/flatfinderil/")],
     ])
 
 def back_to_menu_keyboard(ctx):
