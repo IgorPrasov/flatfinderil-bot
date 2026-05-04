@@ -1002,7 +1002,7 @@ function esc(s) {
 async function loadSupport() {
   const el = document.getElementById('support-list');
   el.innerHTML = '<p style="color:#999;text-align:center;padding:40px">Загрузка...</p>';
-  const d = await api('GET', '/backoffice/api/support-messages');
+  const d = await api('GET', '/support-messages');
   if (!d.items || !d.items.length) {
     el.innerHTML = '<p style="color:#999;text-align:center;padding:40px">Нет сообщений</p>';
     return;
@@ -1028,7 +1028,7 @@ async function loadSupport() {
 
 async function deleteSupport(id) {
   if (!confirm('Удалить сообщение #'+id+'?')) return;
-  await api('DELETE', '/backoffice/api/support-messages/'+id);
+  await api('DELETE', '/support-messages/'+id);
   document.getElementById('smsg-'+id)?.remove();
 }
 
@@ -1036,7 +1036,7 @@ async function sendReply(msgId, userId) {
   const inp = document.getElementById('reply-'+msgId);
   const text = inp?.value?.trim();
   if (!text) return;
-  const r = await api('POST', `/backoffice/api/support-messages/${msgId}/reply`, {text});
+  const r = await api('POST', `/support-messages/${msgId}/reply`, {text});
   if (r.ok) {
     await loadSupport();
   } else {
