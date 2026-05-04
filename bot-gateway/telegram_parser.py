@@ -35,8 +35,10 @@ CHANNELS = [
     "sapirrent",
     "Sublet_Israel",
     "marianadlanru",
+    # ── Бат-Ям / Холон / Рамат-Ган / Гиватаим ────────────────────────────
+    "rentapartmentbatyam",   # 1.7K — Бат-Ям
+    "rentbatyam",            # 340  — Бат-Ям
     # ── Приватные — убраны (требуют авторизации) ─────────────────────────
-    # "rentapartmentbatyam",   # private
     # "RealEstateIsraelBot",   # bot, not a channel
 ]
 
@@ -78,7 +80,10 @@ CITY_KEYWORDS = {
 
     # ── Иерусалим и районы ────────────────────────────────────────────────
     "иерусалим": "Иерусалим", "jerusalem": "Иерусалим", "ירושלים": "Иерусалим",
-    "гило": "Иерусалим", "рамот": "Иерусалим", "рехавия": "Иерусалим",
+    "гило": "Иерусалим", "рехавия": "Иерусалим",
+    # рамот — ТОЛЬКО иерусалимские названия, без generic "рамот" (он встречается и в Хайфе)
+    "рамот алеф": "Иерусалим", "рамот бет": "Иерусалим",
+    "рамот гимель": "Иерусалим", "рамот далет": "Иерусалим",
     "арнона": "Иерусалим", "катамон": "Иерусалим", "бейт-хакерем": "Иерусалим",
     "малха": "Иерусалим", "гиват-мордехай": "Иерусалим",
     "бейт-шемеш": "Бейт-Шемеш", "beit shemesh": "Бейт-Шемеш", "בית שמש": "Бейт-Шемеш",
@@ -94,7 +99,9 @@ CITY_KEYWORDS = {
     "kiryat motzkin": "Хайфа", "קריית מוצקין": "Хайфа",
     "неве-шаанан хайфа": "Хайфа", "неве шаанан": "Хайфа",
     "адар": "Хайфа", "adar": "Хайфа",
-    "рамат-шапира": "Хайфа", "כרמל": "Хайфа", "кармель": "Хайфа",
+    "рамат-шапира": "Хайфа", "рамот ремез": "Хайфа", "рамот шапира": "Хайфа",
+    "рамот бен цви": "Хайфа", "рамот визниц": "Хайфа",
+    "כרמל": "Хайфа", "кармель": "Хайфа",
     "кирьят-ата": "Кирьят-Ата", "кирьят ата": "Кирьят-Ата", "kiryat ata": "Кирьят-Ата", "קריית אתא": "Кирьят-Ата",
     "кирьят-бялик": "Кирьят-Бялик", "кирьят бялик": "Кирьят-Бялик", "kiryat bialik": "Кирьят-Бялик", "קריית ביאליק": "Кирьят-Бялик",
 
@@ -432,18 +439,68 @@ def extract_neighborhood(text, city):
 
 
 def detect_city(text):
-    """Detect city from text. Checks longer (more specific) keywords first.
+    """Detect city from text.
+    Two-pass approach:
+      Pass 1 — direct city names only (highest confidence).
+              A match here wins even if a neighborhood keyword also appears.
+      Pass 2 — neighborhood/district keywords (fallback).
+    Within each pass, longer keywords are checked first (more specific first).
     Uses word-boundary matching to avoid false positives (e.g. 'тира' in 'квартира').
-    Allows up to 3 trailing Russian chars to handle case endings (хаим→хаиме, авив→авиве).
     """
     import re
+
+    # Direct city-name keywords (tier 1) — these always win over neighborhoods
+    TIER1 = {
+        "тель-авив", "тель авив", "tel aviv", "תל אביב",
+        "тель-авиве", "тель авиве",
+        "хайфа", "хайфе", "хайфы", "haifa", "חיפה",
+        "иерусалим", "иерусалиме", "иерусалима", "jerusalem", "ירושלים",
+        "нетания", "нетании", "нетанию", "netanya", "נתניה",
+        "беэр-шева", "беэр шева", "беэр-шеве", "беэр шеве",
+        "beer sheva", "באר שבע",
+        "ашдод", "ашдоде", "ашдода", "ashdod", "אשדוד",
+        "ашкелон", "ашкелоне", "ашкелона", "ashkelon", "אשקלון",
+        "петах-тиква", "петах тиква", "петах-тикве", "петах тикве", "petah tikva", "פתח תקווה",
+        "ришон-ле-цион", "ришон лецион", "rishon lezion", "ראשון לציון",
+        "реховот", "реховоте", "rehovot", "רחובות",
+        "рамат-ган", "рамат ган", "рамат-гане", "ramat gan", "רמת גן",
+        "бней-брак", "бней брак", "bnei brak", "בני ברק",
+        "герцлия", "герцлии", "герцлию", "herzliya", "הרצליה",
+        "холон", "holon", "חולון",
+        "бат-ям", "бат ям", "bat yam", "בת ים",
+        "кфар-саба", "кфар саба", "kfar saba", "כפר סבא",
+        "раанана", "raanana", "רעננה",
+        "модиин", "modiin", "מודיעין",
+        "нагария", "нагарии", "nahariya", "נהריה",
+        "хадера", "hadera", "חדרה",
+        "акко", "akko", "acre", "עכו",
+        "тиверия", "tiberias", "טבריה",
+        "эйлат", "eilat", "אילת",
+        "лод", "lod", "לוד",
+        "рамла", "ramla", "רמלה",
+        "ор-иегуда", "or yehuda", "אור יהודה",
+        "кирьят-ата", "кирьят ата", "kiryat ata", "קריית אתא",
+        "кирьят-бялик", "kiryat bialik", "קריית ביאליק",
+        "бейт-шемеш", "beit shemesh", "בית שמש",
+        "маале-адумим", "maale adumim", "מעלה אדומים",
+    }
+
     text_lower = text.lower()
-    # Sort by keyword length descending — longer/more specific first
-    for keyword in sorted(CITY_KEYWORDS.keys(), key=len, reverse=True):
-        # Match keyword + optional Russian case ending (up to 3 chars), with word boundaries
+
+    def _match(keyword):
         pattern = r'(?<![а-яёa-z\w])' + re.escape(keyword) + r'[а-яё]{0,3}(?![а-яёa-z\w])'
-        if re.search(pattern, text_lower):
+        return bool(re.search(pattern, text_lower))
+
+    # Pass 1: direct city names (sorted longest-first within tier)
+    for keyword in sorted(TIER1, key=len, reverse=True):
+        if keyword in CITY_KEYWORDS and _match(keyword):
             return CITY_KEYWORDS[keyword]
+
+    # Pass 2: all remaining keywords (neighborhoods, districts, etc.)
+    for keyword in sorted(CITY_KEYWORDS.keys(), key=len, reverse=True):
+        if keyword not in TIER1 and _match(keyword):
+            return CITY_KEYWORDS[keyword]
+
     return None  # unknown city
 
 def extract_price(text):
