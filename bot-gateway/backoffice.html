@@ -140,6 +140,7 @@
     .detail-desc{font-size:13px;color:#444;line-height:1.5;padding:10px;
                  background:#f8f8f4;border-radius:8px;margin-top:6px}
     tr.clickable{cursor:pointer}
+    tr.clickable td{cursor:pointer}
     tr.clickable:hover td{background:#f0f8ff!important}
   </style>
 </head>
@@ -423,11 +424,16 @@ let listingsPage = 1;
 
 // ── API helper ────────────────────────────────────────────────────────────────
 async function api(method, path, body) {
-  const opts = {method, headers: {'Content-Type':'application/json'}};
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(API + path, opts);
-  if (r.status === 401) { location.href = '/backoffice/login'; return null; }
-  return r.json();
+  try {
+    const opts = {method, headers: {'Content-Type':'application/json'}};
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(API + path, opts);
+    if (r.status === 401) { location.href = '/backoffice/login'; return null; }
+    return await r.json();
+  } catch(e) {
+    console.error('API error', method, path, e);
+    return null;
+  }
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────────
@@ -554,7 +560,7 @@ async function loadListings() {
     const statusBadge = l.active ? badge('Активно','green') : badge('Скрыто','red');
     const sellerBadge = l.seller_type ? badge(SELLER_LABELS[l.seller_type]||l.seller_type,'purple') : '';
     const deal = DEAL_LABELS[l.deal_type] || l.deal_type || '—';
-    return `<tr id="row-${l.id}" class="clickable" onclick="showListing(${l.id})">
+    return `<tr id="row-${l.id}" class="clickable" data-listing-id="${l.id}">
       <td><small>${l.id}</small></td>
       <td><b>${esc(l.title||'—')}</b></td>
       <td>${esc(l.city||'—')}</td>
@@ -565,7 +571,7 @@ async function loadListings() {
       <td>${statusBadge}</td>
       <td>${l.views||0}</td>
       <td><small>${l.date_added||'—'}</small></td>
-      <td onclick="event.stopPropagation()">
+      <td class="no-row-click">
         <button class="btn btn-ghost btn-sm" onclick="editListing(${l.id})">✏️</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleListing(${l.id},${l.active})">${l.active?'🙈':'👁'}</button>
         <button class="btn btn-danger btn-sm" onclick="deleteListing(${l.id})">🗑</button>
@@ -641,15 +647,15 @@ async function loadUsers() {
      <div class="kpi"><div class="kpi-val" style="color:var(--gold)">${d.items.reduce((s,u)=>s+u.active_listings,0)}</div><div class="kpi-label">активных объявл.</div></div>`;
   const tbody = document.getElementById('tbl-users');
   if (!d.items.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">Пользователей нет</td></tr>'; return; }
-  tbody.innerHTML = d.items.map(u => `<tr class="clickable" onclick="showUser('${u.user_id}')">
+  tbody.innerHTML = d.items.map(u => `<tr class="clickable" data-user-id="${u.user_id}">
     <td><small>${u.user_id}</small></td>
     <td><b>${esc(u.owner_name||'—')}</b></td>
-    <td>${u.owner_phone ? `<a href="tel:${u.owner_phone}" onclick="event.stopPropagation()">${u.owner_phone}</a>` : '—'}</td>
-    <td>${u.email ? `<a href="mailto:${u.email}" onclick="event.stopPropagation()">${u.email}</a>` : badge('Нет','red')}</td>
+    <td>${u.owner_phone ? `<a href="tel:${u.owner_phone}" class="no-row-click">${u.owner_phone}</a>` : '—'}</td>
+    <td>${u.email ? `<a href="mailto:${u.email}" class="no-row-click">${u.email}</a>` : badge('Нет','red')}</td>
     <td>${u.total_listings}</td>
     <td>${u.active_listings}</td>
     <td>${LANG_LABELS[u.lang]||u.lang||'—'}</td>
-    <td onclick="event.stopPropagation()"><button class="btn btn-primary btn-sm" onclick="showUser('${u.user_id}')">👁 Детали</button></td>
+    <td class="no-row-click"><button class="btn btn-primary btn-sm" onclick="showUser('${u.user_id}')">👁 Детали</button></td>
   </tr>`).join('');
 }
 
@@ -673,16 +679,16 @@ async function loadServices() {
   tbody.innerHTML = d.items.map(s => {
     const statusBadge = s.active!==false ? badge('Активно','green') : badge('Скрыто','red');
     const phone = s.owner_phone || s.phone || '';
-    return `<tr class="clickable" onclick="showService('${s.id}')">
+    return `<tr class="clickable" data-service-id="${s.id}">
       <td><small>${s.id||'—'}</small></td>
       <td>${SVC_LABELS[s.service_type]||s.service_type||'—'}</td>
       <td>${esc(s.city||'—')}</td>
       <td>${esc(s.region||'—')}</td>
       <td>${(s.price||0).toLocaleString()} ₪</td>
-      <td>${phone ? `<a href="tel:${phone}" onclick="event.stopPropagation()">${phone}</a>` : '—'}</td>
-      <td>${s.email ? `<a href="mailto:${s.email}" onclick="event.stopPropagation()">${s.email}</a>` : '—'}</td>
+      <td>${phone ? `<a href="tel:${phone}" class="no-row-click">${phone}</a>` : '—'}</td>
+      <td>${s.email ? `<a href="mailto:${s.email}" class="no-row-click">${s.email}</a>` : '—'}</td>
       <td>${statusBadge}</td>
-      <td onclick="event.stopPropagation()">
+      <td class="no-row-click">
         <button class="btn btn-ghost btn-sm" onclick="toggleService('${s.id}',${s.active!==false})">${s.active!==false?'🙈':'👁'}</button>
         <button class="btn btn-danger btn-sm" onclick="deleteService('${s.id}')">🗑</button>
       </td>
@@ -876,8 +882,10 @@ function dr(label, value) {
 }
 
 async function showListing(id) {
+  try {
   const l = await api('GET', `/listings/${id}`);
-  if (!l || l.error) return;
+  if (!l) { toast('Ошибка: нет ответа сервера (#'+id+')', false); return; }
+  if (l.error) { toast('Объявление не найдено: '+l.error, false); return; }
   const deal = DEAL_LABELS[l.deal_type] || l.deal_type || '—';
   const seller = SELLER_LABELS[l.seller_type] || '—';
   const statusBadge = l.active ? badge('Активно','green') : badge('Скрыто','red');
@@ -927,6 +935,7 @@ async function showListing(id) {
       </div>
     </div>`;
   openDetail(`🏠 Объявление #${l.id}`, html);
+  } catch(e) { toast('Ошибка отображения: '+(e.message||e), false); console.error('showListing',id,e); }
 }
 
 async function showUser(uid) {
@@ -1046,6 +1055,23 @@ async function sendReply(msgId, userId) {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+// Event delegation for listing rows (more reliable than inline onclick on <tr>)
+document.getElementById('tbl-listings').addEventListener('click', function(e) {
+  if (e.target.closest('.no-row-click')) return;
+  const tr = e.target.closest('tr[data-listing-id]');
+  if (tr) showListing(tr.dataset.listingId);
+});
+// Event delegation for user rows
+document.getElementById('tbl-users').addEventListener('click', function(e) {
+  const tr = e.target.closest('tr[data-user-id]');
+  if (tr) showUser(tr.dataset.userId);
+});
+// Event delegation for service rows
+document.getElementById('tbl-services').addEventListener('click', function(e) {
+  const tr = e.target.closest('tr[data-service-id]');
+  if (tr) showService(tr.dataset.serviceId);
+});
+
 loadStats();
 setInterval(loadStats, 30000);
 loadListings();
