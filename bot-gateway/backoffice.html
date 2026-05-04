@@ -173,6 +173,7 @@
     <div class="nav-item" onclick="showTab('services')"><span class="icon">🚚</span>Услуги</div>
     <div class="nav-item" onclick="showTab('crm')"><span class="icon">👥</span>CRM</div>
     <div class="nav-item" onclick="showTab('emails')"><span class="icon">✉️</span>Email рассылки</div>
+    <div class="nav-item" onclick="showTab('support')"><span class="icon">💬</span>Сообщения</div>
   </nav>
   <div class="sb-footer">
     <button class="logout-btn" onclick="logout()">🚪 Выйти</button>
@@ -239,12 +240,15 @@
         <option value="moving">🚚 Перевозки</option>
         <option value="packing">📦 Упаковка</option>
         <option value="cleaning">🧹 Клининг</option>
+        <option value="renovation">🔨 Ремонт</option>
+        <option value="legal">⚖️ Юридич.</option>
       </select>
       <select id="fs-active" onchange="loadServices()">
         <option value="">Все</option>
         <option value="true">Активные</option>
         <option value="false">Неактивные</option>
       </select>
+      <button class="btn btn-primary btn-sm" onclick="openAddService()">+ Добавить</button>
     </div>
     <div class="kpi-row" id="kpi-services"></div>
     <div class="table-wrap">
@@ -309,6 +313,15 @@
   </div>
 
   <!-- ── Email ── -->
+  <!-- ── Support messages ── -->
+  <div id="tab-support" class="tab-page" style="display:none">
+    <div class="page-title">💬 Сообщения от пользователей</div>
+    <div class="toolbar">
+      <button class="btn" onclick="loadSupport()">🔄 Обновить</button>
+    </div>
+    <div id="support-list"><p style="color:#999;text-align:center;padding:40px">Загрузка...</p></div>
+  </div>
+
   <div id="tab-emails" class="tab-page" style="display:none">
     <div class="page-title">✉️ Email рассылки</div>
     <div class="toolbar">
@@ -347,6 +360,44 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-contact')">Отмена</button>
       <button class="btn btn-primary" onclick="saveContact()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Service Provider -->
+<div class="modal-overlay" id="modal-service">
+  <div class="modal">
+    <h3>🚚 Добавить поставщика услуг</h3>
+    <div class="field"><label>Тип услуги</label>
+      <select id="ms-type">
+        <option value="moving">🚚 Перевозки</option>
+        <option value="packing">📦 Упаковка</option>
+        <option value="cleaning">🧹 Клининг</option>
+        <option value="renovation">🔨 Ремонт</option>
+        <option value="legal">⚖️ Юридические услуги</option>
+      </select></div>
+    <div class="field"><label>Имя / Компания</label><input id="ms-name" placeholder="Имя или название компании"></div>
+    <div class="field"><label>Телефон</label><input id="ms-phone" placeholder="+972..."></div>
+    <div class="field"><label>Telegram</label><input id="ms-tg" placeholder="@username"></div>
+    <div class="field"><label>Email</label><input id="ms-email" type="email" placeholder="company@example.com"></div>
+    <div style="display:flex;gap:10px">
+      <div class="field" style="flex:1"><label>Город</label><input id="ms-city" placeholder="Тель-Авив"></div>
+      <div class="field" style="flex:1"><label>Регион</label>
+        <select id="ms-region">
+          <option value="all">Вся страна</option>
+          <option value="center">Центр</option>
+          <option value="north">Север</option>
+          <option value="south">Юг</option>
+          <option value="haifa">Хайфа</option>
+          <option value="jerusalem">Иерусалим</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Цена (₪, от)</label><input id="ms-price" type="number" placeholder="500"></div>
+    <div class="field"><label>Описание</label><textarea id="ms-desc" rows="3" placeholder="Кратко об услугах..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-service')">Отмена</button>
+      <button class="btn btn-primary" onclick="saveService()">Сохранить</button>
     </div>
   </div>
 </div>
@@ -442,6 +493,7 @@ function showTab(name) {
   else if (name === 'services') loadServices();
   else if (name === 'crm') { loadCrmContacts(); loadCrmDeals(); }
   else if (name === 'emails') loadEmails();
+  else if (name === 'support') loadSupport();
 }
 
 // ── Debounce ───────────────────────────────────────────────────────────────────
@@ -452,7 +504,7 @@ function debounce(fn, ms) {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const DEAL_LABELS = {rent:'Аренда',buy:'Продажа',sublet:'Сублет',commercial:'Коммерческая'};
-const SVC_LABELS  = {moving:'🚚 Перевозки',packing:'📦 Упаковка',cleaning:'🧹 Клининг'};
+const SVC_LABELS  = {moving:'🚚 Перевозки',packing:'📦 Упаковка',cleaning:'🧹 Клининг',renovation:'🔨 Ремонт',legal:'⚖️ Юрист'};
 const STATUS_LABELS = {new:'🆕 Новая',in_progress:'⏳ В работе',done:'✅ Завершена',cancelled:'❌ Отменена'};
 const SELLER_LABELS = {agent:'🏢 Агент',private:'👤 Частное'};
 const LANG_LABELS = {ru:'🇷🇺 RU',en:'🇬🇧 EN',he:'🇮🇱 HE'};
@@ -646,6 +698,35 @@ async function deleteService(id) {
   if (!confirm(`Удалить поставщика ${id}?`)) return;
   const d = await api('DELETE', `/services/${id}`);
   if (d?.ok) { toast('🗑 Удалено'); loadServices(); loadStats(); }
+}
+
+function openAddService() { document.getElementById('modal-service').classList.add('open'); }
+
+async function saveService() {
+  const price = parseInt(document.getElementById('ms-price').value) || 0;
+  const body = {
+    service_type: document.getElementById('ms-type').value,
+    owner_name:   document.getElementById('ms-name').value.trim(),
+    owner_phone:  document.getElementById('ms-phone').value.trim(),
+    telegram:     document.getElementById('ms-tg').value.trim(),
+    email:        document.getElementById('ms-email').value.trim(),
+    city:         document.getElementById('ms-city').value.trim(),
+    region:       document.getElementById('ms-region').value,
+    price,
+    description:  document.getElementById('ms-desc').value.trim(),
+  };
+  if (!body.owner_name) { toast('Введите имя или название', false); return; }
+  const d = await api('POST', '/services', body);
+  if (d?.ok) {
+    toast('✅ Поставщик добавлен #' + d.id);
+    closeModal('modal-service');
+    // Reset form
+    ['ms-name','ms-phone','ms-tg','ms-email','ms-city','ms-price','ms-desc'].forEach(id=>{
+      document.getElementById(id).value='';
+    });
+    document.getElementById('ms-region').value = 'all';
+    loadServices(); loadStats();
+  } else toast('Ошибка сохранения', false);
 }
 
 // ── CRM ───────────────────────────────────────────────────────────────────────
@@ -915,6 +996,52 @@ async function showService(sid) {
 // ── Utils ─────────────────────────────────────────────────────────────────────
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Support messages ──────────────────────────────────────────────────────────
+async function loadSupport() {
+  const el = document.getElementById('support-list');
+  el.innerHTML = '<p style="color:#999;text-align:center;padding:40px">Загрузка...</p>';
+  const d = await api('GET', '/backoffice/api/support-messages');
+  if (!d.items || !d.items.length) {
+    el.innerHTML = '<p style="color:#999;text-align:center;padding:40px">Нет сообщений</p>';
+    return;
+  }
+  el.innerHTML = d.items.map(m => `
+    <div id="smsg-${m.id}" style="background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:16px 20px;margin-bottom:12px;${m.read?'':'border-left:3px solid #2AABEE'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div>
+          <span style="font-weight:600">${esc(m.first_name)} ${m.username?'@'+esc(m.username):''}</span>
+          <span style="color:#999;font-size:12px;margin-left:8px">ID: ${m.user_id} · ${m.lang} · ${m.date}</span>
+          ${m.read?'':'<span style="background:#2AABEE;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;margin-left:6px">NEW</span>'}
+        </div>
+        <button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="deleteSupport(${m.id})">🗑 Удалить</button>
+      </div>
+      <div style="margin:10px 0;color:#333;line-height:1.5">${esc(m.text)}</div>
+      ${m.reply ? `<div style="background:#f0faf0;border-radius:6px;padding:8px 12px;font-size:13px;color:#2a7a2a">📩 Ответ: ${esc(m.reply)}</div>` : `
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="reply-${m.id}" type="text" placeholder="Ответить пользователю..." style="flex:1;padding:7px 12px;border:1px solid #ddd;border-radius:6px;font-size:13px">
+        <button class="btn btn-success" style="padding:6px 14px;font-size:13px" onclick="sendReply(${m.id},${m.user_id})">Отправить</button>
+      </div>`}
+    </div>`).join('');
+}
+
+async function deleteSupport(id) {
+  if (!confirm('Удалить сообщение #'+id+'?')) return;
+  await api('DELETE', '/backoffice/api/support-messages/'+id);
+  document.getElementById('smsg-'+id)?.remove();
+}
+
+async function sendReply(msgId, userId) {
+  const inp = document.getElementById('reply-'+msgId);
+  const text = inp?.value?.trim();
+  if (!text) return;
+  const r = await api('POST', `/backoffice/api/support-messages/${msgId}/reply`, {text});
+  if (r.ok) {
+    await loadSupport();
+  } else {
+    alert('Ошибка: ' + JSON.stringify(r));
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

@@ -18,7 +18,7 @@ from listing_handler import ListingHandler
 from commercial_handler import CommercialHandler
 from service_handler import ServiceHandler
 from crm_handler import CRMHandler
-from support_handler import get_conversation_handler as get_support_handler, handle_admin_reply
+from support_handler import get_conversation_handler as get_support_handler, admin_reply_cmd
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -153,7 +153,7 @@ def main():
     app.add_handler(search.get_conversation_handler())
     app.add_handler(listing.get_conversation_handler())
     app.add_handler(get_support_handler())
-    app.add_handler(MessageHandler(filters.REPLY & filters.TEXT & ~filters.COMMAND, handle_admin_reply))
+    app.add_handler(CommandHandler("reply", admin_reply_cmd))
     app.add_handler(CallbackQueryHandler(handle_menu))
     # Payment handlers in group=-1 so they run BEFORE any ConversationHandler
     # (prevents a mid-conversation state from swallowing the pre_checkout_query)
@@ -564,6 +564,48 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 data["payments_log"] = log
                 _save_stats(data)
                 return self._send_json({"ok": True, "removed": removed})
+
+        # support messages
+        if resource == "support-messages":
+            if method == "GET":
+                msgs = db.get_support_messages(limit=200)
+                return self._send_json({"total": len(msgs), "items": msgs})
+            if method == "DELETE" and rid:
+                ok = db.delete_support_message(int(rid))
+                return self._send_json({"ok": ok})
+            if method == "PATCH" and rid and action == "read":
+                ok = db.mark_support_message_read(int(rid))
+                return self._send_json({"ok": ok})
+            if method == "POST" and rid and action == "reply":
+                body = self._read_body()
+                reply_text = body.get("text", "").strip()
+                if not reply_text:
+                    return self._send_json({"error": "text required"}, 400)
+                entry = db.reply_support_message(int(rid), reply_text)
+                if not entry:
+                    return self._send_json({"error": "Not found"}, 404)
+                # Relay reply to user via Telegram
+                target_uid = entry["user_id"]
+                target_lang = entry.get("lang", "ru")
+                prefix = {
+                    "ru": "📩 <b>Ответ от администрации:</b>\n\n",
+                    "en": "📩 <b>Reply from the administration:</b>\n\n",
+                    "he": "📩 <b>תשובה מההנהלה:</b>\n\n",
+                }.get(target_lang, "📩 <b>Ответ от администрации:</b>\n\n")
+                try:
+                    if _bot_app and _bot_loop:
+                        future = asyncio.run_coroutine_threadsafe(
+                            _bot_app.bot.send_message(
+                                chat_id=target_uid,
+                                text=prefix + reply_text,
+                                parse_mode="HTML",
+                            ),
+                            _bot_loop,
+                        )
+                        future.result(timeout=10)
+                except Exception as e:
+                    logger.error(f"[SUPPORT] relay reply failed: {e}")
+                return self._send_json({"ok": True})
 
         # logout via API
         if resource == "logout":

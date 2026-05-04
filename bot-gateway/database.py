@@ -1130,3 +1130,70 @@ def get_listings_by_tier(filters: Dict, is_premium: bool) -> List[Dict]:
     from classifier import filter_for_tier
     results = search_listings(filters)
     return filter_for_tier(results, is_premium)
+
+
+# ── Support messages ──────────────────────────────────────────────────────────
+
+def add_support_message(user_id: int, username: str, first_name: str,
+                        lang: str, text: str) -> int:
+    """Save a support message from a user. Returns the new message ID."""
+    with _DB_LOCK:
+        data = _load()
+        msgs = data.setdefault("support_messages", [])
+        new_id = (max((m.get("id", 0) for m in msgs), default=0) + 1)
+        msgs.append({
+            "id": new_id,
+            "user_id": user_id,
+            "username": username,
+            "first_name": first_name,
+            "lang": lang,
+            "text": text,
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "read": False,
+            "reply": "",
+        })
+        _save(data)
+        return new_id
+
+
+def get_support_messages(limit: int = 100) -> list:
+    with _DB_LOCK:
+        data = _load()
+        msgs = data.get("support_messages", [])
+        return sorted(msgs, key=lambda m: m.get("date", ""), reverse=True)[:limit]
+
+
+def delete_support_message(msg_id: int) -> bool:
+    with _DB_LOCK:
+        data = _load()
+        msgs = data.get("support_messages", [])
+        before = len(msgs)
+        data["support_messages"] = [m for m in msgs if m.get("id") != msg_id]
+        if len(data["support_messages"]) < before:
+            _save(data)
+            return True
+        return False
+
+
+def mark_support_message_read(msg_id: int) -> bool:
+    with _DB_LOCK:
+        data = _load()
+        for m in data.get("support_messages", []):
+            if m.get("id") == msg_id:
+                m["read"] = True
+                _save(data)
+                return True
+        return False
+
+
+def reply_support_message(msg_id: int, reply_text: str) -> dict | None:
+    """Save admin reply text and return the message entry (for Telegram relay)."""
+    with _DB_LOCK:
+        data = _load()
+        for m in data.get("support_messages", []):
+            if m.get("id") == msg_id:
+                m["reply"] = reply_text
+                m["read"] = True
+                _save(data)
+                return dict(m)
+        return None
