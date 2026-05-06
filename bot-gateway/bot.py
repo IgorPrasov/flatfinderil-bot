@@ -622,6 +622,49 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             _bo_delete_session(self.headers)
             return self._send_json({"ok":True})
 
+        # broadcast — POST /backoffice/api/broadcast
+        if resource == "broadcast" and method == "POST":
+            body = self._read_body()
+            texts = body.get("texts", {})   # {"ru": "...", "en": "...", "he": "..."}
+            default_text = body.get("text", "")
+            if not texts and not default_text:
+                return self._send_json({"error": "texts or text required"}, 400)
+
+            from analytics import _load_stats
+            stats_data = _load_stats()
+            all_users = stats_data.get("users", {})
+
+            if not _bot_app or not _bot_loop:
+                return self._send_json({"error": "bot not running"}, 503)
+
+            sent = 0; failed = 0; blocked = 0
+            for uid_str, udata in all_users.items():
+                lang = udata.get("lang", "ru") or "ru"
+                msg = texts.get(lang) or texts.get("ru") or default_text
+                if not msg:
+                    continue
+                try:
+                    future = asyncio.run_coroutine_threadsafe(
+                        _bot_app.bot.send_message(
+                            chat_id=int(uid_str),
+                            text=msg,
+                            parse_mode="HTML",
+                            disable_web_page_preview=True,
+                        ),
+                        _bot_loop,
+                    )
+                    future.result(timeout=8)
+                    sent += 1
+                except Exception as e:
+                    err_str = str(e).lower()
+                    if "blocked" in err_str or "deactivated" in err_str or "forbidden" in err_str:
+                        blocked += 1
+                    else:
+                        failed += 1
+                    logger.warning(f"[BROADCAST] uid={uid_str}: {e}")
+            return self._send_json({"ok": True, "sent": sent, "blocked": blocked, "failed": failed,
+                                    "total": len(all_users)})
+
         self._send_json({"error":"Not found"},404)
 
     def do_GET(self):
