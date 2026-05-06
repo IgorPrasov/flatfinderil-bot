@@ -400,6 +400,54 @@
         <div class="kpi"><div class="kpi-val" id="bc-res-total" style="color:var(--blue)">0</div><div class="kpi-label">всего</div></div>
       </div>
     </div>
+
+    <!-- ── Facebook Groups ── -->
+    <div style="background:#fff;border-radius:10px;border:1.5px solid #1877f2;padding:24px;margin-top:20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:22px">🔵</span>
+        <h3 style="font-size:16px;font-weight:700;color:#1877f2">Рассылка в Facebook-группы</h3>
+      </div>
+      <div style="font-size:13px;color:#666;margin-bottom:18px">
+        Запускает <b>facebook_poster.py</b> на сервере — публикует пост в <b id="fb-group-count">33</b> группах через Playwright.<br>
+        Требует: установленный Playwright + Chrome-cookies (или переменная <code>FB_COOKIES_JSON</code>).
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:600;color:#666;display:block;margin-bottom:5px">Текст поста (один для всех групп)</label>
+        <textarea id="fb-message" rows="7"
+          style="width:100%;padding:10px;border:1.5px solid #1877f2;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit"
+          placeholder="Напишите текст объявления...&#10;&#10;💡 Совет: напишите на иврите и русском — для охвата разных аудиторий"></textarea>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;font-weight:600;color:#666;display:block;margin-bottom:8px">Быстрые шаблоны:</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="applyFbTemplate('promo_he')">🏡 Реклама (HE)</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyFbTemplate('promo_ru')">🏡 Реклама (RU)</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyFbTemplate('instagram')">📸 Instagram</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyFbTemplate('mixed')">🌐 RU+HE (смешанный)</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="sendFbBroadcast(false)"
+                id="fb-send-btn"
+                style="background:#1877f2;padding:10px 24px;font-size:14px">
+          🔵 Запустить рассылку
+        </button>
+        <button class="btn btn-ghost" onclick="sendFbBroadcast(true)" style="font-size:13px">
+          🔍 Dry-run (без реальной публикации)
+        </button>
+        <button class="btn btn-ghost" onclick="loadFbLog()" style="font-size:13px">📋 История</button>
+        <span id="fb-status" style="font-size:13px;color:#666"></span>
+      </div>
+
+      <!-- FB Log -->
+      <div id="fb-log" style="display:none">
+        <div style="font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">История публикаций</div>
+        <div id="fb-log-body" style="font-size:13px"></div>
+      </div>
+    </div>
   </div>
 
 </main>
@@ -1250,6 +1298,102 @@ async function sendBroadcast() {
   document.getElementById('bc-results').style.display   = 'block';
   status.textContent = `✅ Готово: доставлено ${r.sent} из ${r.total}`;
   toast(`📢 Рассылка завершена: ${r.sent} доставлено`);
+}
+
+// ── FACEBOOK BROADCAST ───────────────────────────────────────────────────────
+const FB_TEMPLATES = {
+  promo_he: `🏠 FlatFinderIL – הבוט לחיפוש דירות בישראל!
+
+אלפי מודעות שכירות ומכירה בכל הארץ – מפרטיים ומסוכנויות.
+חיפוש נוח לפי עיר, חדרים ומחיר. חינמי לחלוטין!
+
+✅ פרסמו מודעה משלכם
+✅ חיפוש מהיר ופשוט
+✅ ישירות בטלגרם
+
+📲 @FlatFinderIL_bot
+📸 instagram.com/flatfinderil`,
+
+  promo_ru: `🏠 FlatFinderIL — бот для поиска квартир в Израиле!
+
+Тысячи объявлений об аренде и продаже по всей стране — от частных лиц и агентств. Поиск по городу, количеству комнат, цене. Абсолютно бесплатно!
+
+✅ Подай своё объявление
+✅ Быстрый и удобный поиск
+✅ Прямо в Telegram
+
+📲 @FlatFinderIL_bot
+📸 instagram.com/flatfinderil`,
+
+  instagram: `📸 Подпишись на наш Instagram @flatfinderil!
+
+Лучшие предложения недвижимости в Израиле, советы арендаторов, обзоры районов.
+
+👉 instagram.com/flatfinderil
+
+💬 Вопросы? Пиши в бот @FlatFinderIL_bot — всегда на связи!`,
+
+  mixed: `🏠 FlatFinderIL – דירות בישראל | Квартиры в Израиле
+
+🇮🇱 אלפי מודעות שכירות ומכירה – חינמי!
+🇷🇺 Тысячи объявлений аренды и продажи — бесплатно!
+
+📲 @FlatFinderIL_bot (Telegram)
+📸 @flatfinderil (Instagram)
+
+✅ חיפוש | Поиск  ✅ פרסום | Подача объявлений`
+};
+
+function applyFbTemplate(key) {
+  const t = FB_TEMPLATES[key];
+  if (t) document.getElementById('fb-message').value = t;
+}
+
+async function sendFbBroadcast(dryRun = false) {
+  const message = document.getElementById('fb-message').value.trim();
+  if (!message) { toast('Введите текст поста', false); return; }
+
+  const btn    = document.getElementById('fb-send-btn');
+  const status = document.getElementById('fb-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Запускаем...';
+  status.textContent = '';
+
+  const r = await api('POST', '/fb-post', { message, dry_run: dryRun });
+  btn.disabled = false;
+  btn.textContent = '🔵 Запустить рассылку';
+
+  if (!r) { toast('Ошибка: нет ответа сервера', false); return; }
+  if (r.error) { toast('Ошибка: ' + r.error, false); return; }
+
+  const label = dryRun ? '[dry-run]' : '';
+  status.textContent = `✅ ${label} Запущено (PID ${r.pid}), групп: ${r.groups}`;
+  toast(`🔵 Facebook рассылка запущена ${label}`);
+}
+
+async function loadFbLog() {
+  const r = await api('GET', '/fb-post-log');
+  const container = document.getElementById('fb-log');
+  const body = document.getElementById('fb-log-body');
+  container.style.display = 'block';
+
+  if (!r || !r.length) {
+    body.innerHTML = '<div style="color:#aaa;font-size:13px">История пуста</div>';
+    return;
+  }
+
+  body.innerHTML = r.slice(0, 10).map(entry => `
+    <div style="border:1px solid #e0e0da;border-radius:8px;padding:12px 16px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-weight:600;font-size:13px">${esc(entry.date)}</span>
+        <span style="font-size:12px;color:#666">
+          <span style="color:var(--green)">✅ ${entry.sent||0}</span> ·
+          <span style="color:var(--red)">❌ ${entry.failed||0}</span> ·
+          всего ${entry.total||0}
+        </span>
+      </div>
+      <div style="font-size:12px;color:#888;font-style:italic">${esc(entry.message_preview||'')}...</div>
+    </div>`).join('');
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

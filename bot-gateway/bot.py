@@ -665,6 +665,54 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             return self._send_json({"ok": True, "sent": sent, "blocked": blocked, "failed": failed,
                                     "total": len(all_users)})
 
+        # fb-post — POST /backoffice/api/fb-post
+        if resource == "fb-post" and method == "POST":
+            body = self._read_body()
+            message = body.get("message", "").strip()
+            group_ids = body.get("group_ids", [])  # [] = все группы
+            dry_run   = bool(body.get("dry_run", False))
+            if not message:
+                return self._send_json({"error": "message required"}, 400)
+            try:
+                import subprocess, sys as _sys, os as _os
+                script = _os.path.join(_os.path.dirname(__file__), "facebook_poster.py")
+                import tempfile, json as _json
+                # Записываем сообщение во временный файл
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.txt',
+                                                  delete=False, encoding='utf-8') as tf:
+                    tf.write(message)
+                    tmp_path = tf.name
+                cmd = [_sys.executable, script, "--file", tmp_path, "--pause", "15"]
+                if group_ids:
+                    cmd += ["--groups", ",".join(str(g) for g in group_ids)]
+                if dry_run:
+                    cmd += ["--dry-run"]
+                # Запускаем в фоне, не ждём завершения
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    cwd=_os.path.dirname(__file__),
+                )
+                return self._send_json({
+                    "ok": True,
+                    "pid": proc.pid,
+                    "groups": len(group_ids) if group_ids else "all",
+                    "message": "Рассылка запущена в фоне. Результаты в fb_posting_log.json",
+                })
+            except Exception as e:
+                logger.error(f"[FB-POST] {e}")
+                return self._send_json({"error": str(e)}, 500)
+
+        # fb-post-log — GET /backoffice/api/fb-post-log
+        if resource == "fb-post-log" and method == "GET":
+            import os as _os, json as _json
+            log_file = _os.path.join(_os.path.dirname(__file__), "fb_posting_log.json")
+            if _os.path.exists(log_file):
+                with open(log_file, "r", encoding="utf-8") as f:
+                    return self._send_json(_json.load(f))
+            return self._send_json([])
+
         self._send_json({"error":"Not found"},404)
 
     def do_GET(self):
