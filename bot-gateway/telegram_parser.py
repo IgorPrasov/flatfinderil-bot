@@ -488,8 +488,11 @@ def detect_city(text):
     text_lower = text.lower()
 
     def _match(keyword):
-        pattern = r'(?<![а-яёa-z\w])' + re.escape(keyword) + r'[а-яё]{0,3}(?![а-яёa-z\w])'
-        return bool(re.search(pattern, text_lower))
+        # Use explicit char classes instead of \w — Python 3's \w matches
+        # Unicode including Hebrew letters, which would falsely block matches.
+        _WORD = r'[а-яёa-zA-Z0-9_א-תװ-״יִ-פֿ]'
+        pattern = r'(?<!' + _WORD[1:] + r')' + re.escape(keyword) + r'(?!' + _WORD[1:] + r')'
+        return bool(re.search(pattern, text_lower, re.IGNORECASE | re.UNICODE))
 
     # Pass 1: direct city names (sorted longest-first within tier)
     for keyword in sorted(TIER1, key=len, reverse=True):
@@ -504,21 +507,50 @@ def detect_city(text):
     return None  # unknown city
 
 def extract_price(text):
+    # Helper: parse "1,234,567" or "1234567" → int
+    def _parse(s):
+        return int(s.replace(" ", "").replace(",", "").replace(".", ""))
+
     patterns = [
-        r'(\d[\d\s,]{2,6})\s*₪',
-        r'(\d[\d\s,]{2,6})\s*[Nn][Ii][Ss]',
-        r'(\d[\d\s,]{2,6})\s*шек',
-        r'(\d[\d\s,]{2,6})\s*שקל',
-        r'מחיר[:\s]+(\d[\d\s,]+)',
-        r'цена[:\s]+(\d[\d\s,]+)',
-        r'price[:\s]+(\d[\d\s,]+)',
-        r'(\d{3,6})\s*לחודש',
-        r'(\d{3,6})\s*в\s*мес',
-        r'(\d{3,6})\s*/\s*мес',
-        r'(\d{4,6})\s*в\s*month',
-        r'💰\s*(\d[\d\s,]+)',
-        r'(\d{4,6})(?=\s*₪)',
+        # ₪ symbol — allow thousands-comma: "5,500 ₪" or "5500₪"
+        r'(\d{1,3}(?:,\d{3})+|\d{3,8})\s*₪',
+        # NIS
+        r'(\d{1,3}(?:,\d{3})+|\d{3,8})\s*[Nn][Ii][Ss]',
+        # Russian шекелей
+        r'(\d{1,3}(?:,\d{3})+|\d{3,8})\s*шек',
+        # Hebrew שקל / שח / ש"ח — use tight digit pattern (no spaces) to avoid
+        # matching "4, 5500 שח" as "45500"
+        r'(\d{1,3}(?:,\d{3})+|\d{3,8})\s*(?:ש"ח|ש׳ח|שקל|שח)',
+        # Price label
+        r'מחיר[:\s]+(\d[\d,]+)',
+        r'цена[:\s]+(\d[\d,\s]+)',
+        r'price[:\s]+(\d[\d,\s]+)',
+        # "X שח/שקל/₪ לחודש" or just "X לחודש"
+        r'(\d{3,7})\s*(?:ש"ח|ש׳ח|שקל|שח|₪|nis)?\s*ל(?:חודש|חד)',
+        # Russian monthly
+        r'(\d{3,7})\s*в\s*мес',
+        r'(\d{3,7})\s*/\s*мес',
+        r'(\d{4,7})\s*в\s*month',
+        # emoji price
+        r'💰\s*(\d[\d,\s]+)',
     ]
+
+    found = []
+    for pattern in patterns:
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            try:
+                price = _parse(match.group(1))
+                # Accept arenда range (1k–50k) OR sale range (50k–10M)
+                if 1000 <= price <= 10_000_000:
+                    found.append(price)
+            except Exception:
+                pass
+    if found:
+        counts = {}
+        for p in found:
+            counts[p] = counts.get(p, 0) + 1
+        return max(counts, key=counts.get)
+    return 0
     found = []
     for pattern in patterns:
         for match in re.finditer(pattern, text, re.IGNORECASE):
@@ -605,7 +637,8 @@ def is_ad_or_spam(text):
 
 
 def is_listing(text):
-    if len(text) < 40:
+    # Facebook posts can be short compact summaries — lower threshold vs Telegram
+    if len(text) < 25:
         return False
     if is_ad_or_spam(text):
         return False
@@ -616,9 +649,12 @@ def is_listing(text):
         # Продажа (ru)
         "продает", "продаёт", "продаж", "продам", "продается", "продаётся",
         # Иврит — аренда
-        "להשכרה", "שכירות", "מחיר",
+        "להשכרה", "שכירות", "מחיר", "שח", "שקל", "ש\"ח",
         # Иврит — продажа
         "למכירה", "מכירה",
+        # Иврит — общие слова недвижимости (помогают идентифицировать пост)
+        "חדרים", "חדר", "דירה", "דירת", "דו-משפחתי", "קוטג",
+        "להשכרה", "שכר דירה", "להשכיר",
         # Цена / символы
         "цена", "₪", "nis", "ils",
         # English
