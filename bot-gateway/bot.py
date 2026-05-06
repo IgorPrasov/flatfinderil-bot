@@ -742,6 +742,49 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     return self._send_json(_json.load(f))
             return self._send_json([])
 
+        # ig-post — POST /backoffice/api/ig-post
+        if resource == "ig-post" and method == "POST":
+            body    = self._read_body()
+            caption = body.get("caption", "").strip()
+            image   = body.get("image", "").strip()   # имя файла из uploads/ или promo_dayN.jpg
+            dry_run = bool(body.get("dry_run", False))
+            if not caption:
+                return self._send_json({"error": "caption required"}, 400)
+            import os as _os, sys as _sys
+            # Разрешаем путь к изображению
+            if image:
+                base_dir = _os.path.dirname(__file__)
+                for candidate in [
+                    _os.path.join(base_dir, "uploads", image),
+                    _os.path.join(base_dir, image),
+                ]:
+                    if _os.path.exists(candidate):
+                        image = candidate
+                        break
+                else:
+                    image = None
+            try:
+                _sys.path.insert(0, _os.path.dirname(__file__))
+                from instagram_poster import post_to_instagram
+                result = post_to_instagram(
+                    caption=caption,
+                    image_path=image or None,
+                    dry_run=dry_run,
+                )
+                return self._send_json(result)
+            except Exception as e:
+                logger.error(f"[IG-POST] {e}")
+                return self._send_json({"error": str(e)}, 500)
+
+        # ig-post-log — GET /backoffice/api/ig-post-log
+        if resource == "ig-post-log" and method == "GET":
+            import os as _os, json as _json
+            log_file = _os.path.join(_os.path.dirname(__file__), "ig_posting_log.json")
+            if _os.path.exists(log_file):
+                with open(log_file, "r", encoding="utf-8") as f:
+                    return self._send_json(_json.load(f))
+            return self._send_json([])
+
         # images — GET /backoffice/api/images  (list uploaded images)
         if resource == "images" and method == "GET":
             import os as _os

@@ -507,6 +507,85 @@
         <div id="fb-log-body" style="font-size:13px"></div>
       </div>
     </div>
+
+    <!-- ── Instagram ── -->
+    <div style="background:#fff;border-radius:10px;border:1.5px solid #e1306c;padding:24px;margin-top:20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:22px">📸</span>
+        <h3 style="font-size:16px;font-weight:700;background:linear-gradient(90deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          Публикация в Instagram
+        </h3>
+      </div>
+      <div style="font-size:13px;color:#666;margin-bottom:18px">
+        Публикует фото + подпись на аккаунт <b>@flatfinderil</b> через <b>instagrapi</b>.<br>
+        Требует: переменные <code>IG_USERNAME</code> + <code>IG_PASSWORD</code> (или <code>IG_SESSION_JSON</code>) в Railway.
+      </div>
+
+      <!-- Подпись -->
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:600;color:#666;display:block;margin-bottom:5px">Текст публикации (caption)</label>
+        <textarea id="ig-caption" rows="7"
+          style="width:100%;padding:10px;border:1.5px solid #e1306c;border-radius:8px;font-size:13px;resize:vertical;font-family:inherit"
+          placeholder="🏠 FlatFinderIL — находим квартиры в Израиле!&#10;&#10;📲 @FlatFinderIL_bot"></textarea>
+      </div>
+
+      <!-- Шаблоны дня -->
+      <div style="margin-bottom:18px">
+        <label style="font-size:11px;font-weight:600;color:#666;display:block;margin-bottom:8px">📅 Шаблон дня:</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="applyIgDay(1)">День 1</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyIgDay(2)">День 2</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyIgDay(3)">День 3</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyIgDay(4)">День 4</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyIgDay(5)">День 5</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyIgDay(6)">День 6</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyIgDay(7)">День 7</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyIgDay(8)">День 8</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyIgDay(9)">День 9</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyIgDay(10)">День 10</button>
+          <button class="btn btn-ghost btn-sm" onclick="applyIgAutoDay()" style="background:#fce4ec;color:#e1306c;font-weight:700">🗓 Авто</button>
+        </div>
+      </div>
+
+      <!-- Выбор изображения (та же галерея) -->
+      <div style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label style="font-size:11px;font-weight:600;color:#666">🖼 Изображение (обязательно для Instagram)</label>
+          <span id="ig-img-selected-name" style="font-size:11px;color:#e1306c;font-weight:600"></span>
+        </div>
+        <div class="img-grid" id="ig-img-grid">
+          <div style="color:#bbb;font-size:12px;padding:10px">Загрузка...</div>
+        </div>
+        <!-- Предпросмотр -->
+        <div id="ig-img-preview-bar" style="display:none;margin-top:10px;align-items:center;gap:12px;background:#fce4ec;border-radius:8px;padding:10px 14px">
+          <img id="ig-img-preview-thumb" src="" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #f48fb1">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:#e1306c" id="ig-img-preview-label">Выбрано</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="clearIgImage()">✕ Убрать</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="sendIgPost(false)"
+                id="ig-send-btn"
+                style="background:linear-gradient(90deg,#f09433,#e6683c,#dc2743,#cc2366);border:none;padding:10px 24px;font-size:14px">
+          📸 Опубликовать в Instagram
+        </button>
+        <button class="btn btn-ghost" onclick="sendIgPost(true)" style="font-size:13px">
+          🔍 Dry-run (тест)
+        </button>
+        <button class="btn btn-ghost" onclick="loadIgLog()" style="font-size:13px">📋 История</button>
+        <span id="ig-status" style="font-size:13px;color:#666"></span>
+      </div>
+
+      <!-- IG Log -->
+      <div id="ig-log" style="display:none">
+        <div style="font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">История публикаций</div>
+        <div id="ig-log-body" style="font-size:13px"></div>
+      </div>
+    </div>
+
   </div>
 
 </main>
@@ -670,7 +749,7 @@ function showTab(name) {
   else if (name === 'crm') { loadCrmContacts(); loadCrmDeals(); }
   else if (name === 'emails') loadEmails();
   else if (name === 'support') loadSupport();
-  else if (name === 'broadcast') { loadBroadcastStats(); loadImageGallery(); }
+  else if (name === 'broadcast') { loadBroadcastStats(); loadImageGallery(); loadIgImageGallery(); }
 }
 
 // ── Debounce ───────────────────────────────────────────────────────────────────
@@ -1499,6 +1578,104 @@ async function loadFbLog() {
         </span>
       </div>
       <div style="font-size:12px;color:#888;font-style:italic">${esc(entry.message_preview||'')}...</div>
+    </div>`).join('');
+}
+
+// ── INSTAGRAM ────────────────────────────────────────────────────────────────
+let _igSelectedImage = null;
+
+function applyIgDay(day) {
+  const entry = FB_DAILY_ADS.find(e => e.day === day);
+  if (entry) document.getElementById('ig-caption').value = entry.message;
+  selectIgImage('promo_day' + day + '.jpg', 'День ' + day, true);
+}
+
+function applyIgAutoDay() {
+  const day = ((new Date().getDate() - 1) % 10) + 1;
+  applyIgDay(day);
+}
+
+function selectIgImage(name, label, builtin) {
+  const url = '/backoffice/static/' + (builtin ? '' : 'uploads/') + name;
+  _igSelectedImage = {name, url, label: label || name};
+  document.getElementById('ig-img-preview-thumb').src = url;
+  document.getElementById('ig-img-preview-label').textContent = label || name;
+  document.getElementById('ig-img-preview-bar').style.display = 'flex';
+  document.getElementById('ig-img-selected-name').textContent = '✅ ' + name;
+  document.querySelectorAll('#ig-img-grid .img-thumb').forEach(el => {
+    el.classList.toggle('selected', el.dataset.name === name);
+  });
+}
+
+function clearIgImage() {
+  _igSelectedImage = null;
+  document.getElementById('ig-img-preview-bar').style.display = 'none';
+  document.getElementById('ig-img-selected-name').textContent = '';
+  document.querySelectorAll('#ig-img-grid .img-thumb').forEach(el => el.classList.remove('selected'));
+}
+
+async function loadIgImageGallery() {
+  const grid = document.getElementById('ig-img-grid');
+  const uploaded = await api('GET', '/images');
+  const uploadedList = (uploaded || []).map(f => ({name: f, url: '/backoffice/static/uploads/' + f, label: f, builtin: false}));
+  const all = [
+    ...uploadedList,
+    ...BUILTIN_IMAGES.map(i => ({...i, url: '/backoffice/static/' + i.name, builtin: true})),
+  ];
+  if (!all.length) { grid.innerHTML = '<div style="color:#bbb;font-size:12px;padding:10px">Нет изображений</div>'; return; }
+  grid.innerHTML = all.map(img => `
+    <div class="img-thumb${_igSelectedImage?.name === img.name ? ' selected' : ''}"
+         data-name="${esc(img.name)}"
+         onclick="selectIgImage('${esc(img.name)}','${esc(img.label)}',${img.builtin})">
+      <img src="${esc(img.url)}" alt="${esc(img.label)}" loading="lazy">
+      ${img.builtin ? `<span class="img-built">встроен.</span>` : ''}
+    </div>`).join('');
+}
+
+async function sendIgPost(dryRun = false) {
+  const caption = document.getElementById('ig-caption').value.trim();
+  if (!caption) { toast('Введите текст публикации', false); return; }
+  const btn = document.getElementById('ig-send-btn');
+  const status = document.getElementById('ig-status');
+  btn.disabled = true;
+  status.textContent = '⏳ Публикуем…';
+
+  const body = { caption, dry_run: dryRun };
+  if (_igSelectedImage) body.image = _igSelectedImage.name;
+
+  const r = await api('POST', '/ig-post', body);
+  btn.disabled = false;
+
+  if (!r) { status.textContent = '❌ Нет ответа'; return; }
+  if (r.error) { status.textContent = '❌ ' + r.error; toast(r.error, false); return; }
+
+  if (r.dry_run) {
+    status.textContent = '🔍 Dry-run — OK';
+    toast('Dry-run: всё готово для публикации ✅');
+  } else {
+    status.textContent = r.url ? `✅ Опубликовано` : '✅ OK';
+    toast(r.url ? `✅ Instagram: ${r.url}` : '✅ Опубликовано!');
+    if (r.url) window.open(r.url, '_blank');
+  }
+}
+
+async function loadIgLog() {
+  const r = await api('GET', '/ig-post-log');
+  const container = document.getElementById('ig-log');
+  const body = document.getElementById('ig-log-body');
+  container.style.display = 'block';
+  if (!r || !r.length) { body.innerHTML = '<div style="color:#aaa;font-size:13px">История пуста</div>'; return; }
+  body.innerHTML = r.slice(-10).reverse().map(entry => `
+    <div style="border:1px solid #fce4ec;border-radius:8px;padding:12px 16px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-weight:600;font-size:13px">${esc(entry.timestamp||'')}</span>
+        <span style="font-size:12px;color:${entry.ok?'var(--green)':'var(--red)'}">
+          ${entry.ok ? '✅ Опубликовано' : '❌ Ошибка'}
+        </span>
+      </div>
+      ${entry.url ? `<a href="${esc(entry.url)}" target="_blank" style="font-size:12px;color:#e1306c">🔗 ${esc(entry.url)}</a><br>` : ''}
+      ${entry.error ? `<div style="font-size:12px;color:var(--red)">${esc(entry.error)}</div>` : ''}
+      <div style="font-size:12px;color:#888;margin-top:4px;font-style:italic">${esc(entry.caption_preview||'')}…</div>
     </div>`).join('');
 }
 
