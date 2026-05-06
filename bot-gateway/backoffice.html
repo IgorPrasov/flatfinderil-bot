@@ -108,6 +108,24 @@
              cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
     .sub-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
 
+    /* ── Upload drop zone ── */
+    .drop-zone{border:2px dashed #1877f2;border-radius:10px;padding:22px 16px;
+               text-align:center;cursor:pointer;transition:all .2s;background:#f0f7ff}
+    .drop-zone:hover,.drop-zone.drag-over{background:#d8eaff;border-color:#0d5fcc}
+    .drop-zone input[type=file]{display:none}
+    .img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-top:10px}
+    .img-thumb{position:relative;border-radius:8px;overflow:hidden;cursor:pointer;
+               border:3px solid transparent;transition:border-color .15s;aspect-ratio:1}
+    .img-thumb:hover{border-color:#1877f2}
+    .img-thumb.selected{border-color:#1877f2;box-shadow:0 0 0 2px #1877f233}
+    .img-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .img-thumb .img-del{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.55);
+                        color:#fff;border:none;border-radius:50%;width:20px;height:20px;
+                        font-size:12px;cursor:pointer;display:none;align-items:center;justify-content:center}
+    .img-thumb:hover .img-del{display:flex}
+    .img-thumb .img-built{position:absolute;bottom:2px;left:2px;background:rgba(24,119,242,.7);
+                           color:#fff;font-size:9px;padding:1px 4px;border-radius:3px}
+
     /* ── Toast ── */
     #toast{position:fixed;bottom:20px;right:20px;background:#222;color:#fff;padding:10px 18px;
            border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;z-index:200}
@@ -434,14 +452,39 @@
           <button class="btn btn-ghost btn-sm" onclick="applyFbDay(10)">День 10</button>
           <button class="btn btn-ghost btn-sm" onclick="applyFbAutoDay()" style="background:#e8f4fd;color:#1877f2;font-weight:700">🗓 Авто</button>
         </div>
-        <!-- Превью картинки дня -->
-        <div id="fb-day-preview" style="display:none;display:flex;gap:14px;align-items:flex-start;background:#f8f8f4;border-radius:8px;padding:12px">
-          <img id="fb-day-img" src="" alt="" style="width:100px;height:100px;object-fit:cover;border-radius:6px;border:1px solid #ddd">
-          <div>
-            <div id="fb-day-label" style="font-weight:600;font-size:13px;margin-bottom:4px"></div>
-            <div style="font-size:11px;color:#999">Картинка для поста: <code id="fb-day-imgname" style="font-size:11px"></code></div>
-            <div style="font-size:11px;color:#bbb;margin-top:4px">Прикрепите картинку вручную при публикации.</div>
+      </div>
+
+      <!-- ── Изображения ── -->
+      <div style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label style="font-size:11px;font-weight:600;color:#666">🖼 Изображение для поста</label>
+          <span id="fb-img-selected-name" style="font-size:11px;color:#1877f2;font-weight:600"></span>
+        </div>
+
+        <!-- Drop zone -->
+        <div class="drop-zone" id="fb-drop-zone" onclick="document.getElementById('fb-file-input').click()">
+          <input type="file" id="fb-file-input" accept="image/*" multiple onchange="handleFileSelect(this.files)">
+          <div style="font-size:22px;margin-bottom:6px">📁</div>
+          <div style="font-size:13px;font-weight:600;color:#1877f2">Нажмите или перетащите картинки</div>
+          <div style="font-size:11px;color:#999;margin-top:3px">JPG, PNG, GIF — до 10 МБ каждый</div>
+        </div>
+
+        <!-- Галерея -->
+        <div style="margin-top:12px">
+          <div style="font-size:11px;color:#aaa;margin-bottom:6px">Встроенные + загруженные (нажми для выбора):</div>
+          <div class="img-grid" id="fb-img-grid">
+            <div style="color:#bbb;font-size:12px;padding:10px">Загрузка...</div>
           </div>
+        </div>
+
+        <!-- Предпросмотр выбранной -->
+        <div id="fb-img-preview-bar" style="display:none;margin-top:10px;display:flex;align-items:center;gap:12px;background:#e8f4fd;border-radius:8px;padding:10px 14px">
+          <img id="fb-img-preview-thumb" src="" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #c0d8f0">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:#1877f2" id="fb-img-preview-label">Выбрано</div>
+            <div style="font-size:11px;color:#888;margin-top:2px" id="fb-img-preview-info"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="clearSelectedImage()" style="white-space:nowrap">✕ Убрать</button>
         </div>
       </div>
 
@@ -627,7 +670,7 @@ function showTab(name) {
   else if (name === 'crm') { loadCrmContacts(); loadCrmDeals(); }
   else if (name === 'emails') loadEmails();
   else if (name === 'support') loadSupport();
-  else if (name === 'broadcast') loadBroadcastStats();
+  else if (name === 'broadcast') { loadBroadcastStats(); loadImageGallery(); }
 }
 
 // ── Debounce ───────────────────────────────────────────────────────────────────
@@ -1402,12 +1445,7 @@ function applyFbDay(day) {
   const entry = FB_DAILY_ADS.find(d => d.day === day);
   if (!entry) return;
   document.getElementById('fb-message').value = entry.message;
-  // Show preview
-  const preview = document.getElementById('fb-day-preview');
-  document.getElementById('fb-day-img').src    = '/backoffice/static/' + entry.image;
-  document.getElementById('fb-day-label').textContent   = entry.label;
-  document.getElementById('fb-day-imgname').textContent = entry.image;
-  preview.style.display = 'flex';
+  selectImage(entry.image, entry.label, true);
 }
 
 function applyFbAutoDay() {
@@ -1464,6 +1502,118 @@ async function loadFbLog() {
     </div>`).join('');
 }
 
+// ── IMAGE GALLERY & UPLOAD ───────────────────────────────────────────────────
+const BUILTIN_IMAGES = [
+  {name:'promo_day1.jpg',  label:'День 1'},
+  {name:'promo_day2.jpg',  label:'День 2'},
+  {name:'promo_day3.jpg',  label:'День 3'},
+  {name:'promo_day4.jpg',  label:'День 4'},
+  {name:'promo_day5.jpg',  label:'День 5'},
+  {name:'promo_day6.jpg',  label:'День 6'},
+  {name:'promo_day7.jpg',  label:'День 7'},
+  {name:'promo_day8.jpg',  label:'День 8'},
+  {name:'promo_day9.jpg',  label:'День 9'},
+  {name:'promo_day10.jpg', label:'День 10'},
+  {name:'promo_banner.jpg',label:'Баннер'},
+];
+
+let _selectedImage = null;   // {name, url, label}
+let _uploadedImages = [];    // [{name, url, label}]
+
+function selectImage(name, label, builtin) {
+  const url = '/backoffice/static/' + (builtin ? '' : 'uploads/') + name;
+  _selectedImage = {name, url, label: label || name};
+
+  // Update preview bar
+  document.getElementById('fb-img-preview-thumb').src = url;
+  document.getElementById('fb-img-preview-label').textContent = label || name;
+  document.getElementById('fb-img-preview-info').textContent  = name;
+  document.getElementById('fb-img-preview-bar').style.display = 'flex';
+  document.getElementById('fb-img-selected-name').textContent = '✅ ' + name;
+
+  // Highlight in grid
+  document.querySelectorAll('.img-thumb').forEach(el => {
+    el.classList.toggle('selected', el.dataset.name === name);
+  });
+}
+
+function clearSelectedImage() {
+  _selectedImage = null;
+  document.getElementById('fb-img-preview-bar').style.display = 'none';
+  document.getElementById('fb-img-selected-name').textContent = '';
+  document.querySelectorAll('.img-thumb').forEach(el => el.classList.remove('selected'));
+}
+
+async function loadImageGallery() {
+  const grid = document.getElementById('fb-img-grid');
+  // Load custom uploads from server
+  const uploaded = await api('GET', '/images');
+  _uploadedImages = (uploaded || []).map(f => ({name: f, url: '/backoffice/static/uploads/' + f, label: f}));
+
+  const all = [
+    ..._uploadedImages.map(i => ({...i, builtin: false})),
+    ...BUILTIN_IMAGES.map(i => ({...i, url: '/backoffice/static/' + i.name, builtin: true})),
+  ];
+
+  if (!all.length) { grid.innerHTML = '<div style="color:#bbb;font-size:12px;padding:10px">Нет изображений</div>'; return; }
+
+  grid.innerHTML = all.map(img => `
+    <div class="img-thumb${_selectedImage?.name === img.name ? ' selected' : ''}"
+         data-name="${esc(img.name)}"
+         onclick="selectImage('${esc(img.name)}','${esc(img.label)}',${img.builtin})">
+      <img src="${esc(img.url)}" alt="${esc(img.label)}" loading="lazy">
+      ${img.builtin
+        ? `<span class="img-built">встроен.</span>`
+        : `<button class="img-del" title="Удалить" onclick="event.stopPropagation();deleteImage('${esc(img.name)}')">✕</button>`}
+    </div>`).join('');
+}
+
+async function handleFileSelect(files) {
+  if (!files || !files.length) return;
+  const MAX = 10 * 1024 * 1024;
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) { toast('Только изображения!', false); continue; }
+    if (file.size > MAX) { toast(`${file.name}: слишком большой (макс 10 МБ)`, false); continue; }
+
+    const b64 = await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload  = e => res(e.target.result.split(',')[1]);
+      fr.onerror = rej;
+      fr.readAsDataURL(file);
+    });
+
+    const r = await api('POST', '/images', {filename: file.name, data: b64});
+    if (!r || r.error) { toast('Ошибка загрузки ' + file.name + ': ' + (r?.error||''), false); continue; }
+    toast('✅ Загружено: ' + r.filename);
+  }
+  loadImageGallery();
+}
+
+async function deleteImage(name) {
+  if (!confirm('Удалить изображение «' + name + '»?')) return;
+  const r = await api('DELETE', '/images/' + encodeURIComponent(name));
+  if (r?.ok) {
+    if (_selectedImage?.name === name) clearSelectedImage();
+    toast('Удалено: ' + name);
+    loadImageGallery();
+  } else {
+    toast('Ошибка удаления: ' + (r?.error || ''), false);
+  }
+}
+
+// Drag & drop
+function _initDropZone() {
+  const zone = document.getElementById('fb-drop-zone');
+  if (!zone) return;
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    handleFileSelect(e.dataTransfer.files);
+  });
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 // Event delegation for listing rows (more reliable than inline onclick on <tr>)
 document.getElementById('tbl-listings').addEventListener('click', function(e) {
@@ -1485,6 +1635,7 @@ document.getElementById('tbl-services').addEventListener('click', function(e) {
 loadStats();
 setInterval(loadStats, 30000);
 loadListings();
+_initDropZone();
 </script>
 </body>
 </html>

@@ -365,9 +365,16 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             if not _bo_check_session(self.headers):
                 return self._redirect("/backoffice/login")
             import os as _os, mimetypes as _mt
-            filename = _os.path.basename(path)  # security: no path traversal
-            file_path = _os.path.join(_os.path.dirname(__file__), filename)
-            if _os.path.exists(file_path):
+            # Strip prefix, handle uploads/ subdirectory
+            rel = path[len("/backoffice/static/"):]
+            # Security: forbid path traversal
+            rel = rel.replace("..", "").lstrip("/")
+            base_dir = _os.path.dirname(__file__)
+            if rel.startswith("uploads/"):
+                file_path = _os.path.join(base_dir, "uploads", _os.path.basename(rel))
+            else:
+                file_path = _os.path.join(base_dir, _os.path.basename(rel))
+            if _os.path.exists(file_path) and _os.path.isfile(file_path):
                 ctype, _ = _mt.guess_type(file_path)
                 ctype = ctype or "application/octet-stream"
                 with open(file_path, "rb") as f:
@@ -734,6 +741,67 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 with open(log_file, "r", encoding="utf-8") as f:
                     return self._send_json(_json.load(f))
             return self._send_json([])
+
+        # images — GET /backoffice/api/images  (list uploaded images)
+        if resource == "images" and method == "GET":
+            import os as _os
+            uploads_dir = _os.path.join(_os.path.dirname(__file__), "uploads")
+            _os.makedirs(uploads_dir, exist_ok=True)
+            IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+            files = sorted(
+                f for f in _os.listdir(uploads_dir)
+                if _os.path.splitext(f)[1].lower() in IMAGE_EXT
+            )
+            return self._send_json(files)
+
+        # images — POST /backoffice/api/images  (upload image, base64 JSON)
+        if resource == "images" and method == "POST":
+            import os as _os, base64 as _b64, re as _re, mimetypes as _mt
+            body = self._read_body()
+            raw_name = body.get("filename", "upload.jpg")
+            data_b64 = body.get("data", "")
+            if not data_b64:
+                return self._send_json({"error": "data required"}, 400)
+            # Sanitise filename
+            safe_name = _re.sub(r"[^\w.\-]", "_", _os.path.basename(raw_name))
+            if not safe_name:
+                safe_name = "upload.jpg"
+            ext = _os.path.splitext(safe_name)[1].lower()
+            if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+                return self._send_json({"error": "unsupported file type"}, 400)
+            # Avoid overwrites — add suffix if exists
+            uploads_dir = _os.path.join(_os.path.dirname(__file__), "uploads")
+            _os.makedirs(uploads_dir, exist_ok=True)
+            dest = _os.path.join(uploads_dir, safe_name)
+            if _os.path.exists(dest):
+                base, ex = _os.path.splitext(safe_name)
+                import time as _time
+                safe_name = f"{base}_{int(_time.time())}{ex}"
+                dest = _os.path.join(uploads_dir, safe_name)
+            try:
+                raw_bytes = _b64.b64decode(data_b64)
+            except Exception as e:
+                return self._send_json({"error": f"base64 decode error: {e}"}, 400)
+            if len(raw_bytes) > 10 * 1024 * 1024:
+                return self._send_json({"error": "file too large (max 10 MB)"}, 413)
+            with open(dest, "wb") as f:
+                f.write(raw_bytes)
+            logger.info(f"[UPLOAD] {safe_name} ({len(raw_bytes)//1024} KB)")
+            return self._send_json({"ok": True, "filename": safe_name,
+                                    "url": f"/backoffice/static/uploads/{safe_name}"})
+
+        # images — DELETE /backoffice/api/images/<name>
+        if parts[0] == "images" and len(parts) == 2 and method == "DELETE":
+            import os as _os, re as _re
+            raw_name = parts[1]
+            safe_name = _re.sub(r"[^\w.\-]", "_", _os.path.basename(raw_name))
+            uploads_dir = _os.path.join(_os.path.dirname(__file__), "uploads")
+            dest = _os.path.join(uploads_dir, safe_name)
+            if _os.path.exists(dest) and _os.path.isfile(dest):
+                _os.remove(dest)
+                logger.info(f"[DELETE IMG] {safe_name}")
+                return self._send_json({"ok": True})
+            return self._send_json({"error": "not found"}, 404)
 
         self._send_json({"error":"Not found"},404)
 
