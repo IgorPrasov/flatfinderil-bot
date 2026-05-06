@@ -1,0 +1,62 @@
+[
+  {
+    "day": 1,
+    "label": "День 1 — Классическая реклама",
+    "image": "promo_day1.jpg",
+    "message": "🏠 FlatFinderIL – הבוט לחיפוש דירות בישראל!\n\nאלפי מודעות שכירות ומכירה בכל הארץ – מפרטיים ומסוכנויות.\nחיפוש נוח לפי עיר, חדרים ומחיר.\n\n✅ חינמי לחלוטין\n✅ פרסמו מודעה משלכם\n✅ ישירות בטלגרם\n\n📲 @FlatFinderIL_bot\n📸 instagram.com/flatfinderil"
+  },
+  {
+    "day": 2,
+    "label": "День 2 — На русском, классика",
+    "image": "promo_day2.jpg",
+    "message": "🏠 FlatFinderIL — бот для поиска квартир в Израиле!\n\nТысячи объявлений об аренде и продаже по всей стране — от частных лиц и агентств. Поиск по городу, комнатам, цене.\n\n✅ Абсолютно бесплатно\n✅ Подай своё объявление\n✅ Прямо в Telegram\n\n📲 @FlatFinderIL_bot\n📸 instagram.com/flatfinderil"
+  },
+  {
+    "day": 3,
+    "label": "День 3 — Без маклера",
+    "image": "promo_day3.jpg",
+    "message": "🚫 בלי תיווך. בלי עמלות. רק דירות!\n\nב-FlatFinderIL תמצאו מודעות ישירות מבעלי דירות – ללא מתווכים.\nחסכו אלפי שקלים על עמלות!\n\n🔍 חפשו לפי עיר, חדרים ומחיר\n📋 פרסמו מודעה בחינם\n💬 @FlatFinderIL_bot\n\n📸 @flatfinderil (Instagram)"
+  },
+  {
+    "day": 4,
+    "label": "День 4 — Без маклера RU",
+    "image": "promo_day4.jpg",
+    "message": "🚫 Без маклера. Без комиссий.\n\nFlatFinderIL — только прямые объявления от собственников. Сэкономь тысячи шекелей!\n\n🔍 Поиск по городу, комнатам, цене\n📋 Размести своё объявление бесплатно\n⚡ Результаты мгновенно\n\n📲 @FlatFinderIL_bot\n📸 @flatfinderil (Instagram)"
+  },
+  {
+    "day": 5,
+    "label": "День 5 — Сдаёшь квартиру?",
+    "image": "promo_day5.jpg",
+    "message": "📢 משכירים דירה? פרסמו ב-FlatFinderIL!\n\nהגיעו לאלפי שוכרים פוטנציאליים ישירות דרך הבוט בטלגרם.\nמהיר, נוח, בחינם!\n\n✅ פרסום חינמי\n✅ קהל ממוקד מחפשי דירות\n✅ ניהול קל של המודעה\n\n💬 @FlatFinderIL_bot\n📸 @flatfinderil"
+  },
+  {
+    "day": 6,
+    "label": "День 6 — Сдаёшь квартиру? RU",
+    "image": "promo_day6.jpg",
+    "message": "📢 Сдаёшь или продаёшь квартиру?\n\nРазмести объявление в FlatFinderIL — тебя увидят тысячи потенциальных арендаторов и покупателей!\n\n✅ Публикация бесплатна\n✅ Целевая аудитория — ищущие жильё\n✅ Легко добавить и управлять\n\n📲 @FlatFinderIL_bot\n📸 @flatfinderil (Instagram)"
+  },
+  {
+    "day": 7,
+    "label": "День 7 — Новые объявления",
+    "image": "promo_day7.jpg",
+    "message": "🔔 מודעות חדשות ב-FlatFinderIL!\n\nהרגע נוספו עשרות מודעות שכירות ומכירה חדשות בכל הארץ.\nבדקו עכשיו – אולי הדירה שלכם כבר מחכה!\n\n🔍 לחצו /search בבוט\n💬 @FlatFinderIL_bot\n📸 @flatfinderil"
+  },
+  {
+    "day": 8,
+    "label": "День 8 — Новые объявления RU",
+    "image": "promo_day8.jpg",
+    "message": "🔔 Новые объявления в FlatFinderIL!\n\nТолько что появились свежие предложения по аренде и продаже по всему Израилю. Не упусти — квартиры разбирают быстро!\n\n⚡ Ищи прямо сейчас — /search\n📲 @FlatFinderIL_bot\n📸 @flatfinderil (Instagram)"
+  },
+  {
+    "day": 9,
+    "label": "День 9 — Instagram + Telegram",
+    "image": "promo_day9.jpg",
+    "message": "📸 עקבו אחרינו! | Подпишись!\n\n🇮🇱 @flatfinderil באינסטגרם – מודעות, טיפים ועדכוני שוק הנדל\"ן\n🇷🇺 @flatfinderil в Instagram — объявления, советы, обзоры рынка\n\n👉 instagram.com/flatfinderil\n\n💬 Telegram-бот | בוט טלגרם:\n@FlatFinderIL_bot"
+  },
+  {
+    "day": 10,
+    "label": "День 10 — Смешанный RU+HE",
+    "image": "promo_day10.jpg",
+    "message": "🏠 FlatFinderIL\nדירות בישראל | Квартиры в Израиле\n\n🇮🇱 אלפי מודעות – חיפוש חינמי – ישירות בטלגרם\n🇷🇺 Тысячи объявлений – бесплатно – прямо в Telegram\n\n📲 @FlatFinderIL_bot\n📸 @flatfinderil (Instagram)\n\n✅ חיפוש / Поиск\n✅ פרסום / Публикация\n✅ ללא תיווך / Без маклера"
+  }
+]

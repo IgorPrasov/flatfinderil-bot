@@ -360,6 +360,28 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 return self._redirect("/backoffice/login")
             return self._send_html(BACKOFFICE_FILE)
 
+        # Static files (promo images etc.)
+        if path.startswith("/backoffice/static/"):
+            if not _bo_check_session(self.headers):
+                return self._redirect("/backoffice/login")
+            import os as _os, mimetypes as _mt
+            filename = _os.path.basename(path)  # security: no path traversal
+            file_path = _os.path.join(_os.path.dirname(__file__), filename)
+            if _os.path.exists(file_path):
+                ctype, _ = _mt.guess_type(file_path)
+                ctype = ctype or "application/octet-stream"
+                with open(file_path, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", len(data))
+                self.send_header("Cache-Control", "max-age=3600")
+                self.end_headers()
+                self.wfile.write(data)
+            else:
+                self.send_response(404); self.end_headers()
+            return
+
         # API routes
         if path.startswith("/backoffice/api/"):
             if not _bo_check_session(self.headers):
