@@ -742,6 +742,37 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     return self._send_json(_json.load(f))
             return self._send_json([])
 
+        # ig-session — POST /backoffice/api/ig-session  (save sessionid from user)
+        if resource == "ig-session" and method == "POST":
+            import os as _os, json as _json
+            body = self._read_body()
+            raw  = body.get("sessionid", "").strip()
+            # Accept "sessionid=VALUE" or just "VALUE"
+            if raw.startswith("sessionid="):
+                raw = raw[len("sessionid="):]
+            if not raw:
+                return self._send_json({"error": "sessionid required"}, 400)
+            try:
+                from instagrapi import Client
+                cl = Client()
+                cl.login_by_sessionid(raw)
+                me = cl.account_info()
+                session_data = cl.get_settings()
+                session_json = _json.dumps(session_data, ensure_ascii=False)
+                # Save to file + set env
+                session_file = _os.path.join(_os.path.dirname(__file__), "ig_session.json")
+                with open(session_file, "w", encoding="utf-8") as f:
+                    f.write(session_json)
+                _os.environ["IG_SESSION_JSON"] = session_json
+                return self._send_json({
+                    "ok": True,
+                    "username": me.username,
+                    "user_id": str(me.pk),
+                    "message": f"✅ Подключён @{me.username}",
+                })
+            except Exception as e:
+                return self._send_json({"error": str(e)}, 400)
+
         # ig-post — POST /backoffice/api/ig-post
         if resource == "ig-post" and method == "POST":
             body    = self._read_body()

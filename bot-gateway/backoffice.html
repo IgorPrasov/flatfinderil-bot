@@ -516,9 +516,27 @@
           Публикация в Instagram
         </h3>
       </div>
-      <div style="font-size:13px;color:#666;margin-bottom:18px">
-        Публикует фото + подпись на аккаунт <b>@flatfinderil</b> через <b>instagrapi</b>.<br>
-        Требует: переменные <code>IG_USERNAME</code> + <code>IG_PASSWORD</code> (или <code>IG_SESSION_JSON</code>) в Railway.
+      <div style="font-size:13px;color:#666;margin-bottom:14px">
+        Публикует фото + подпись на аккаунт <b>@flatfinderil</b> через <b>instagrapi</b>.
+      </div>
+
+      <!-- Подключение сессии -->
+      <div style="background:#fce4ec;border:1.5px solid #f48fb1;border-radius:8px;padding:14px 16px;margin-bottom:18px" id="ig-connect-block">
+        <div style="font-size:13px;font-weight:600;color:#c2185b;margin-bottom:8px">🔑 Требуется подключение аккаунта</div>
+        <div style="font-size:12px;color:#666;margin-bottom:10px">
+          Открой <b>Chrome на телефоне</b> → зайди в Instagram как <b>@flatfinderil</b> → вставь в адресную строку и нажми Enter:<br>
+          <code style="background:#fff;padding:2px 6px;border-radius:4px;font-size:11px;display:block;margin:6px 0;word-break:break-all">javascript:alert(document.cookie.split(';').find(c=>c.trim().startsWith('sessionid'))?.trim())</code>
+          Скопируй то что появится в окошке (начинается с <b>sessionid=</b>) и вставь ниже:
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="ig-sessionid-input" placeholder="sessionid=76050173146%3A..."
+                 style="flex:1;padding:8px 10px;border:1.5px solid #f48fb1;border-radius:6px;font-size:12px;font-family:monospace">
+          <button class="btn btn-primary" onclick="saveIgSession()"
+                  style="background:#e1306c;border:none;white-space:nowrap;padding:8px 16px;font-size:13px">
+            💾 Сохранить
+          </button>
+        </div>
+        <div id="ig-connect-status" style="font-size:12px;color:#666;margin-top:6px"></div>
       </div>
 
       <!-- Подпись -->
@@ -1677,6 +1695,30 @@ async function loadIgLog() {
       ${entry.error ? `<div style="font-size:12px;color:var(--red)">${esc(entry.error)}</div>` : ''}
       <div style="font-size:12px;color:#888;margin-top:4px;font-style:italic">${esc(entry.caption_preview||'')}…</div>
     </div>`).join('');
+}
+
+async function saveIgSession() {
+  const input = document.getElementById('ig-sessionid-input');
+  const status = document.getElementById('ig-connect-status');
+  const raw = input.value.trim();
+  if (!raw) { status.textContent = '⚠️ Вставьте sessionid'; status.style.color = '#c2185b'; return; }
+  status.textContent = '⏳ Проверяем сессию…';
+  status.style.color = '#666';
+  const r = await api('POST', '/ig-session', { sessionid: raw });
+  if (!r) { status.textContent = '❌ Нет ответа от сервера'; status.style.color = '#c62828'; return; }
+  if (r.ok) {
+    status.textContent = `✅ Аккаунт подключён: @${r.username}`;
+    status.style.color = '#2e7d32';
+    document.getElementById('ig-connect-block').style.background = '#e8f5e9';
+    document.getElementById('ig-connect-block').style.borderColor = '#a5d6a7';
+    input.value = '';
+    toast(`✅ Instagram @${r.username} подключён!`);
+  } else {
+    const msg = r.error || 'Неизвестная ошибка';
+    status.textContent = '❌ ' + msg;
+    status.style.color = '#c62828';
+    toast(msg, false);
+  }
 }
 
 // ── IMAGE GALLERY & UPLOAD ───────────────────────────────────────────────────
