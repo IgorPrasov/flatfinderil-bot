@@ -826,7 +826,7 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             import os as _os
             uploads_dir = _os.path.join(_os.path.dirname(__file__), "uploads")
             _os.makedirs(uploads_dir, exist_ok=True)
-            IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+            IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov"}
             files = sorted(
                 f for f in _os.listdir(uploads_dir)
                 if _os.path.splitext(f)[1].lower() in IMAGE_EXT
@@ -846,8 +846,11 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             if not safe_name:
                 safe_name = "upload.jpg"
             ext = _os.path.splitext(safe_name)[1].lower()
-            if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+            VIDEO_EXT = {".mp4", ".mov"}
+            IMAGE_EXT_UP = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+            if ext not in IMAGE_EXT_UP | VIDEO_EXT:
                 return self._send_json({"error": "unsupported file type"}, 400)
+            MAX_SIZE = 50 * 1024 * 1024 if ext in VIDEO_EXT else 10 * 1024 * 1024
             # Avoid overwrites — add suffix if exists
             uploads_dir = _os.path.join(_os.path.dirname(__file__), "uploads")
             _os.makedirs(uploads_dir, exist_ok=True)
@@ -861,8 +864,9 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 raw_bytes = _b64.b64decode(data_b64)
             except Exception as e:
                 return self._send_json({"error": f"base64 decode error: {e}"}, 400)
-            if len(raw_bytes) > 10 * 1024 * 1024:
-                return self._send_json({"error": "file too large (max 10 MB)"}, 413)
+            if len(raw_bytes) > MAX_SIZE:
+                size_label = "50 MB" if ext in VIDEO_EXT else "10 MB"
+                return self._send_json({"error": f"file too large (max {size_label})"}, 413)
             with open(dest, "wb") as f:
                 f.write(raw_bytes)
             logger.info(f"[UPLOAD] {safe_name} ({len(raw_bytes)//1024} KB)")

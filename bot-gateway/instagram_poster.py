@@ -125,10 +125,14 @@ def post_to_instagram(
     """
     placeholder_created = False
 
+    VIDEO_EXT = {".mp4", ".mov", ".avi"}
+    is_video = image_path and os.path.splitext(image_path)[1].lower() in VIDEO_EXT
+
     if not image_path or not os.path.exists(image_path):
         log.info("📷 Изображение не задано — генерируем заглушку")
         image_path = _make_placeholder_image(caption)
         placeholder_created = True
+        is_video = False
 
     result = {
         "ok": False,
@@ -149,10 +153,17 @@ def post_to_instagram(
     try:
         cl = _get_client()
         log.info("📤 Публикуем пост в Instagram …")
-        media = cl.photo_upload(
-            path=Path(image_path),
-            caption=caption,
-        )
+        if is_video:
+            log.info("🎬 Видео-пост (Reels) …")
+            media = cl.clip_upload(
+                path=Path(image_path),
+                caption=caption,
+            )
+        else:
+            media = cl.photo_upload(
+                path=Path(image_path),
+                caption=caption,
+            )
         media_id  = str(media.id)
         media_url = f"https://www.instagram.com/p/{media.code}/"
         log.info(f"✅ Опубликовано: {media_url}")

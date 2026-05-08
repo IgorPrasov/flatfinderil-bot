@@ -565,12 +565,24 @@
         </div>
       </div>
 
-      <!-- Выбор изображения (та же галерея) -->
+      <!-- Загрузка фото/видео -->
       <div style="margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <label style="font-size:11px;font-weight:600;color:#666">🖼 Изображение (обязательно для Instagram)</label>
+          <label style="font-size:11px;font-weight:600;color:#666">🖼 Фото / Видео для Instagram</label>
           <span id="ig-img-selected-name" style="font-size:11px;color:#e1306c;font-weight:600"></span>
         </div>
+
+        <!-- Drop zone -->
+        <div class="drop-zone" id="ig-drop-zone" onclick="document.getElementById('ig-file-input').click()"
+             style="border-color:#f48fb1">
+          <input type="file" id="ig-file-input" accept="image/*,video/mp4,video/quicktime" multiple
+                 onchange="handleIgFileSelect(this.files)">
+          <div style="font-size:22px;margin-bottom:6px">📁</div>
+          <div style="font-size:13px;font-weight:600;color:#e1306c">Нажмите или перетащите фото / видео</div>
+          <div style="font-size:11px;color:#999;margin-top:3px">JPG, PNG — до 10 МБ · MP4, MOV — до 50 МБ</div>
+        </div>
+
+        <div style="font-size:11px;color:#aaa;margin:8px 0 6px">Встроенные + загруженные (нажми для выбора):</div>
         <div class="img-grid" id="ig-img-grid">
           <div style="color:#bbb;font-size:12px;padding:10px">Загрузка...</div>
         </div>
@@ -1635,17 +1647,30 @@ function clearIgImage() {
 async function loadIgImageGallery() {
   const grid = document.getElementById('ig-img-grid');
   const uploaded = await api('GET', '/images');
-  const uploadedList = (uploaded || []).map(f => ({name: f, url: '/backoffice/static/uploads/' + f, label: f, builtin: false}));
+  const VIDEO_EXT = /\.(mp4|mov)$/i;
+  const uploadedList = (uploaded || []).map(f => ({
+    name: f,
+    url: '/backoffice/static/uploads/' + f,
+    label: f,
+    builtin: false,
+    isVideo: VIDEO_EXT.test(f),
+  }));
   const all = [
     ...uploadedList,
-    ...BUILTIN_IMAGES.map(i => ({...i, url: '/backoffice/static/' + i.name, builtin: true})),
+    ...BUILTIN_IMAGES.map(i => ({...i, url: '/backoffice/static/' + i.name, builtin: true, isVideo: false})),
   ];
-  if (!all.length) { grid.innerHTML = '<div style="color:#bbb;font-size:12px;padding:10px">Нет изображений</div>'; return; }
+  if (!all.length) { grid.innerHTML = '<div style="color:#bbb;font-size:12px;padding:10px">Нет медиафайлов</div>'; return; }
   grid.innerHTML = all.map(img => `
     <div class="img-thumb${_igSelectedImage?.name === img.name ? ' selected' : ''}"
          data-name="${esc(img.name)}"
          onclick="selectIgImage('${esc(img.name)}','${esc(img.label)}',${img.builtin})">
-      <img src="${esc(img.url)}" alt="${esc(img.label)}" loading="lazy">
+      ${img.isVideo
+        ? `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#111;border-radius:6px">
+             <div style="font-size:28px">🎬</div>
+             <div style="font-size:9px;color:#ccc;margin-top:3px;padding:0 4px;word-break:break-all;text-align:center">${esc(img.label)}</div>
+           </div>`
+        : `<img src="${esc(img.url)}" alt="${esc(img.label)}" loading="lazy">`
+      }
       ${img.builtin ? `<span class="img-built">встроен.</span>` : ''}
     </div>`).join('');
 }
@@ -1695,6 +1720,31 @@ async function loadIgLog() {
       ${entry.error ? `<div style="font-size:12px;color:var(--red)">${esc(entry.error)}</div>` : ''}
       <div style="font-size:12px;color:#888;margin-top:4px;font-style:italic">${esc(entry.caption_preview||'')}…</div>
     </div>`).join('');
+}
+
+async function handleIgFileSelect(files) {
+  if (!files || !files.length) return;
+  const IMAGE_MAX = 10 * 1024 * 1024;
+  const VIDEO_MAX = 50 * 1024 * 1024;
+  const VIDEO_TYPES = ['video/mp4', 'video/quicktime'];
+  for (const file of files) {
+    const isVideo = VIDEO_TYPES.includes(file.type) || /\.(mp4|mov)$/i.test(file.name);
+    const maxSize = isVideo ? VIDEO_MAX : IMAGE_MAX;
+    if (!isVideo && !file.type.startsWith('image/')) { toast('Только фото или видео (mp4/mov)!', false); continue; }
+    if (file.size > maxSize) { toast(`${file.name}: слишком большой (макс ${isVideo ? '50' : '10'} МБ)`, false); continue; }
+    toast(`⏳ Загружаем ${file.name}…`);
+    const b64 = await new Promise((res, rej) => {
+      const fr = new FileReader();
+      fr.onload  = e => res(e.target.result.split(',')[1]);
+      fr.onerror = rej;
+      fr.readAsDataURL(file);
+    });
+    const r = await api('POST', '/images', {filename: file.name, data: b64});
+    if (!r || r.error) { toast('Ошибка загрузки ' + file.name + ': ' + (r?.error || ''), false); continue; }
+    toast('✅ Загружено: ' + r.filename);
+    selectIgImage(r.filename, r.filename, false);
+  }
+  loadIgImageGallery();
 }
 
 async function saveIgSession() {
@@ -1823,14 +1873,25 @@ async function deleteImage(name) {
 // Drag & drop
 function _initDropZone() {
   const zone = document.getElementById('fb-drop-zone');
-  if (!zone) return;
-  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault();
-    zone.classList.remove('drag-over');
-    handleFileSelect(e.dataTransfer.files);
-  });
+  if (zone) {
+    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      handleFileSelect(e.dataTransfer.files);
+    });
+  }
+  const igZone = document.getElementById('ig-drop-zone');
+  if (igZone) {
+    igZone.addEventListener('dragover',  e => { e.preventDefault(); igZone.classList.add('drag-over'); });
+    igZone.addEventListener('dragleave', () => igZone.classList.remove('drag-over'));
+    igZone.addEventListener('drop', e => {
+      e.preventDefault();
+      igZone.classList.remove('drag-over');
+      handleIgFileSelect(e.dataTransfer.files);
+    });
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
