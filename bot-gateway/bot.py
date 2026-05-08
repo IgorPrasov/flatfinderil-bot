@@ -745,11 +745,14 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
         # ig-session — POST /backoffice/api/ig-session  (save sessionid from user)
         if resource == "ig-session" and method == "POST":
             import os as _os, json as _json
+            from urllib.parse import unquote as _unquote
             body = self._read_body()
             raw  = body.get("sessionid", "").strip()
             # Accept "sessionid=VALUE" or just "VALUE"
             if raw.startswith("sessionid="):
                 raw = raw[len("sessionid="):]
+            # URL-decode: %3A → : etc.
+            raw = _unquote(raw)
             if not raw:
                 return self._send_json({"error": "sessionid required"}, 400)
             try:
