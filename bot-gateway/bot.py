@@ -175,9 +175,19 @@ def main():
     # (was: schedule_daily_digest(app.bot, hour=9, minute=0))
     logger.info("Morning digest auto-broadcast is disabled; available via /digest on demand")
 
-    # Start Facebook parser if cookies are configured
+    # Start Facebook parser if cookies are configured (env var OR database)
     if os.environ.get("FB_COOKIES_JSON"):
         _start_fb_parser()
+    else:
+        try:
+            import database as _db
+            _fb_cookies = _db.get_fb_cookies()
+            if _fb_cookies:
+                os.environ["FB_COOKIES_JSON"] = _fb_cookies
+                _start_fb_parser()
+                logger.info("Facebook parser started from database cookies")
+        except Exception as _e:
+            logger.warning(f"Could not load FB cookies from DB: {_e}")
 
     logger.info("Bot started!")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
@@ -741,6 +751,43 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 with open(log_file, "r", encoding="utf-8") as f:
                     return self._send_json(_json.load(f))
             return self._send_json([])
+
+        # fb-cookies — POST /backoffice/api/fb-cookies  (save Facebook cookies)
+        if resource == "fb-cookies" and method == "POST":
+            import os as _os, json as _json
+            body = self._read_body()
+            raw = body.get("cookies", "").strip()
+            if not raw:
+                return self._send_json({"error": "cookies required"}, 400)
+            try:
+                # Validate JSON
+                parsed = _json.loads(raw)
+                if not isinstance(parsed, (list, dict)):
+                    raise ValueError("Expected JSON array or object")
+                # Save to database (persistent across deploys)
+                import database as _db
+                _db.set_fb_cookies(raw)
+                # Also set in current process env + restart parser if not running
+                _os.environ["FB_COOKIES_JSON"] = raw
+                # Try to (re)start parser
+                try:
+                    from facebook_parser import run_loop as _run_loop
+                    import threading as _thr
+                    def _fb_restart():
+                        try:
+                            _run_loop(interval_min=60)
+                        except Exception as _e:
+                            logger.error(f"FB parser restart error: {_e}")
+                    _t = _thr.Thread(target=_fb_restart, daemon=True, name="fb-parser-restart")
+                    _t.start()
+                    logger.info("Facebook parser (re)started with new cookies")
+                except Exception as _e:
+                    logger.warning(f"Could not restart FB parser: {_e}")
+                cookie_count = len(parsed) if isinstance(parsed, list) else len(parsed)
+                return self._send_json({"ok": True, "cookie_count": cookie_count,
+                                        "message": f"✅ {cookie_count} cookies saved, parser started"})
+            except Exception as e:
+                return self._send_json({"error": str(e)}, 400)
 
         # ig-session — POST /backoffice/api/ig-session  (save sessionid from user)
         if resource == "ig-session" and method == "POST":

@@ -425,9 +425,30 @@
         <span style="font-size:22px">🔵</span>
         <h3 style="font-size:16px;font-weight:700;color:#1877f2">Рассылка в Facebook-группы</h3>
       </div>
-      <div style="font-size:13px;color:#666;margin-bottom:18px">
+      <div style="font-size:13px;color:#666;margin-bottom:14px">
         Запускает <b>facebook_poster.py</b> на сервере — публикует пост в <b id="fb-group-count">33</b> группах через Playwright.<br>
         Требует: установленный Playwright + Chrome-cookies (или переменная <code>FB_COOKIES_JSON</code>).
+      </div>
+      <!-- Подключение Facebook cookies -->
+      <div style="background:#e3f2fd;border:1.5px solid #90caf9;border-radius:8px;padding:14px 16px;margin-bottom:18px" id="fb-connect-block">
+        <div style="font-size:13px;font-weight:600;color:#1565c0;margin-bottom:8px">🍪 Facebook cookies для парсинга групп</div>
+        <div style="font-size:12px;color:#555;margin-bottom:10px">
+          Для парсинга FB-групп нужны cookies авторизованного аккаунта.<br>
+          1. Установи расширение <b><a href="https://chrome.google.com/webstore/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm" target="_blank">Cookie-Editor</a></b> в Chrome<br>
+          2. Зайди на <b>facebook.com</b> как @djprasov<br>
+          3. Нажми иконку расширения → <b>Export</b> → <b>Export as JSON</b><br>
+          4. Вставь скопированный JSON ниже:
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <textarea id="fb-cookies-input" rows="3"
+                    placeholder='[{"name":"c_user","value":"..."},{"name":"xs","value":"..."}]'
+                    style="flex:1;padding:8px 10px;border:1.5px solid #90caf9;border-radius:6px;font-size:11px;font-family:monospace;resize:vertical"></textarea>
+          <button class="btn btn-primary" onclick="saveFbCookies()"
+                  style="background:#1877f2;border:none;white-space:nowrap;padding:8px 16px;font-size:13px">
+            💾 Сохранить
+          </button>
+        </div>
+        <div id="fb-connect-status" style="font-size:12px;color:#666;margin-top:6px"></div>
       </div>
 
       <div style="margin-bottom:14px">
@@ -1720,6 +1741,29 @@ async function loadIgLog() {
       ${entry.error ? `<div style="font-size:12px;color:var(--red)">${esc(entry.error)}</div>` : ''}
       <div style="font-size:12px;color:#888;margin-top:4px;font-style:italic">${esc(entry.caption_preview||'')}…</div>
     </div>`).join('');
+}
+
+async function saveFbCookies() {
+  const input = document.getElementById('fb-cookies-input');
+  const status = document.getElementById('fb-connect-status');
+  const raw = input.value.trim();
+  if (!raw) { status.textContent = '⚠️ Вставьте JSON с cookies'; status.style.color = '#c62828'; return; }
+  status.textContent = '⏳ Сохраняем…';
+  status.style.color = '#555';
+  const r = await api('POST', '/fb-cookies', { cookies: raw });
+  if (!r) { status.textContent = '❌ Нет ответа от сервера'; status.style.color = '#c62828'; return; }
+  if (r.ok) {
+    status.textContent = `✅ ${r.message || 'Cookies сохранены, парсер запущен'}`;
+    status.style.color = '#2e7d32';
+    document.getElementById('fb-connect-block').style.background = '#e8f5e9';
+    document.getElementById('fb-connect-block').style.borderColor = '#a5d6a7';
+    input.value = '';
+    toast(`✅ Facebook cookies (${r.cookie_count}) сохранены!`);
+  } else {
+    status.textContent = '❌ ' + (r.error || 'Ошибка');
+    status.style.color = '#c62828';
+    toast(r.error || 'Ошибка', false);
+  }
 }
 
 async function handleIgFileSelect(files) {

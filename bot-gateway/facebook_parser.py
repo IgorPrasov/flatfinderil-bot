@@ -201,6 +201,18 @@ def load_facebook_cookies() -> list[dict]:
     """
     import json as _json
 
+    # ── Database: cookies сохранённые через бэкофис (переживают редеплои) ─────
+    try:
+        import sys as _sys
+        _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import database as _db
+        _db_cookies = _db.get_fb_cookies()
+        if _db_cookies and not os.environ.get("FB_COOKIES_JSON"):
+            os.environ["FB_COOKIES_JSON"] = _db_cookies
+            log.info("✅ FB cookies loaded from database into env")
+    except Exception as _e:
+        log.debug(f"DB cookies check: {_e}")
+
     # ── Railway: cookies из переменной окружения ───────────────────────────────
     env_cookies_raw = os.environ.get("FB_COOKIES_JSON", "")
     if env_cookies_raw:

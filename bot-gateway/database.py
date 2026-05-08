@@ -1213,3 +1213,19 @@ def set_ig_session(sessionid: str):
         data = _load()
         data["ig_session"] = sessionid
         _save(data)
+
+
+# ── Facebook cookies ─────────────────────────────────────────────────────────
+
+def get_fb_cookies() -> str:
+    """Return saved Facebook cookies JSON string, or empty string."""
+    data = _load()
+    return data.get("fb_cookies_json", "")
+
+
+def set_fb_cookies(cookies_json: str):
+    """Persist Facebook cookies JSON in the database."""
+    with _DB_LOCK:
+        data = _load()
+        data["fb_cookies_json"] = cookies_json
+        _save(data)
