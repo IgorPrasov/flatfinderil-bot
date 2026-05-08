@@ -68,6 +68,18 @@ def _get_client():
         except Exception as e:
             log.warning(f"⚠️  Не удалось восстановить сессию из файла: {e}")
 
+    # 3. Попытка использовать sessionid из базы данных (переживает редеплои)
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import database as _db
+        sessionid = _db.get_ig_session()
+        if sessionid:
+            cl.login_by_sessionid(sessionid)
+            log.info("✅ Сессия из базы данных восстановлена")
+            return cl
+    except Exception as e:
+        log.warning(f"⚠️  Не удалось восстановить сессию из БД: {e}")
+
     raise RuntimeError(
         "❌ Instagram сессия не найдена. "
         "Подключи аккаунт в бэкофисе → Instagram → 🔑 Сохранить sessionid."

@@ -770,6 +770,9 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 with open(session_file, "w", encoding="utf-8") as f:
                     f.write(session_json)
                 _os.environ["IG_SESSION_JSON"] = session_json
+                # Persist in database so session survives redeployments
+                import database as _db
+                _db.set_ig_session(raw)
                 return self._send_json({
                     "ok": True,
                     "username": "flatfinderil",

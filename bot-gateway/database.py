@@ -1197,3 +1197,19 @@ def reply_support_message(msg_id: int, reply_text: str) -> dict | None:
                 _save(data)
                 return dict(m)
         return None
+
+
+# ── Instagram session ────────────────────────────────────────────────────────
+
+def get_ig_session() -> str:
+    """Return saved Instagram sessionid (raw, decoded), or empty string."""
+    data = _load()
+    return data.get("ig_session", "")
+
+
+def set_ig_session(sessionid: str):
+    """Persist Instagram sessionid in the database."""
+    with _DB_LOCK:
+        data = _load()
+        data["ig_session"] = sessionid
+        _save(data)
