@@ -38,63 +38,40 @@ LOG_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ig_post
 
 def _get_client():
     from instagrapi import Client
-    from instagrapi.exceptions import LoginRequired, BadPassword, TwoFactorRequired
 
     cl = Client()
     cl.delay_range = [2, 5]
 
-    # 1. Попытка загрузить сессию из env (Railway)
+    # 1. Попытка использовать sessionid из env (Railway)
     env_session = os.environ.get("IG_SESSION_JSON", "").strip()
     if env_session:
         try:
             session_data = json.loads(env_session)
-            cl.set_settings(session_data)
-            cl.login(
-                os.environ.get("IG_USERNAME", ""),
-                os.environ.get("IG_PASSWORD", ""),
-            )
-            log.info("✅ Сессия из IG_SESSION_JSON восстановлена")
-            return cl
+            sessionid = session_data.get("cookies", {}).get("sessionid", "")
+            if sessionid:
+                cl.login_by_sessionid(sessionid)
+                log.info("✅ Сессия из IG_SESSION_JSON (sessionid) восстановлена")
+                return cl
         except Exception as e:
             log.warning(f"⚠️  Не удалось восстановить сессию из env: {e}")
 
-    # 2. Попытка загрузить сессию из файла (локальный запуск)
+    # 2. Попытка использовать sessionid из файла
     if os.path.exists(SESSION_FILE):
         try:
-            cl.load_settings(SESSION_FILE)
-            cl.login(
-                os.environ.get("IG_USERNAME", ""),
-                os.environ.get("IG_PASSWORD", ""),
-            )
-            log.info(f"✅ Сессия из {SESSION_FILE} восстановлена")
-            return cl
+            with open(SESSION_FILE, "r", encoding="utf-8") as f:
+                session_data = json.load(f)
+            sessionid = session_data.get("cookies", {}).get("sessionid", "")
+            if sessionid:
+                cl.login_by_sessionid(sessionid)
+                log.info(f"✅ Сессия из {SESSION_FILE} (sessionid) восстановлена")
+                return cl
         except Exception as e:
             log.warning(f"⚠️  Не удалось восстановить сессию из файла: {e}")
 
-    # 3. Свежий логин
-    username = os.environ.get("IG_USERNAME", "")
-    password = os.environ.get("IG_PASSWORD", "")
-    if not username or not password:
-        raise RuntimeError(
-            "❌ IG_USERNAME и IG_PASSWORD не заданы. "
-            "Добавьте их в Railway Variables."
-        )
-
-    log.info(f"🔑 Входим в Instagram как @{username} …")
-    try:
-        cl.login(username, password)
-    except TwoFactorRequired:
-        code = input("Введите 2FA-код из Instagram: ").strip()
-        cl.login(username, password, verification_code=code)
-    except BadPassword:
-        raise RuntimeError("❌ Неверный пароль Instagram (IG_PASSWORD)")
-    except LoginRequired as e:
-        raise RuntimeError(f"❌ Instagram требует повторного входа: {e}")
-
-    # Сохраняем сессию локально
-    cl.dump_settings(SESSION_FILE)
-    log.info(f"💾 Сессия сохранена → {SESSION_FILE}")
-    return cl
+    raise RuntimeError(
+        "❌ Instagram сессия не найдена. "
+        "Подключи аккаунт в бэкофисе → Instagram → 🔑 Сохранить sessionid."
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

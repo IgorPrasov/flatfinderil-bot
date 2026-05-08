@@ -756,22 +756,24 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             if not raw:
                 return self._send_json({"error": "sessionid required"}, 400)
             try:
-                from instagrapi import Client
-                cl = Client()
-                cl.login_by_sessionid(raw)
-                me = cl.account_info()
-                session_data = cl.get_settings()
+                # Save sessionid directly — skip instagrapi API verification
+                # (Instagram blocks API calls from server IPs)
+                session_data = {
+                    "uuids": {},
+                    "cookies": {"sessionid": raw},
+                    "last_login": 0,
+                    "device_settings": {},
+                    "user_agent": "Instagram 269.0.0.18.75 Android",
+                }
                 session_json = _json.dumps(session_data, ensure_ascii=False)
-                # Save to file + set env
                 session_file = _os.path.join(_os.path.dirname(__file__), "ig_session.json")
                 with open(session_file, "w", encoding="utf-8") as f:
                     f.write(session_json)
                 _os.environ["IG_SESSION_JSON"] = session_json
                 return self._send_json({
                     "ok": True,
-                    "username": me.username,
-                    "user_id": str(me.pk),
-                    "message": f"✅ Подключён @{me.username}",
+                    "username": "flatfinderil",
+                    "message": "✅ Session saved. Try posting to verify.",
                 })
             except Exception as e:
                 return self._send_json({"error": str(e)}, 400)
