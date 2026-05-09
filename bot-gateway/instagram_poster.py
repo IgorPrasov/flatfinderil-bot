@@ -40,16 +40,16 @@ def _restore_full_settings(cl, settings_json: str, source: str) -> bool:
     """
     Восстанавливает клиент из полного JSON настроек instagrapi.
     Сохраняет device fingerprint → Instagram не замечает смену устройства.
+    НЕ делает live-запрос к Instagram — серверные IP блокируются для этого.
     Возвращает True при успехе.
     """
     try:
         settings = json.loads(settings_json)
         cl.set_settings(settings)
-        cl.get_timeline_feed()   # реальный запрос для проверки активности сессии
-        log.info(f"✅ Полные настройки из {source} восстановлены")
+        log.info(f"✅ Полные настройки из {source} применены")
         return True
     except Exception as e:
-        log.warning(f"⚠️  Не удалось восстановить полные настройки из {source}: {e}")
+        log.warning(f"⚠️  Не удалось применить настройки из {source}: {e}")
         return False
 
 
