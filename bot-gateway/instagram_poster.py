@@ -232,9 +232,10 @@ def post_to_instagram(
         result["note"] = "dry-run: ничего не опубликовано"
         return result
 
+    instagrapi_error = None
     try:
         cl = _get_client()
-        log.info("📤 Публикуем пост в Instagram …")
+        log.info("📤 Публикуем пост через мобильный API …")
         if is_video:
             log.info("🎬 Видео-пост (Reels) …")
             media = cl.clip_upload(path=Path(image_path), caption=caption)
@@ -243,19 +244,40 @@ def post_to_instagram(
 
         media_id  = str(media.id)
         media_url = f"https://www.instagram.com/p/{media.code}/"
-        log.info(f"✅ Опубликовано: {media_url}")
+        log.info(f"✅ Опубликовано (API): {media_url}")
 
         result["ok"]       = True
         result["media_id"] = media_id
         result["url"]      = media_url
+        result["method"]   = "instagrapi"
 
         # Обновляем сессию после успешного поста: файл + БД
         cl.dump_settings(SESSION_FILE)
         _save_settings_to_db(cl)
 
     except Exception as e:
-        log.error(f"❌ Ошибка публикации: {e}", exc_info=True)
-        result["error"] = str(e)
+        instagrapi_error = e
+        err_lower = str(e).lower()
+        # 403/login_required/ip blocked → пробуем через Playwright (браузер)
+        if any(x in err_lower for x in ("login_required", "loginrequired", "403", "forbidden")):
+            log.warning(f"⚠️  Мобильный API заблокирован ({e}). Пробуем Playwright …")
+            try:
+                from playwright_ig_poster import post_via_playwright
+                pw_result = post_via_playwright(caption, image_path)
+                if pw_result.get("ok"):
+                    result.update(pw_result)
+                    result["ok"]    = True
+                    result["note"]  = "posted via browser (Playwright)"
+                    instagrapi_error = None  # сброс ошибки — успех через Playwright
+                    log.info("✅ Опубликовано через Playwright")
+                else:
+                    result["error"] = pw_result.get("error", "Playwright failed")
+            except Exception as pw_e:
+                log.error(f"❌ Playwright тоже не сработал: {pw_e}", exc_info=True)
+                result["error"] = f"API: {e} | Playwright: {pw_e}"
+        else:
+            log.error(f"❌ Ошибка публикации: {e}", exc_info=True)
+            result["error"] = str(e)
     finally:
         if placeholder_created and os.path.exists(image_path):
             os.unlink(image_path)
