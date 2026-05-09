@@ -850,6 +850,7 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 # Persist in database so session survives redeployments
                 import database as _db
                 _db.set_ig_session(raw)
+                _db.set_ig_settings_json(session_json)  # full settings → survives redeploys
                 return self._send_json({
                     "ok": True,
                     "username": "flatfinderil",
