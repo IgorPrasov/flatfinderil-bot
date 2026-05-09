@@ -108,9 +108,39 @@ async def cmd_digest(update: Update, context):
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
 
+def _warmup_sessions():
+    """При старте: если в БД нет сессий — загружаем из env vars (переживают редеплои)."""
+    import os as _os, json as _json
+    import database as _db
+
+    # ── Instagram: env var → БД ──────────────────────────────────────────────
+    if not _db.get_ig_settings_json():
+        env_ig = _os.environ.get("IG_SESSION_JSON", "").strip()
+        if env_ig:
+            try:
+                _db.set_ig_settings_json(env_ig)
+                sid = _json.loads(env_ig).get("cookies", {}).get("sessionid", "")
+                if sid:
+                    _db.set_ig_session(sid)
+                logger.info("✅ Startup: Instagram session restored from IG_SESSION_JSON → DB")
+            except Exception as e:
+                logger.warning(f"⚠️ Startup: could not restore IG session: {e}")
+
+    # ── Facebook: env var → БД ───────────────────────────────────────────────
+    if not _db.get_fb_cookies():
+        env_fb = _os.environ.get("FB_COOKIES_JSON", "").strip()
+        if env_fb:
+            try:
+                _db.set_fb_cookies(env_fb)
+                logger.info("✅ Startup: Facebook cookies restored from FB_COOKIES_JSON → DB")
+            except Exception as e:
+                logger.warning(f"⚠️ Startup: could not restore FB cookies: {e}")
+
+
 def main():
     global _bot_app, _bot_loop
     fix_city_migration()
+    _warmup_sessions()
     app = Application.builder().token(BOT_TOKEN).build()
     _bot_app = app
     _bot_loop = asyncio.get_event_loop()
