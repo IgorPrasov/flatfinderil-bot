@@ -45,8 +45,21 @@ def _restore_full_settings(cl, settings_json: str, source: str) -> bool:
     """
     try:
         settings = json.loads(settings_json)
+        auth_data = settings.get("authorization_data", {})
+
+        # Если authorization_data говорит «использовать header вместо cookies»,
+        # оставляем в cookies только sessionid (как это делает login_by_sessionid).
+        # Это предотвращает конфликт: Instagram отклоняет запрос с ds_user_id в cookie
+        # при одновременном наличии Authorization-заголовка.
+        if auth_data.get("should_use_header_over_cookies"):
+            sid = auth_data.get("sessionid") or settings.get("cookies", {}).get("sessionid", "")
+            if sid:
+                settings = dict(settings)  # shallow copy
+                settings["cookies"] = {"sessionid": sid}
+
         cl.set_settings(settings)
-        log.info(f"✅ Полные настройки из {source} применены")
+        log.info(f"✅ Полные настройки из {source} применены"
+                 f" (cookie-only: {not auth_data.get('should_use_header_over_cookies')})")
         return True
     except Exception as e:
         log.warning(f"⚠️  Не удалось применить настройки из {source}: {e}")
