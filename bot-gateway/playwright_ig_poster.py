@@ -20,43 +20,69 @@ SESSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ig_sess
 
 
 def _get_session_cookies() -> list:
-    """Возвращает список cookies для instagram.com из сохранённой сессии."""
-    # Priority 1: DB
-    try:
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        import database as _db
-        settings_json = _db.get_ig_settings_json()
-        if settings_json:
-            settings = json.loads(settings_json)
-            cookies_dict = settings.get("cookies", {})
-            if cookies_dict.get("sessionid"):
-                return _dict_to_playwright_cookies(cookies_dict)
-    except Exception as e:
-        log.debug(f"DB cookies: {e}")
+    """
+    Возвращает полный список web-cookies для instagram.com.
+    Приоритет:
+      1. IG_WEB_COOKIES_JSON env var — полный список из браузера (csrftoken, datr, etc.)
+      2. DB/файл/IG_SESSION_JSON — только sessionid + ds_user_id (минимум)
+    """
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-    # Priority 2: file
-    if os.path.exists(SESSION_FILE):
+    # Priority 1: full web cookies JSON (set by admin from browser export)
+    web_json = os.environ.get("IG_WEB_COOKIES_JSON", "").strip()
+    if not web_json:
         try:
-            with open(SESSION_FILE) as f:
-                settings = json.load(f)
-            cookies_dict = settings.get("cookies", {})
-            if cookies_dict.get("sessionid"):
-                return _dict_to_playwright_cookies(cookies_dict)
+            import database as _db
+            web_json = _db.get_setting("ig_web_cookies_json") or ""
+        except Exception:
+            pass
+    if web_json:
+        try:
+            cookies = json.loads(web_json)
+            if isinstance(cookies, list) and any(c.get("name") == "sessionid" for c in cookies):
+                log.info(f"🍪 Используем полные web-cookies ({len(cookies)} шт.)")
+                return cookies
         except Exception as e:
-            log.debug(f"File cookies: {e}")
+            log.debug(f"IG_WEB_COOKIES_JSON parse error: {e}")
 
-    # Priority 3: env var
+    # Priority 2: minimal cookies from instagrapi settings (DB → file → env)
+    for source_name, get_cookies in [
+        ("DB", lambda: _get_cookies_from_db()),
+        ("file", lambda: _get_cookies_from_file()),
+        ("IG_SESSION_JSON", lambda: _get_cookies_from_env()),
+    ]:
+        try:
+            cookies = get_cookies()
+            if cookies:
+                log.info(f"🍪 Используем минимальные cookies из {source_name}")
+                return cookies
+        except Exception as e:
+            log.debug(f"{source_name}: {e}")
+
+    raise RuntimeError("❌ Instagram cookies не найдены для Playwright")
+
+
+def _get_cookies_from_db() -> list:
+    import database as _db
+    settings_json = _db.get_ig_settings_json()
+    if not settings_json:
+        return []
+    return _dict_to_playwright_cookies(json.loads(settings_json).get("cookies", {}))
+
+
+def _get_cookies_from_file() -> list:
+    if not os.path.exists(SESSION_FILE):
+        return []
+    with open(SESSION_FILE) as f:
+        settings = json.load(f)
+    return _dict_to_playwright_cookies(settings.get("cookies", {}))
+
+
+def _get_cookies_from_env() -> list:
     env_json = os.environ.get("IG_SESSION_JSON", "").strip()
-    if env_json:
-        try:
-            settings = json.loads(env_json)
-            cookies_dict = settings.get("cookies", {})
-            if cookies_dict.get("sessionid"):
-                return _dict_to_playwright_cookies(cookies_dict)
-        except Exception as e:
-            log.debug(f"Env var cookies: {e}")
-
-    raise RuntimeError("❌ Instagram сессия не найдена для Playwright")
+    if not env_json:
+        return []
+    return _dict_to_playwright_cookies(json.loads(env_json).get("cookies", {}))
 
 
 def _dict_to_playwright_cookies(cookies_dict: dict) -> list:
@@ -144,22 +170,32 @@ async def _post_to_instagram_async(caption: str, image_path: str) -> dict:
                 '[aria-label="New post"]',
                 'svg[aria-label="Create"]',
                 '[aria-label="Create"]',
-                'a[href="#"][role="link"]:has(svg)',
+                # The "+" button in the left sidebar
+                'span[class*="x1lliihq"]:has-text("Create")',
+                '[role="button"]:has(svg)',
+                'a[role="link"]:has(svg[aria-label])',
             ]
             create_btn = None
             for sel in create_selectors:
                 try:
                     create_btn = await page.wait_for_selector(sel, timeout=5000)
                     if create_btn:
+                        log.info(f"  ✅ Кнопка Create найдена: {sel}")
                         break
                 except PWTimeout:
                     pass
 
-            if not create_btn:
-                raise RuntimeError("Не найдена кнопка создания поста (Create/New post)")
-
-            await create_btn.click()
-            await page.wait_for_timeout(2000)
+            # If not found by selectors, look for "Create new post" dialog already open
+            try:
+                dialog = await page.wait_for_selector('text="Create new post"', timeout=2000)
+                if dialog:
+                    log.info("  ℹ️  Диалог 'Create new post' уже открыт")
+                    create_btn = None  # No need to click
+            except PWTimeout:
+                if not create_btn:
+                    raise RuntimeError("Не найдена кнопка создания поста (Create/New post)")
+                await create_btn.click()
+                await page.wait_for_timeout(2000)
 
             # May need to click "Post" from a submenu
             try:
@@ -170,10 +206,24 @@ async def _post_to_instagram_async(caption: str, image_path: str) -> dict:
             except PWTimeout:
                 pass  # No submenu needed
 
-            # Step 3: Upload file
+            # Step 3: Click "Select from computer" and upload file
             log.info(f"📁 Загружаем файл: {image_path}")
-            file_input = await page.wait_for_selector('input[type="file"]', timeout=10000)
-            await file_input.set_input_files(image_path)
+            # Click "Select from computer" button to activate the file input
+            try:
+                select_btn = await page.wait_for_selector(
+                    'button:has-text("Select from computer")', timeout=8000
+                )
+                # Set up file chooser handler before clicking
+                async with page.expect_file_chooser() as fc_info:
+                    await select_btn.click()
+                fc = await fc_info.value
+                await fc.set_files(image_path)
+                log.info(f"  ✅ Файл загружен через file chooser")
+            except Exception as fc_err:
+                log.warning(f"  ⚠️  File chooser не сработал ({fc_err}), прямой ввод…")
+                # Fallback: set directly on hidden input
+                file_input = page.locator('input[type="file"]').first
+                await file_input.set_input_files(image_path)
             await page.wait_for_timeout(3000)
 
             # Step 4: Navigate through dialog (may need multiple "Next" clicks)
@@ -181,11 +231,11 @@ async def _post_to_instagram_async(caption: str, image_path: str) -> dict:
             for step in range(3):
                 try:
                     next_btn = await page.wait_for_selector(
-                        'button:has-text("Next"), div[role="button"]:has-text("Next")',
+                        '[role="button"]:has-text("Next"), button:has-text("Next")',
                         timeout=5000,
                     )
                     if next_btn:
-                        await next_btn.click()
+                        await next_btn.click(force=True)
                         await page.wait_for_timeout(2000)
                         log.info(f"  ➡️  Шаг {step + 1}/3 пройден")
                 except PWTimeout:
@@ -220,29 +270,68 @@ async def _post_to_instagram_async(caption: str, image_path: str) -> dict:
                 log.warning("  ⚠️  Поле подписи не найдено")
 
             # Step 6: Share
+            # Instagram puts "Share" in the dialog header — scope search to dialog
             log.info("🚀 Публикуем пост…")
-            share_selectors = [
-                'button:has-text("Share")',
-                'div[role="button"]:has-text("Share")',
-                '[aria-label="Share"]',
-            ]
-            share_btn = None
-            for sel in share_selectors:
-                try:
-                    share_btn = await page.wait_for_selector(sel, timeout=5000)
-                    if share_btn:
+            share_clicked = await page.evaluate("""
+                () => {
+                    // The dialog has header with "Create new post" and a "Share" button
+                    // Find the dialog container first
+                    const dialogs = document.querySelectorAll('[role="dialog"], div[class*="modal"], div[class*="Modal"]');
+                    const containers = dialogs.length > 0
+                        ? [...dialogs]
+                        : [document.body];
+
+                    // Look for Share in dialog header area
+                    for (const container of containers) {
+                        const buttons = [...container.querySelectorAll('[role="button"], button, div')];
+                        // Prefer exact match of leaf-node "Share"
+                        const share = buttons.find(e =>
+                            e.children.length === 0 && e.textContent.trim() === 'Share'
+                        );
+                        if (share) {
+                            share.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+                            return 'leaf:' + share.tagName;
+                        }
+                    }
+
+                    // Fallback: any element whose direct text is Share
+                    const allEls = [...document.querySelectorAll('*')];
+                    const leafShare = allEls.find(e =>
+                        e.children.length === 0 &&
+                        e.textContent.trim() === 'Share' &&
+                        !e.closest('article')  // exclude feed posts
+                    );
+                    if (leafShare) {
+                        leafShare.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+                        return 'fallback:' + leafShare.tagName;
+                    }
+                    return null;
+                }
+            """)
+            if share_clicked:
+                log.info(f"  ✅ Share нажата через JS ({share_clicked})")
+            else:
+                # Last resort: Playwright selector scoped to dialog
+                share_btn = None
+                for sel in [
+                    '[role="dialog"] [role="button"]:has-text("Share")',
+                    '[role="dialog"] button:has-text("Share")',
+                    '[role="button"]:has-text("Share")',
+                ]:
+                    try:
+                        share_btn = page.locator(sel).last
+                        await share_btn.click(force=True, timeout=3000)
+                        log.info(f"  ✅ Share нажата через Playwright ({sel})")
+                        share_clicked = True
                         break
-                except PWTimeout:
-                    pass
+                    except Exception:
+                        pass
+                if not share_clicked:
+                    raise RuntimeError("Кнопка Share не найдена")
 
-            if not share_btn:
-                raise RuntimeError("Кнопка Share не найдена")
-
-            await share_btn.click()
-            log.info("  ✅ Кнопка Share нажата")
-
-            # Step 7: Wait for success
-            await page.wait_for_timeout(5000)
+            # Step 7: Wait for success / submission processing
+            log.info("⏳ Ожидаем публикации…")
+            await page.wait_for_timeout(8000)
 
             # Check for success indicators
             success = False
@@ -250,28 +339,44 @@ async def _post_to_instagram_async(caption: str, image_path: str) -> dict:
                 'text="Your post has been shared."',
                 'text="Post shared"',
                 '[aria-label="Post shared"]',
+                'text="Your reel has been shared."',
             ]
             for sel in success_selectors:
                 try:
-                    await page.wait_for_selector(sel, timeout=8000)
+                    await page.wait_for_selector(sel, timeout=6000)
                     success = True
+                    log.info(f"  ✅ Успех! Найден индикатор: {sel}")
                     break
                 except PWTimeout:
                     pass
 
             if not success:
-                # Check if we're still on the share page or redirected
-                await page.wait_for_timeout(3000)
+                # Check URL or dialog disappearance
+                await page.wait_for_timeout(2000)
                 current_url = page.url
-                if "instagram.com/p/" in current_url or "instagram.com/" == current_url:
-                    success = True  # Likely posted successfully
+                # If redirected to the new post page
+                if "instagram.com/p/" in current_url or "instagram.com/reel/" in current_url:
+                    success = True
+                    log.info(f"  ✅ Успех! Перенаправлен на пост: {current_url}")
+
+                # Check if dialog is gone (post was shared and dialog closed)
+                if not success:
+                    dialog_gone = await page.evaluate("""
+                        () => {
+                            const hasCreateHeader = document.body.innerText.includes('Create new post');
+                            return !hasCreateHeader;
+                        }
+                    """)
+                    if dialog_gone:
+                        success = True
+                        log.info("  ✅ Диалог закрылся — пост, вероятно, опубликован")
 
             if success:
                 log.info("✅ Пост опубликован!")
                 return {"ok": True, "method": "playwright"}
             else:
-                log.warning("⚠️  Статус публикации неизвестен (Success indic. not found)")
-                return {"ok": True, "method": "playwright", "note": "status unknown — may have posted"}
+                log.warning("⚠️  Статус публикации неизвестен (success indicator not found)")
+                return {"ok": True, "method": "playwright", "note": "status unknown — check Instagram manually"}
 
         except Exception as e:
             log.error(f"❌ Playwright ошибка: {e}", exc_info=True)

@@ -136,6 +136,16 @@ def _warmup_sessions():
             except Exception as e:
                 logger.warning(f"⚠️ Startup: could not restore FB cookies: {e}")
 
+    # ── Instagram web cookies (Playwright): env var → БД ─────────────────────
+    if not _db.get_setting("ig_web_cookies_json"):
+        env_web = _os.environ.get("IG_WEB_COOKIES_JSON", "").strip()
+        if env_web:
+            try:
+                _db.set_setting("ig_web_cookies_json", env_web)
+                logger.info("✅ Startup: Instagram web cookies restored from IG_WEB_COOKIES_JSON → DB")
+            except Exception as e:
+                logger.warning(f"⚠️ Startup: could not restore IG web cookies: {e}")
+
 
 def main():
     global _bot_app, _bot_loop

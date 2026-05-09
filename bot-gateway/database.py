@@ -1243,3 +1243,19 @@ def set_fb_cookies(cookies_json: str):
         data = _load()
         data["fb_cookies_json"] = cookies_json
         _save(data)
+
+
+# ── Generic settings ─────────────────────────────────────────────────────────
+
+def get_setting(key: str) -> str:
+    """Return a generic setting value by key, or empty string."""
+    data = _load()
+    return data.get(key, "")
+
+
+def set_setting(key: str, value: str):
+    """Persist a generic setting value in the database."""
+    with _DB_LOCK:
+        data = _load()
+        data[key] = value
+        _save(data)
