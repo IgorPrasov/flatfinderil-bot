@@ -40,24 +40,13 @@ def _restore_full_settings(cl, settings_json: str, source: str) -> bool:
     """
     Восстанавливает клиент из полного JSON настроек instagrapi.
     Сохраняет device fingerprint → Instagram не замечает смену устройства.
-    После set_settings() вызывает login_by_sessionid() чтобы обновить
-    Authorization-заголовок — это необходимо для успешного photo_upload().
+    НЕ делает live-запрос к Instagram — серверные IP блокируются для этого.
     Возвращает True при успехе.
     """
     try:
         settings = json.loads(settings_json)
         cl.set_settings(settings)
         log.info(f"✅ Полные настройки из {source} применены")
-
-        # Обновляем auth-токен через login_by_sessionid (работает с серверных IP)
-        sid = settings.get("cookies", {}).get("sessionid", "")
-        if sid:
-            try:
-                cl.login_by_sessionid(sid)
-                log.info(f"✅ Auth-токен обновлён через login_by_sessionid")
-            except Exception as e2:
-                log.warning(f"⚠️  login_by_sessionid не прошёл ({e2}), продолжаем с set_settings")
-
         return True
     except Exception as e:
         log.warning(f"⚠️  Не удалось применить настройки из {source}: {e}")
@@ -230,39 +219,14 @@ def post_to_instagram(
         result["note"] = "dry-run: ничего не опубликовано"
         return result
 
-    def _do_upload(cl, is_video, image_path, caption):
-        """Вспомогательная функция: загружает фото/видео."""
-        if is_video:
-            log.info("🎬 Видео-пост (Reels) …")
-            return cl.clip_upload(path=Path(image_path), caption=caption)
-        else:
-            return cl.photo_upload(path=Path(image_path), caption=caption)
-
     try:
         cl = _get_client()
         log.info("📤 Публикуем пост в Instagram …")
-        try:
-            media = _do_upload(cl, is_video, image_path, caption)
-        except Exception as upload_err:
-            err_str = str(upload_err).lower()
-            if "login_required" in err_str or "loginrequired" in err_str:
-                # Сессия устарела — пробуем переавторизоваться по sessionid
-                log.warning("⚠️  login_required — обновляем сессию через login_by_sessionid…")
-                try:
-                    import database as _db
-                    sid = (cl.cookie_dict.get("sessionid")
-                           or _db.get_ig_session()
-                           or "")
-                    if sid:
-                        cl.login_by_sessionid(sid)
-                        log.info("✅ Сессия обновлена через login_by_sessionid, повторяем пост…")
-                        media = _do_upload(cl, is_video, image_path, caption)
-                    else:
-                        raise upload_err
-                except Exception as retry_err:
-                    raise retry_err
-            else:
-                raise upload_err
+        if is_video:
+            log.info("🎬 Видео-пост (Reels) …")
+            media = cl.clip_upload(path=Path(image_path), caption=caption)
+        else:
+            media = cl.photo_upload(path=Path(image_path), caption=caption)
 
         media_id  = str(media.id)
         media_url = f"https://www.instagram.com/p/{media.code}/"
