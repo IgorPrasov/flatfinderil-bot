@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlatFinderIL — Найди квартиру в Израиле за 2 минуты</title>
+<meta name="description" content="Умный Telegram-бот ищет аренду и продажу квартир по 23 городам Израиля. Фильтр по цене, комнатам и району.">
+<meta property="og:title" content="FlatFinderIL — Найди квартиру в Израиле">
+<meta property="og:description" content="Умный Telegram-бот для поиска квартир в Израиле">
+<meta property="og:url" content="https://flatfinderil.com">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232563EB'/><text y='.9em' font-size='52' font-family='Arial' font-weight='bold' fill='white' x='50%' dominant-baseline='middle' text-anchor='middle' dy='.1em'>FF</text></svg>">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d0d0d;color:#fff;min-height:100vh}
+  a{text-decoration:none;color:inherit}
+  .container{max-width:680px;margin:0 auto;padding:0 20px}
+
+  /* HEADER */
+  .hero{text-align:center;padding:60px 20px 40px}
+  .logo-wrap{display:inline-flex;align-items:center;gap:12px;margin-bottom:24px}
+  .logo-box{width:64px;height:64px;background:#2563EB;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fff;letter-spacing:-1px;flex-shrink:0}
+  .logo-text{font-size:28px;font-weight:700;color:#fff;text-align:left}
+  .logo-text span{color:#2563EB}
+  .logo-sub{font-size:12px;color:#555;margin-top:3px;text-align:left;letter-spacing:0.08em}
+
+  .hero h1{font-size:clamp(30px,6vw,50px);font-weight:800;line-height:1.15;color:#fff;margin-bottom:20px}
+  .hero h1 .hl{color:#2563EB}
+  .hero p{font-size:17px;color:#aaa;line-height:1.65;max-width:520px;margin:0 auto 36px}
+
+  /* FEATURES */
+  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:36px}
+  .feat{background:#181818;border:1px solid #252525;border-radius:16px;padding:22px 16px;text-align:center}
+  .feat .icon{font-size:28px;margin-bottom:10px}
+  .feat h3{font-size:15px;font-weight:700;color:#fff;margin-bottom:6px}
+  .feat p{font-size:13px;color:#666;line-height:1.4}
+
+  /* CTA */
+  .cta-wrap{text-align:center;margin-bottom:14px}
+  .cta-btn{display:inline-flex;align-items:center;gap:10px;background:#2563EB;color:#fff;font-size:18px;font-weight:700;padding:18px 36px;border-radius:14px;transition:background .2s;cursor:pointer}
+  .cta-btn:hover{background:#1d4ed8}
+  .cta-btn svg{flex-shrink:0}
+  .cta-note{font-size:13px;color:#555;text-align:center;margin-bottom:48px}
+  .cta-note span{color:#3b82f6}
+
+  /* CITIES */
+  .cities-section{padding:0 20px 60px}
+  .cities-title{font-size:14px;color:#555;text-align:center;margin-bottom:16px}
+  .cities-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .city-tag{background:#181818;border:1px solid #2a2a2a;border-radius:999px;padding:8px 16px;font-size:14px;color:#bbb;cursor:pointer;transition:all .15s}
+  .city-tag:hover{background:#252525;color:#fff;border-color:#3b82f6}
+
+  /* FAQ */
+  .faq{padding:0 20px 60px;max-width:680px;margin:0 auto}
+  .faq-title{font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:24px}
+  .faq-item{background:#181818;border:1px solid #252525;border-radius:14px;padding:18px 20px;margin-bottom:12px}
+  .faq-q{font-size:15px;font-weight:600;color:#fff;margin-bottom:8px}
+  .faq-a{font-size:14px;color:#888;line-height:1.55}
+
+  @media(max-width:520px){
+    .features{grid-template-columns:1fr}
+    .hero{padding:40px 16px 28px}
+    .logo-wrap{flex-direction:column;gap:8px}
+    .logo-text,.logo-sub{text-align:center}
+    .cta-btn{font-size:16px;padding:16px 28px}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="hero">
+    <div class="logo-wrap">
+      <div class="logo-box">FF</div>
+      <div>
+        <div class="logo-text">Flat<span>Finder</span>IL</div>
+        <div class="logo-sub">НЕДВИЖИМОСТЬ ИЗРАИЛЯ</div>
+      </div>
+    </div>
+
+    <h1>Найди квартиру<br>в <span class="hl">Израиле</span> за 2 минуты</h1>
+    <p>Умный Telegram-бот ищет аренду и продажу квартир по 23 городам Израиля. Фильтр по цене, комнатам и району — сразу в мессенджере. Подходит для репатриантов, иностранцев и местных.</p>
+
+    <div class="features">
+      <div class="feat">
+        <div class="icon">🔍</div>
+        <h3>Умный поиск</h3>
+        <p>Фильтр по цене, комнатам, городу</p>
+      </div>
+      <div class="feat">
+        <div class="icon">🏙</div>
+        <h3>23 города</h3>
+        <p>Север, Центр и Юг Израиля</p>
+      </div>
+      <div class="feat">
+        <div class="icon">⚡</div>
+        <h3>Мгновенно</h3>
+        <p>Свежие объявления в реальном времени</p>
+      </div>
+    </div>
+
+    <div class="cta-wrap">
+      <a class="cta-btn" href="https://t.me/flatfinderil_bot" target="_blank" rel="noopener">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Открыть бот @flatfinderil_bot
+      </a>
+    </div>
+    <div class="cta-note"><span>✓</span> Бесплатно &middot; Telegram &middot; Без регистрации</div>
+  </div>
+</div>
+
+<div class="cities-section">
+  <div class="cities-title">Поиск квартир по городам</div>
+  <div class="cities-grid">
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Тель-Авив</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Иерусалим</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Хайфа</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Ришон-ле-Цион</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Петах-Тиква</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Ашдод</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Нетания</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Беэр-Шева</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Рамат-Ган</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Герцлия</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Холон</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Бат-Ям</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Реховот</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Кфар-Саба</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Раанана</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Модиин</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Ашкелон</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Бейт-Шемеш</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Эйлат</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Нагария</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Акко</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Нетивот</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">Тиверия</a>
+  </div>
+</div>
+
+<div class="faq">
+  <div class="faq-title">Частые вопросы</div>
+  <div class="faq-item">
+    <div class="faq-q">Как пользоваться ботом?</div>
+    <div class="faq-a">Просто напишите /start в Telegram, выберите город, укажите бюджет и количество комнат — бот пришлёт актуальные объявления за секунды.</div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q">Откуда берутся объявления?</div>
+    <div class="faq-a">Бот автоматически собирает объявления из Telegram-каналов и Facebook-групп по недвижимости Израиля. Обновление каждый час.</div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q">Это бесплатно?</div>
+    <div class="faq-a">Да, базовый поиск полностью бесплатный. Регистрация не нужна — достаточно Telegram.</div>
+  </div>
+</div>
+</body>
+</html>

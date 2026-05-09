@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlatFinderIL — מצא דירה בישראל תוך 2 דקות</title>
+<meta name="description" content="בוט טלגרם חכם מחפש השכרה ומכירה ב-23 ערים בישראל. סינון לפי מחיר, חדרים ושכונה.">
+<meta property="og:title" content="FlatFinderIL — מצא דירה בישראל">
+<meta property="og:description" content="בוט טלגרם חכם לחיפוש דירות בישראל">
+<meta property="og:url" content="https://flatfinderil.co.il">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%232563EB'/><text y='.9em' font-size='52' font-family='Arial' font-weight='bold' fill='white' x='50%' dominant-baseline='middle' text-anchor='middle' dy='.1em'>FF</text></svg>">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d0d0d;color:#fff;min-height:100vh;direction:rtl}
+  a{text-decoration:none;color:inherit}
+  .container{max-width:680px;margin:0 auto;padding:0 20px}
+
+  /* HEADER */
+  .hero{text-align:center;padding:60px 20px 40px}
+  .logo-wrap{display:inline-flex;align-items:center;gap:12px;margin-bottom:24px}
+  .logo-box{width:64px;height:64px;background:#2563EB;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fff;letter-spacing:-1px;flex-shrink:0}
+  .logo-text{font-size:28px;font-weight:700;color:#fff}
+  .logo-text span{color:#2563EB}
+  .logo-sub{font-size:13px;color:#666;margin-top:2px;text-align:right}
+  .tagline{font-size:13px;color:#555;margin-bottom:28px;letter-spacing:0.05em}
+
+  .hero h1{font-size:clamp(32px,6vw,52px);font-weight:800;line-height:1.15;color:#fff;margin-bottom:20px}
+  .hero h1 .hl{color:#2563EB}
+  .hero p{font-size:17px;color:#aaa;line-height:1.65;max-width:520px;margin:0 auto 36px}
+
+  /* FEATURES */
+  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:36px}
+  .feat{background:#181818;border:1px solid #252525;border-radius:16px;padding:22px 16px;text-align:center}
+  .feat .icon{font-size:28px;margin-bottom:10px}
+  .feat h3{font-size:15px;font-weight:700;color:#fff;margin-bottom:6px}
+  .feat p{font-size:13px;color:#666;line-height:1.4}
+
+  /* CTA */
+  .cta-wrap{text-align:center;margin-bottom:14px}
+  .cta-btn{display:inline-flex;align-items:center;gap:10px;background:#2563EB;color:#fff;font-size:18px;font-weight:700;padding:18px 36px;border-radius:14px;transition:background .2s;cursor:pointer}
+  .cta-btn:hover{background:#1d4ed8}
+  .cta-btn svg{flex-shrink:0}
+  .cta-note{font-size:13px;color:#555;text-align:center;margin-bottom:48px}
+  .cta-note span{color:#3b82f6}
+
+  /* CITIES */
+  .cities-section{padding:0 20px 60px}
+  .cities-title{font-size:14px;color:#555;text-align:center;margin-bottom:16px}
+  .cities-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .city-tag{background:#181818;border:1px solid #2a2a2a;border-radius:999px;padding:8px 16px;font-size:14px;color:#bbb;cursor:pointer;transition:all .15s}
+  .city-tag:hover{background:#252525;color:#fff;border-color:#3b82f6}
+
+  @media(max-width:520px){
+    .features{grid-template-columns:1fr}
+    .hero{padding:40px 16px 28px}
+    .logo-wrap{flex-direction:column;gap:8px}
+    .logo-sub{text-align:center}
+    .cta-btn{font-size:16px;padding:16px 28px}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="hero">
+    <div class="logo-wrap">
+      <div class="logo-box">FF</div>
+      <div>
+        <div class="logo-text">Flat<span>Finder</span>IL</div>
+        <div class="logo-sub">נדל"ן בישראל</div>
+      </div>
+    </div>
+
+    <h1>מצא דירה <span class="hl">בישראל</span><br>תוך 2 דקות</h1>
+    <p>בוט טלגרם חכם מחפש השכרה ומכירה ב-23 ערים בישראל. סינון לפי מחיר, חדרים ושכונה — ישירות במסנג'ר שלך. מתאים לעולים חדשים, תיירים ותושבים ותיקים.</p>
+
+    <div class="features">
+      <div class="feat">
+        <div class="icon">⚡</div>
+        <h3>מיידי</h3>
+        <p>מודעות חדשות בזמן אמת</p>
+      </div>
+      <div class="feat">
+        <div class="icon">🏙</div>
+        <h3>23 ערים</h3>
+        <p>צפון, מרכז ודרום ישראל</p>
+      </div>
+      <div class="feat">
+        <div class="icon">🔍</div>
+        <h3>חיפוש חכם</h3>
+        <p>סינון לפי מחיר, חדרים, עיר</p>
+      </div>
+    </div>
+
+    <div class="cta-wrap">
+      <a class="cta-btn" href="https://t.me/flatfinderil_bot" target="_blank" rel="noopener">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        פתח בוט &#64;flatfinderil_bot
+      </a>
+    </div>
+    <div class="cta-note"><span>✓</span> חינם &middot; Telegram &middot; ללא הרשמה</div>
+  </div>
+</div>
+
+<div class="cities-section">
+  <div class="cities-title">חיפוש דירות בערים</div>
+  <div class="cities-grid">
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">תל אביב</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">ירושלים</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">חיפה</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">ראשון לציון</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">פתח תקווה</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">אשדוד</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">נתניה</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">באר שבע</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">רמת גן</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">הרצליה</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">חולון</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">בת ים</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">רחובות</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">כפר סבא</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">רעננה</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">מודיעין</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">נס ציונה</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">אשקלון</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">בית שמש</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">אילת</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">נהריה</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">עכו</a>
+    <a class="city-tag" href="https://t.me/flatfinderil_bot" target="_blank">טבריה</a>
+  </div>
+</div>
+</body>
+</html>
