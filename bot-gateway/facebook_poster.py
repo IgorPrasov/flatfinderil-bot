@@ -110,6 +110,19 @@ def load_facebook_cookies() -> list[dict]:
     """Cookies: из FB_COOKIES_JSON (Railway) или из Chrome (локально)."""
     import json as _json
 
+    # ── Приоритет 0: из базы данных (переживает редеплои) ────────────────────
+    try:
+        import sys as _sys
+        _sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import database as _db
+        db_raw = _db.get_fb_cookies()
+        if db_raw:
+            # Обновляем env var для совместимости с остальным кодом
+            os.environ["FB_COOKIES_JSON"] = db_raw
+            log.info("✅ Facebook cookies загружены из БД")
+    except Exception as _e:
+        log.debug(f"FB cookies: БД недоступна: {_e}")
+
     # ── Railway: из переменной окружения ──────────────────────────────────────
     env_raw = os.environ.get("FB_COOKIES_JSON", "")
     if env_raw:

@@ -1215,6 +1215,20 @@ def set_ig_session(sessionid: str):
         _save(data)
 
 
+def get_ig_settings_json() -> str:
+    """Return full instagrapi settings JSON (survives redeploys, preserves device fingerprint)."""
+    data = _load()
+    return data.get("ig_settings_json", "")
+
+
+def set_ig_settings_json(settings_json: str):
+    """Persist full instagrapi settings JSON in the database."""
+    with _DB_LOCK:
+        data = _load()
+        data["ig_settings_json"] = settings_json
+        _save(data)
+
+
 # ── Facebook cookies ─────────────────────────────────────────────────────────
 
 def get_fb_cookies() -> str:

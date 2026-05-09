@@ -174,6 +174,10 @@ class BackofficeHandler(BaseHTTPRequestHandler):
             return self._handle_email_subs(method, rid)
         if resource == "payments":
             return self._handle_payments(method, rid)
+        if resource == "ig-session":
+            return self._handle_ig_session(method)
+        if resource == "fb-cookies":
+            return self._handle_fb_cookies(method)
 
         self._send_json({"error": "Not found"}, 404)
 
@@ -520,6 +524,70 @@ class BackofficeHandler(BaseHTTPRequestHandler):
 
         else:
             self._send_json({"error": "Not found"}, 404)
+
+
+# ── Instagram session ─────────────────────────────────────────────────────────
+
+    def _handle_ig_session(self, method):
+        import database as db
+        if method == "GET":
+            sid = db.get_ig_session()
+            has_full = bool(db.get_ig_settings_json())
+            masked = (sid[:12] + "…") if sid else ""
+            return self._send_json({"sessionid": masked, "has_full_settings": has_full})
+
+        if method == "POST":
+            body = self._read_body()
+            raw = (body.get("sessionid") or "").strip()
+            if not raw:
+                return self._send_json({"ok": False, "error": "sessionid is empty"}, 400)
+            # Нормализуем: убираем префикс "sessionid=" если вставили с ним
+            sessionid = raw.removeprefix("sessionid=")
+            # Сохраняем sessionid в БД
+            db.set_ig_session(sessionid)
+            # Пробуем получить и сохранить полные настройки через instagrapi
+            try:
+                import json as _json
+                from instagrapi import Client
+                cl = Client()
+                cl.delay_range = [1, 2]
+                cl.login_by_sessionid(sessionid)
+                settings_json = _json.dumps(cl.get_settings(), ensure_ascii=False)
+                db.set_ig_settings_json(settings_json)
+                username = cl.username or "unknown"
+                logger.info(f"✅ IG session saved: @{username}")
+                return self._send_json({"ok": True, "username": username, "full_settings": True})
+            except Exception as e:
+                logger.warning(f"⚠️ IG: saved sessionid but could not get full settings: {e}")
+                return self._send_json({"ok": True, "full_settings": False,
+                                        "warning": str(e)})
+
+        self._send_json({"error": "Method not allowed"}, 405)
+
+
+    # ── Facebook cookies ───────────────────────────────────────────────────────
+
+    def _handle_fb_cookies(self, method):
+        import os as _os
+        import database as db
+        if method == "GET":
+            raw = db.get_fb_cookies()
+            return self._send_json({"has_cookies": bool(raw),
+                                    "length": len(raw) if raw else 0})
+
+        if method == "POST":
+            body = self._read_body()
+            raw = (body.get("cookies") or "").strip()
+            if not raw:
+                return self._send_json({"ok": False, "error": "cookies is empty"}, 400)
+            # Сохраняем в БД
+            db.set_fb_cookies(raw)
+            # Обновляем env var для текущего процесса, чтобы facebook_poster сразу видел
+            _os.environ["FB_COOKIES_JSON"] = raw
+            logger.info(f"✅ FB cookies saved ({len(raw)} bytes)")
+            return self._send_json({"ok": True, "length": len(raw)})
+
+        self._send_json({"error": "Method not allowed"}, 405)
 
 
 # ── Start server ──────────────────────────────────────────────────────────────

@@ -36,49 +36,106 @@ LOG_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ig_post
 #  Сессия / логин
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _restore_full_settings(cl, settings_json: str, source: str) -> bool:
+    """
+    Восстанавливает клиент из полного JSON настроек instagrapi.
+    Сохраняет device fingerprint → Instagram не замечает смену устройства.
+    Возвращает True при успехе.
+    """
+    try:
+        settings = json.loads(settings_json)
+        cl.set_settings(settings)
+        cl.get_timeline_feed()   # реальный запрос для проверки активности сессии
+        log.info(f"✅ Полные настройки из {source} восстановлены")
+        return True
+    except Exception as e:
+        log.warning(f"⚠️  Не удалось восстановить полные настройки из {source}: {e}")
+        return False
+
+
+def _restore_by_sessionid(cl, sessionid: str, source: str) -> bool:
+    """Резервный вариант: вход только по sessionid (без сохранения fingerprint)."""
+    try:
+        cl.login_by_sessionid(sessionid)
+        log.info(f"✅ Сессия из {source} (sessionid) восстановлена")
+        return True
+    except Exception as e:
+        log.warning(f"⚠️  Не удалось восстановить сессию из {source}: {e}")
+        return False
+
+
+def _save_settings_to_db(cl):
+    """
+    Сохраняет полные настройки клиента в БД.
+    Вызывается после каждой успешной операции, чтобы обновить cookies/token.
+    """
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import database as _db
+        settings_json = json.dumps(cl.get_settings(), ensure_ascii=False)
+        _db.set_ig_settings_json(settings_json)
+        # Дублируем sessionid для обратной совместимости
+        sessionid = cl.cookie_dict.get("sessionid", "")
+        if sessionid:
+            _db.set_ig_session(sessionid)
+        log.info("💾 Полные настройки Instagram сохранены в БД")
+    except Exception as e:
+        log.warning(f"⚠️  Не удалось сохранить настройки в БД: {e}")
+
+
 def _get_client():
     from instagrapi import Client
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
     cl = Client()
     cl.delay_range = [2, 5]
 
-    # 1. Попытка использовать sessionid из env (Railway)
-    env_session = os.environ.get("IG_SESSION_JSON", "").strip()
-    if env_session:
-        try:
-            session_data = json.loads(env_session)
-            sessionid = session_data.get("cookies", {}).get("sessionid", "")
-            if sessionid:
-                cl.login_by_sessionid(sessionid)
-                log.info("✅ Сессия из IG_SESSION_JSON (sessionid) восстановлена")
-                return cl
-        except Exception as e:
-            log.warning(f"⚠️  Не удалось восстановить сессию из env: {e}")
+    # ── Приоритет 1: полные настройки из БД (переживают редеплои, сохраняют fingerprint)
+    try:
+        import database as _db
+        full_json = _db.get_ig_settings_json()
+        if full_json and _restore_full_settings(cl, full_json, "БД (полные настройки)"):
+            return cl
+    except Exception as e:
+        log.warning(f"⚠️  БД недоступна: {e}")
 
-    # 2. Попытка использовать sessionid из файла
+    # ── Приоритет 2: полные настройки из файла ig_session.json
     if os.path.exists(SESSION_FILE):
         try:
             with open(SESSION_FILE, "r", encoding="utf-8") as f:
-                session_data = json.load(f)
-            sessionid = session_data.get("cookies", {}).get("sessionid", "")
-            if sessionid:
-                cl.login_by_sessionid(sessionid)
-                log.info(f"✅ Сессия из {SESSION_FILE} (sessionid) восстановлена")
+                file_json = f.read()
+            if _restore_full_settings(cl, file_json, f"файла {SESSION_FILE}"):
+                _save_settings_to_db(cl)   # переносим в БД, чтобы пережить редеплой
                 return cl
         except Exception as e:
-            log.warning(f"⚠️  Не удалось восстановить сессию из файла: {e}")
+            log.warning(f"⚠️  Не удалось прочитать {SESSION_FILE}: {e}")
 
-    # 3. Попытка использовать sessionid из базы данных (переживает редеплои)
+    # ── Приоритет 3: полные настройки из env IG_SESSION_JSON
+    env_session = os.environ.get("IG_SESSION_JSON", "").strip()
+    if env_session:
+        if _restore_full_settings(cl, env_session, "IG_SESSION_JSON"):
+            _save_settings_to_db(cl)       # переносим в БД
+            return cl
+        # Fallback: достаём sessionid из env JSON и входим только по нему
+        try:
+            session_data = json.loads(env_session)
+            sessionid = session_data.get("cookies", {}).get("sessionid", "")
+            if sessionid and _restore_by_sessionid(cl, sessionid, "IG_SESSION_JSON"):
+                _save_settings_to_db(cl)
+                return cl
+        except Exception:
+            pass
+
+    # ── Приоритет 4: только sessionid из БД (старый формат, резервный вариант)
     try:
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import database as _db
         sessionid = _db.get_ig_session()
-        if sessionid:
-            cl.login_by_sessionid(sessionid)
-            log.info("✅ Сессия из базы данных восстановлена")
+        if sessionid and _restore_by_sessionid(cl, sessionid, "БД (sessionid)"):
+            _save_settings_to_db(cl)       # сохраняем полные настройки для следующего раза
             return cl
     except Exception as e:
-        log.warning(f"⚠️  Не удалось восстановить сессию из БД: {e}")
+        log.warning(f"⚠️  Не удалось получить sessionid из БД: {e}")
 
     raise RuntimeError(
         "❌ Instagram сессия не найдена. "
@@ -184,8 +241,9 @@ def post_to_instagram(
         result["media_id"] = media_id
         result["url"]      = media_url
 
-        # Обновляем сессию после успешного поста
+        # Обновляем сессию после успешного поста: файл + БД
         cl.dump_settings(SESSION_FILE)
+        _save_settings_to_db(cl)
 
     except Exception as e:
         log.error(f"❌ Ошибка публикации: {e}", exc_info=True)
