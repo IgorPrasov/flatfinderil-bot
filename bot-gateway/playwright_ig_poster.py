@@ -16,6 +16,15 @@ from pathlib import Path
 
 log = logging.getLogger("pw_ig")
 
+# When run as subprocess: send all logs to stderr so stdout stays clean for JSON output
+if __name__ != "__main__":
+    pass  # caller controls logging
+else:
+    _sh = logging.StreamHandler(sys.stderr)
+    _sh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logging.root.addHandler(_sh)
+    logging.root.setLevel(logging.INFO)
+
 SESSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ig_session.json")
 
 
@@ -440,9 +449,21 @@ def post_via_playwright(caption: str, image_path: str) -> dict:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--caption", required=True)
+    parser.add_argument("--caption", default="")
+    parser.add_argument("--caption-file", help="File containing caption text (for long captions)")
     parser.add_argument("--image", required=True)
     args = parser.parse_args()
+
+    caption = args.caption
+    if args.caption_file:
+        with open(args.caption_file, "r", encoding="utf-8") as _f:
+            caption = _f.read().strip()
+
+    if not caption:
+        print(json.dumps({"ok": False, "error": "No caption provided"}))
+        sys.exit(1)
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    result = post_via_playwright(args.caption, args.image)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    result = post_via_playwright(caption, args.image)
+    # Output ONLY the JSON result on stdout (logs go to stderr)
+    print(json.dumps(result, ensure_ascii=False))

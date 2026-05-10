@@ -193,6 +193,63 @@ def _make_placeholder_image(caption: str) -> str:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+#  Playwright subprocess helper
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _run_playwright_subprocess(caption: str, image_path: str, timeout: int = 180) -> dict:
+    """
+    Запускает playwright_ig_poster.py как ОТДЕЛЬНЫЙ процесс.
+    Если Chromium убьёт OOM — умрёт только subprocess, основной процесс (бот/дашборд) выживет.
+    """
+    import subprocess
+    import tempfile
+
+    _script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "playwright_ig_poster.py")
+
+    # Пишем caption во временный файл (может быть длинным)
+    cap_file = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as _f:
+            _f.write(caption)
+            cap_file = _f.name
+
+        log.info(f"🚀 Запускаем Playwright subprocess: {_script}")
+        proc = subprocess.run(
+            [sys.executable, _script, "--caption-file", cap_file, "--image", image_path],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=os.environ.copy(),   # передаём все env vars (cookies, сессии)
+        )
+
+        # Логируем stderr (там Playwright-логи)
+        if proc.stderr:
+            for line in proc.stderr.strip().splitlines():
+                log.info(f"[PW] {line}")
+
+        if proc.returncode == 0 and proc.stdout.strip():
+            try:
+                return json.loads(proc.stdout.strip())
+            except Exception as parse_err:
+                log.error(f"Playwright stdout не является JSON: {parse_err}\n{proc.stdout[:300]}")
+                return {"ok": False, "error": f"JSON parse error: {parse_err}"}
+        else:
+            err_msg = proc.stderr.strip()[-500:] if proc.stderr else f"exit code {proc.returncode}"
+            log.error(f"Playwright subprocess завершился с кодом {proc.returncode}: {err_msg}")
+            return {"ok": False, "error": err_msg}
+
+    except subprocess.TimeoutExpired:
+        log.error(f"Playwright subprocess превысил таймаут {timeout}s")
+        return {"ok": False, "error": f"Playwright timeout after {timeout}s"}
+    except Exception as sub_err:
+        log.error(f"Не удалось запустить Playwright subprocess: {sub_err}")
+        return {"ok": False, "error": str(sub_err)}
+    finally:
+        if cap_file and os.path.exists(cap_file):
+            os.unlink(cap_file)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 #  Публикация
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -260,16 +317,15 @@ def post_to_instagram(
         err_lower = str(e).lower()
         # 403/login_required/ip blocked → пробуем через Playwright (браузер)
         if any(x in err_lower for x in ("login_required", "loginrequired", "403", "forbidden")):
-            log.warning(f"⚠️  Мобильный API заблокирован ({e}). Пробуем Playwright …")
+            log.warning(f"⚠️  Мобильный API заблокирован ({e}). Пробуем Playwright (subprocess) …")
             try:
-                from playwright_ig_poster import post_via_playwright
-                pw_result = post_via_playwright(caption, image_path)
+                pw_result = _run_playwright_subprocess(caption, image_path)
                 if pw_result.get("ok"):
                     result.update(pw_result)
                     result["ok"]    = True
-                    result["note"]  = "posted via browser (Playwright)"
-                    instagrapi_error = None  # сброс ошибки — успех через Playwright
-                    log.info("✅ Опубликовано через Playwright")
+                    result["note"]  = "posted via browser (Playwright subprocess)"
+                    instagrapi_error = None
+                    log.info("✅ Опубликовано через Playwright subprocess")
                 else:
                     result["error"] = pw_result.get("error", "Playwright failed")
             except Exception as pw_e:
