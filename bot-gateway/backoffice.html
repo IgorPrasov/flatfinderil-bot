@@ -135,6 +135,80 @@
     .loading{text-align:center;padding:40px;color:var(--muted);font-size:14px}
     .empty{text-align:center;padding:30px;color:var(--muted);font-size:13px}
 
+    /* ══ RESPONSIVE ══════════════════════════════════════════════════════════ */
+
+    /* Hamburger button — hidden on desktop */
+    #hamburger{display:none;position:fixed;top:12px;left:12px;z-index:200;
+               background:var(--blue);color:#fff;border:none;border-radius:8px;
+               width:40px;height:40px;font-size:20px;cursor:pointer;
+               align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+
+    /* Sidebar overlay backdrop */
+    #sb-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9}
+
+    @media(max-width:768px){
+      /* Show hamburger */
+      #hamburger{display:flex}
+
+      /* Sidebar becomes a slide-in overlay */
+      #sidebar{transform:translateX(-100%);transition:transform .25s;z-index:10}
+      #sidebar.open{transform:translateX(0)}
+      #sb-backdrop.open{display:block}
+
+      /* Main takes full width */
+      #main{margin-left:0;padding:16px;padding-top:60px;max-width:100vw}
+
+      /* Page title smaller */
+      .page-title{font-size:17px}
+
+      /* Toolbar wraps and stretches inputs */
+      .toolbar{flex-direction:column;align-items:stretch}
+      .toolbar input,.toolbar select,.toolbar .btn{width:100%;font-size:14px}
+
+      /* Tables scroll horizontally */
+      .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+      table{min-width:520px}
+
+      /* KPI cards: 2 per row on phone */
+      .kpi-row{gap:8px}
+      .kpi{min-width:calc(50% - 4px);flex:0 0 calc(50% - 4px);padding:10px 12px}
+      .kpi-val{font-size:20px}
+
+      /* Detail panel full-screen on mobile */
+      .detail-panel{width:100%;right:-100%}
+
+      /* Modal full-screen on mobile */
+      .modal{width:100%;max-width:100%;border-radius:12px 12px 0 0;
+             position:fixed;bottom:0;left:0;max-height:85vh}
+      .modal-overlay{align-items:flex-end}
+
+      /* Sub-tabs scroll horizontally */
+      .sub-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
+      .sub-tab{white-space:nowrap;flex-shrink:0}
+
+      /* Pagination center */
+      .pagination{justify-content:center;flex-wrap:wrap}
+
+      /* Buttons in table rows — bigger tap targets */
+      .btn-sm{padding:7px 12px;font-size:12px}
+
+      /* Support message textarea wider */
+      .field textarea{font-size:14px}
+    }
+
+    @media(max-width:480px){
+      /* KPI single column on very small screens */
+      .kpi{min-width:100%;flex:0 0 100%}
+      #main{padding:12px;padding-top:58px}
+    }
+
+    @media(min-width:769px) and (max-width:1024px){
+      /* Tablet: narrow sidebar */
+      :root{--sidebar:180px}
+      #main{padding:18px}
+      .kpi{min-width:100px}
+    }
+
     /* ── Detail panel ── */
     .detail-panel{position:fixed;top:0;right:-480px;width:480px;height:100vh;background:var(--white);
                   box-shadow:-4px 0 20px rgba(0,0,0,.12);z-index:50;transition:right .3s;
@@ -163,6 +237,10 @@
   </style>
 </head>
 <body>
+
+<!-- Mobile hamburger -->
+<button id="hamburger" onclick="toggleSidebar()" aria-label="Меню">☰</button>
+<div id="sb-backdrop" onclick="closeSidebar()"></div>
 
 <!-- Sidebar -->
 <aside id="sidebar">
@@ -1960,6 +2038,28 @@ loadStats();
 setInterval(loadStats, 30000);
 loadListings();
 _initDropZone();
+
+/* ── Mobile sidebar toggle ── */
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sb-backdrop').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sb-backdrop').classList.remove('open');
+}
+
+// Close sidebar after nav item tap on mobile
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    if (window.innerWidth <= 768) closeSidebar();
+  });
+});
+
+// Close sidebar on Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSidebar();
+});
 </script>
 </body>
 </html>
