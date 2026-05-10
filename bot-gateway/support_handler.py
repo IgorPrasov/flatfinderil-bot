@@ -123,26 +123,9 @@ async def support_receive_message(update: Update, context: ContextTypes.DEFAULT_
         text=user_text,
     )
 
-    # Forward to admins — each admin gets their own copy
-    admin_ids = _get_admin_ids()
-    uname_str = f"@{username}" if username else "—"
-    tg_link = f'<a href="tg://user?id={user.id}">{name}</a>'
-    header = (
-        f"📨 <b>Сообщение #{msg_id} от пользователя</b>\n"
-        f"👤 {tg_link} ({uname_str})\n"
-        f"🆔 <code>{user.id}</code> · 🌐 {lang}\n\n"
-        f"💬 {user_text}\n\n"
-        f"<i>Ответить через дашборд или командой:\n"
-        f"/reply {msg_id} ваш_ответ</i>"
-    )
-    for admin_id in admin_ids:
-        # Don't send to the user themselves if they're also an admin
-        if admin_id == user.id:
-            continue
-        try:
-            await context.bot.send_message(chat_id=admin_id, text=header, parse_mode="HTML")
-        except Exception as e:
-            logger.error(f"[SUPPORT] Failed to notify admin {admin_id}: {e}")
+    # Message is saved to DB — visible in the dashboard (backoffice).
+    # No Telegram group forwarding to avoid leaking messages to all group members.
+    logger.info(f"[SUPPORT] msg #{msg_id} saved from user {user.id} (@{username})")
 
     confirm = _CONFIRMS.get(lang, _CONFIRMS["ru"])
     await update.message.reply_text(
