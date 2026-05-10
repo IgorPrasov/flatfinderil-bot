@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 import database as db
 from config import PLAN_PRICES_ILS, PLAN_DAYS, PLAN_STARS
 
-# Тестовый период — бесплатно для всех до 15 мая 2026
-TRIAL_END_DATE = datetime(2026, 5, 15)
+# Тестовый период — бесплатно для всех до 1 июля 2026
+TRIAL_END_DATE = datetime(2026, 7, 1)
 
 # Лимит бесплатного поиска после окончания триала
 FREE_SEARCH_LIMIT = 3

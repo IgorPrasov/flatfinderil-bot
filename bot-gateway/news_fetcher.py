@@ -26,61 +26,61 @@ REFRESH_INTERVAL = 60  # minutes between auto-refresh
 # Each entry: name, url, lang (he/en), optional category_hint (forces category)
 
 RSS_SOURCES = [
-    # Times of Israel — dedicated real estate section
+    # Google News — Hebrew real estate (נדל"ן ישראל)
     {
-        "name": "Times of Israel",
-        "url": "https://www.timesofisrael.com/topic/real-estate/feed/",
-        "lang": "en",
-        "category_hint": None,
-        "force_relevant": True,   # dedicated RE feed → skip keyword filter
-    },
-    # Globes — real estate section (iID=1124)
-    {
-        "name": "Globes",
-        "url": "https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=1124",
+        "name": "Google News נדל\"ן",
+        "url": "https://news.google.com/rss/search?q=%D7%A0%D7%93%D7%9C%22%D7%9F+%D7%99%D7%A9%D7%A8%D7%90%D7%9C&hl=he&gl=IL&ceid=IL:iw",
         "lang": "he",
         "category_hint": None,
         "force_relevant": True,
     },
-    # Calcalist — real estate section
+    # Google News — Hebrew mortgage (משכנתא)
     {
-        "name": "Calcalist",
-        "url": "https://www.calcalist.co.il/rss/home/0,7340,L-8,00.xml",
+        "name": "Google News משכנתא",
+        "url": "https://news.google.com/rss/search?q=%D7%9E%D7%A9%D7%9B%D7%A0%D7%AA%D7%90+%D7%99%D7%A9%D7%A8%D7%90%D7%9C&hl=he&gl=IL&ceid=IL:iw",
         "lang": "he",
-        "category_hint": None,
-        "force_relevant": True,
-    },
-    # Ynet — real estate category (2006262)
-    {
-        "name": "Ynet",
-        "url": "https://www.ynet.co.il/Integration/StoryRss2006262.xml",
-        "lang": "he",
-        "category_hint": None,
-        "force_relevant": True,
-    },
-    # Bank of Israel press releases — always mortgage category
-    {
-        "name": "Bank of Israel",
-        "url": "https://www.boi.org.il/en/newsandpublications/pressreleases/rss/",
-        "lang": "en",
         "category_hint": "mortgage",
         "force_relevant": True,
     },
-    # Jerusalem Post — real estate section
+    # Google News — Hebrew apartments/rent (דירות שכירות)
     {
-        "name": "Jerusalem Post",
-        "url": "https://www.jpost.com/rss/rssfeedsrealestate.aspx",
+        "name": "Google News דירות",
+        "url": "https://news.google.com/rss/search?q=%D7%93%D7%99%D7%A8%D7%95%D7%AA+%D7%A9%D7%9B%D7%99%D7%A8%D7%95%D7%AA+%D7%99%D7%A9%D7%A8%D7%90%D7%9C&hl=he&gl=IL&ceid=IL:iw",
+        "lang": "he",
+        "category_hint": None,
+        "force_relevant": True,
+    },
+    # Google News — English real estate Israel
+    {
+        "name": "Google News Real Estate",
+        "url": "https://news.google.com/rss/search?q=real+estate+israel&hl=en-IL&gl=IL&ceid=IL:en",
         "lang": "en",
         "category_hint": None,
         "force_relevant": True,
     },
-    # Madlan blog / news
+    # Times of Israel — main feed (filter for RE topics)
     {
-        "name": "Madlan",
-        "url": "https://www.madlan.co.il/blog/feed",
+        "name": "Times of Israel",
+        "url": "https://www.timesofisrael.com/feed/",
+        "lang": "en",
+        "category_hint": None,
+        "force_relevant": False,
+    },
+    # Ynet — main news feed (filter for RE topics)
+    {
+        "name": "Ynet",
+        "url": "https://www.ynet.co.il/Integration/StoryRss1854.xml",
         "lang": "he",
         "category_hint": None,
-        "force_relevant": True,
+        "force_relevant": False,
+    },
+    # Walla economy feed (filter for RE topics)
+    {
+        "name": "Walla כלכלה",
+        "url": "https://rss.walla.co.il/feed/9",
+        "lang": "he",
+        "category_hint": None,
+        "force_relevant": False,
     },
 ]
 

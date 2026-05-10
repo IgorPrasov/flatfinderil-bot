@@ -29,6 +29,62 @@ from analytics import track_user, track_subscription, track_member, get_member_c
 from display_utils import display_listing
 import database as db
 from datetime import datetime
+import re as _re
+
+
+def _build_cabinet_listing_text(listing: dict) -> str:
+    """Build the full listing card text for the cabinet (owner view)."""
+    active = listing.get("active", True)
+    status = "🟢 Активно" if active else "🔴 Снято с публикации"
+    avg_r, cnt = db.get_average_rating(listing.get("id", 0))
+    rating_str = f"⭐ {avg_r} ({cnt} отзывов)" if avg_r is not None else "⭐ —"
+
+    # Extract contact from field or from description
+    contact = listing.get("contact", "") or ""
+    if not contact:
+        phones = _re.findall(
+            r'(?:\+972[-\s]?|0)(?:5[0-9]|7[23])[-\s]?\d{3}[-\s]?\d{4}',
+            listing.get("description", "") or ""
+        )
+        if phones:
+            contact = " / ".join(dict.fromkeys(phones))
+    contact_line = f"\n📞 <b>Контакт:</b> {contact}" if contact else ""
+
+    deal_emoji = "🔑" if listing.get("deal_type") == "rent" else "🏷"
+    deal_label = {"rent": "Аренда", "buy": "Продажа"}.get(listing.get("deal_type", ""), "—")
+
+    # Clean Facebook metadata noise from description (author/timestamp header lines)
+    raw_desc = listing.get("description", "") or ""
+    desc_lines = raw_desc.split("\n")
+    clean_lines, skip_zone = [], True
+    for ln in desc_lines:
+        s = ln.strip()
+        if skip_zone and (not s
+                          or _re.match(r'^[\w\s]+ \d+ (ч|мин|дн|д)\.$', s)
+                          or s in ("и", "·")
+                          or _re.match(r'^\d+ (ч|мин|дн)\.?\s*·?$', s)):
+            continue
+        skip_zone = False
+        clean_lines.append(ln)
+    desc_clean = "\n".join(clean_lines).strip()[:800]
+    desc_line = f"\n\n📝 {desc_clean}" if desc_clean else ""
+
+    source_url = listing.get("source_url", "")
+    source_line = f'\n🔗 <a href="{source_url}">Исходный пост</a>' if source_url else ""
+
+    return (
+        f"{deal_emoji} <b>{deal_label}</b>\n"
+        f"<b>{(listing.get('title') or '—')[:200]}</b>\n\n"
+        f"💰 {listing.get('price', 0):,} ₪\n"
+        f"📍 {listing.get('city', '—')} · {listing.get('neighborhood', '—')}\n"
+        f"🛏 {listing.get('rooms', '—')} комн. · {listing.get('area_sqm', '—')} м²\n"
+        f"👁 {listing.get('views', 0)} просмотров · 📞 {listing.get('view_requests', 0)} запросов\n"
+        f"{rating_str}\n"
+        f"Статус: {status}"
+        f"{contact_line}"
+        f"{source_line}"
+        f"{desc_line}"
+    )[:4000]
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -345,9 +401,31 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("contact_"):
         listing_id = int(data.split("_")[1])
         listing = db.get_listing(listing_id)
-        if listing:
-            contact = listing.get("contact") or t("contact_none", context)
-            await query.answer(t("contact_info", context, contact=contact), show_alert=True)
+        if not listing:
+            await query.answer(t("contact_none", context), show_alert=True)
+            return
+        contact = listing.get("contact", "") or ""
+        # If contact field is empty, try to extract phone from description
+        if not contact:
+            import re
+            desc = listing.get("description", "") or ""
+            phones = re.findall(r'(?:\+972[-\s]?|0)(?:5[0-9]|7[23])[-\s]?\d{3}[-\s]?\d{4}', desc)
+            if phones:
+                contact = " / ".join(dict.fromkeys(phones))  # deduplicate, keep order
+        if not contact:
+            # Fallback: show source URL so user can visit original post
+            source_url = listing.get("source_url", "")
+            lang = get_lang(context)
+            if source_url:
+                no_contact_msg = {"ru": f"Контакт не указан. Исходный пост:\n{source_url}",
+                                  "en": f"No contact. Original post:\n{source_url}",
+                                  "he": f"אין פרטי קשר. פוסט מקורי:\n{source_url}"}.get(lang, source_url)
+                await query.answer(no_contact_msg[:200], show_alert=True)
+            else:
+                await query.answer(t("contact_none", context), show_alert=True)
+            return
+        msg = t("contact_info", context, contact=contact)[:200]
+        await query.answer(msg, show_alert=True)
 
     elif data == "my_listings":
         listings = db.get_user_listings(update.effective_user.id)
@@ -549,25 +627,12 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not listing:
             await query.edit_message_text("❌ Объявление не найдено.", reply_markup=back_to_menu_keyboard(context))
             return
-        lang = get_lang(context)
-        active = listing.get("active", True)
-        status = "🟢 Активно" if active else "🔴 Снято с публикации"
-        avg_r, cnt = db.get_average_rating(listing_id)
-        rating_str = f"⭐ {avg_r} ({cnt} отзывов)" if avg_r is not None else "⭐ —"
-        text = (
-            f"<b>{listing.get('title', '')}</b>\n\n"
-            f"💰 {listing.get('price', 0):,} ₪\n"
-            f"📍 {listing.get('city', '')} · {listing.get('neighborhood', '')}\n"
-            f"🛏 {listing.get('rooms', '')} комн. · {listing.get('area_sqm', '')} м²\n"
-            f"👁 {listing.get('views', 0)} просмотров · 📞 {listing.get('view_requests', 0)} запросов\n"
-            f"{rating_str}\n"
-            f"Статус: {status}"
-        )
         deal_closed = listing.get("deal_closed", False)
         await query.edit_message_text(
-            text,
-            reply_markup=cabinet_listing_manage_keyboard(context, listing_id, active, deal_closed),
-            parse_mode="HTML"
+            _build_cabinet_listing_text(listing),
+            reply_markup=cabinet_listing_manage_keyboard(context, listing_id, listing.get("active", True), deal_closed),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
         )
 
     # ── Edit listing: choose field ──────────────────────────────────────────
@@ -613,22 +678,15 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                "en": "🟢 Listing activated!" if new_active else "🔴 Listing deactivated.",
                "he": "🟢 המודעה פורסמה!" if new_active else "🔴 המודעה הוסרה."}.get(lang, "Done")
         await query.answer(msg, show_alert=True)
-        # Refresh the listing view
+        # Refresh listing and redraw
         listing["active"] = new_active
-        active = new_active
-        avg_r, cnt = db.get_average_rating(listing_id)
-        rating_str = f"⭐ {avg_r} ({cnt} отзывов)" if avg_r is not None else "⭐ —"
-        status = "🟢 Активно" if active else "🔴 Снято с публикации"
-        text = (
-            f"<b>{listing.get('title', '')}</b>\n\n"
-            f"💰 {listing.get('price', 0):,} ₪\n"
-            f"📍 {listing.get('city', '')} · {listing.get('neighborhood', '')}\n"
-            f"🛏 {listing.get('rooms', '')} комн. · {listing.get('area_sqm', '')} м²\n"
-            f"👁 {listing.get('views', 0)} просмотров · 📞 {listing.get('view_requests', 0)} запросов\n"
-            f"{rating_str}\n"
-            f"Статус: {status}"
+        deal_closed = listing.get("deal_closed", False)
+        await query.edit_message_text(
+            _build_cabinet_listing_text(listing),
+            reply_markup=cabinet_listing_manage_keyboard(context, listing_id, new_active, deal_closed),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
         )
-        await query.edit_message_text(text, reply_markup=cabinet_listing_manage_keyboard(context, listing_id, active), parse_mode="HTML")
 
     # ── Confirm delete ──────────────────────────────────────────────────────
     elif data.startswith("confirm_delete_"):

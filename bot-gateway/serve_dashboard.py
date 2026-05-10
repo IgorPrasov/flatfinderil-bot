@@ -70,10 +70,53 @@ def _bg_sync():
 
 threading.Thread(target=_bg_sync, daemon=True).start()
 
+PUBLIC_LANDING_DOMAINS = {
+    "flatfinderil.co.il", "www.flatfinderil.co.il",
+    "flatfinderil.com",   "www.flatfinderil.com",
+}
+
+def _get_host(headers):
+    """Extract real host from Railway headers (tries multiple header names)."""
+    for h in ("X-Forwarded-Host", "X-Original-Host", "CF-Visitor", "Host"):
+        val = headers.get(h, "")
+        if val:
+            # CF-Visitor is JSON like {"scheme":"https"}
+            if h == "CF-Visitor":
+                continue
+            host = val.split(":")[0].split(",")[0].strip().lower()
+            if host:
+                return host
+    return ""
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
-        # Proxy /analytics to analytics server + merge Railway data
+
+        # ── Detect real host (Railway passes original Host header) ──────────
+        host = _get_host(self.headers)
+        is_public = host in PUBLIC_LANDING_DOMAINS
+
+        # ── Block ALL internal endpoints on public domains ──────────────────
+        if is_public and parsed.path != "/":
+            body = b"Not found"
+            self.send_response(404)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        # ── Debug headers endpoint (internal only) ─────────────────────────
+        if parsed.path == "/_debug_headers":
+            body = json.dumps(dict(self.headers), ensure_ascii=False, indent=2).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        # ── Proxy /analytics to analytics server + merge Railway data ──────
         if parsed.path == "/analytics":
             query = ("?" + parsed.query) if parsed.query else ""
             target = f"http://127.0.0.1:{ANALYTICS_PORT}/analytics{query}"
@@ -179,8 +222,15 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(body)
         else:
+            # Route by Host header: landing pages for public domains
+            if host in ("flatfinderil.co.il", "www.flatfinderil.co.il"):
+                html_file = "landing_he.html"
+            elif host in ("flatfinderil.com", "www.flatfinderil.com"):
+                html_file = "landing_ru.html"
+            else:
+                html_file = "dashboard.html"
             try:
-                with open(os.path.join(_DIR, 'dashboard.html'), 'rb') as f:
+                with open(os.path.join(_DIR, html_file), 'rb') as f:
                     content = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")

@@ -206,24 +206,61 @@ async def _post_to_instagram_async(caption: str, image_path: str) -> dict:
             except PWTimeout:
                 pass  # No submenu needed
 
-            # Step 3: Click "Select from computer" and upload file
+            # Step 3: Upload file — set up page-level file chooser listener first,
+            # then click "Select from computer" (works in headless mode on Railway)
             log.info(f"📁 Загружаем файл: {image_path}")
-            # Click "Select from computer" button to activate the file input
+            uploaded = False
+
+            # Register a one-shot file chooser listener at PAGE level
+            file_chooser_fut = asyncio.get_event_loop().create_future()
+            async def _on_filechooser(fc):
+                if not file_chooser_fut.done():
+                    file_chooser_fut.set_result(fc)
+            page.on("filechooser", _on_filechooser)
+
             try:
                 select_btn = await page.wait_for_selector(
-                    'button:has-text("Select from computer")', timeout=8000
+                    'button:has-text("Select from computer")', timeout=10000
                 )
-                # Set up file chooser handler before clicking
-                async with page.expect_file_chooser() as fc_info:
-                    await select_btn.click()
-                fc = await fc_info.value
-                await fc.set_files(image_path)
-                log.info(f"  ✅ Файл загружен через file chooser")
-            except Exception as fc_err:
-                log.warning(f"  ⚠️  File chooser не сработал ({fc_err}), прямой ввод…")
-                # Fallback: set directly on hidden input
-                file_input = page.locator('input[type="file"]').first
-                await file_input.set_input_files(image_path)
+                await select_btn.click()
+                log.info("  🖱️  Кнопка 'Select from computer' нажата")
+
+                # Wait up to 5s for file chooser to fire
+                try:
+                    fc = await asyncio.wait_for(file_chooser_fut, timeout=5.0)
+                    await fc.set_files(image_path)
+                    log.info("  ✅ Файл загружен через page-level filechooser")
+                    uploaded = True
+                except asyncio.TimeoutError:
+                    log.warning("  ⚠️  Page-level filechooser не сработал — прямой ввод")
+            except Exception as btn_err:
+                log.warning(f"  ⚠️  Кнопка 'Select from computer' не найдена: {btn_err}")
+            finally:
+                page.remove_listener("filechooser", _on_filechooser)
+
+            if not uploaded:
+                # Fallback: set_input_files directly on the hidden input (bypass visibility check)
+                try:
+                    await page.eval_on_selector(
+                        'input[type="file"]',
+                        """(el, path) => {
+                            // Create a minimal File object pointing to path
+                            // (Only works in non-sandboxed contexts or via the FS API)
+                            el.removeAttribute('multiple');
+                        }""",
+                        image_path,
+                    )
+                except Exception:
+                    pass
+                # Use page.set_input_files which doesn't check visibility
+                try:
+                    await page.set_input_files('input[type="file"]', image_path)
+                    log.info("  ✅ Файл загружен через page.set_input_files")
+                    uploaded = True
+                except Exception as sif_err:
+                    log.error(f"  ❌ Не удалось загрузить файл: {sif_err}")
+                    raise RuntimeError(f"Не удалось загрузить файл: {sif_err}")
+
             await page.wait_for_timeout(3000)
 
             # Step 4: Navigate through dialog (may need multiple "Next" clicks)

@@ -305,7 +305,8 @@ def get_analytics(date_from: str = None, date_to: str = None):
         for l in listings_all if l.get("source") == "facebook"
     )
     fb_sources_list = [
-        {"name": _FB_GROUP_NAMES.get(gid, gid), "count": cnt}
+        {"name": _FB_GROUP_NAMES.get(gid, gid), "count": cnt,
+         "url": f"https://www.facebook.com/groups/{gid}"}
         for gid, cnt in fb_group_counter.most_common(30)
         if gid
     ]
@@ -599,7 +600,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
             {"name": k.upper(), "value": round(v/total_users*100) if total_users else 0, "count": v}
             for k, v in lang_counter.most_common()
         ],
-        "searches_by_city": [{"city": c, "count": n} for c, n in city_counter.most_common(8)],
+        "searches_by_city": [{"city": c, "count": n} for c, n in city_counter.most_common(20)],
         "popular_filters": [{"filter": f, "count": n, "pct": round(n/len(searches)*100) if searches else 0} for f, n in filter_counter.most_common(8)],
         "total_searches_period": len(searches),
         "searches_log": [
@@ -629,7 +630,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
             "telegram": source_counter.get("telegram", 0),
             "facebook": source_counter.get("facebook", 0),
             "manual":   source_counter.get("manual", 0),
-            "by_city": [{"city": c, "count": n} for c, n in Counter(l.get("city","") for l in listings_all).most_common(8)],
+            "by_city": [{"city": c, "count": n} for c, n in Counter(l.get("city","") for l in listings_all if l.get("active", True) and l.get("city","") not in ("", "Израиль")).most_common(30)],
             "sources": [{"name": s, "count": n} for s, n in Counter(l.get("contact","") for l in listings_all if l.get("source") == "telegram").most_common(30)],
             "channels_total": len(set(l.get("contact","") for l in listings_all if l.get("source") == "telegram")),
             "fb_sources": fb_sources_list,

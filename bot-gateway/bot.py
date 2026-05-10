@@ -1013,6 +1013,16 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             self.wfile.write(body)
             return
 
+        # Health check — Railway uses this to verify the process is alive
+        if path == "/health":
+            body = b'{"status":"ok"}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         # Back-office routes
         if path.startswith("/backoffice"):
             return self._handle_backoffice("GET", path)
@@ -1240,7 +1250,18 @@ def _start_email_scheduler():
     t.start()
     logger.info("Email scheduler started (runs every Sunday 10:00 IL)")
 
-web_thread = threading.Thread(target=start_web_server, daemon=True)
+def _resilient_web_server():
+    """Web server wrapper with auto-restart on crash. Non-daemon — keeps process alive."""
+    while True:
+        try:
+            start_web_server()
+        except Exception as _ws_err:
+            logger.error(f"Web server crashed, restarting in 3s: {_ws_err}")
+            import time as _time
+            _time.sleep(3)
+
+# NON-daemon thread: web server keeps the process alive even if Telegram bot fails
+web_thread = threading.Thread(target=_resilient_web_server, daemon=False, name="web-server")
 web_thread.start()
 
 # Start news refresh loop (fetches RSS every 60 min)
@@ -1266,4 +1287,13 @@ parser_thread = threading.Thread(target=start_telegram_parser, daemon=True)
 parser_thread.start()
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as _main_err:
+        logger.critical(f"Bot main() crashed: {_main_err}", exc_info=True)
+        # Web server is non-daemon — it keeps running so Railway health checks pass
+        # and the backoffice stays accessible for debugging
+        import time as _time
+        logger.info("Web server still running. Sleeping to keep process alive...")
+        while True:
+            _time.sleep(60)
