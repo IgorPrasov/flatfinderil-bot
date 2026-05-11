@@ -979,6 +979,36 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
         self._send_json({"error":"Not found"},404)
 
+    # ── HEAD: mirrors GET headers without body (required for GSC verification) ──
+    def do_HEAD(self):
+        parsed = urlparse(self.path)
+        path   = parsed.path
+        host   = _request_host(self.headers)
+
+        if path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", 15)
+            self.end_headers()
+            return
+
+        if host in _PUBLIC_DOMAINS:
+            if path in ("/", "/legal", "/robots.txt", "/sitemap.xml"):
+                self.send_response(200)
+                ct = "text/xml; charset=utf-8" if path.endswith(".xml") else (
+                     "text/plain; charset=utf-8" if path.endswith(".txt") else
+                     "text/html; charset=utf-8")
+                self.send_header("Content-Type", ct)
+                self.end_headers()
+            else:
+                self.send_response(404)
+                self.end_headers()
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
@@ -987,6 +1017,52 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
         host = _request_host(self.headers)
         if host in _PUBLIC_DOMAINS:
             default_lang = "he" if "co.il" in host else "ru"
+
+            # ── robots.txt ────────────────────────────────────────────────
+            if path == "/robots.txt":
+                body = (
+                    "User-agent: *\n"
+                    "Allow: /\n"
+                    "Disallow: /backoffice/\n"
+                    "Disallow: /api/\n\n"
+                    "Sitemap: https://flatfinderil.com/sitemap.xml\n"
+                ).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+
+            # ── sitemap.xml ───────────────────────────────────────────────
+            if path == "/sitemap.xml":
+                body = (
+                    '<?xml version="1.0" encoding="UTF-8"?>\n'
+                    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+                    '        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
+                    '  <url>\n'
+                    '    <loc>https://flatfinderil.com/</loc>\n'
+                    '    <changefreq>weekly</changefreq>\n'
+                    '    <priority>1.0</priority>\n'
+                    '    <xhtml:link rel="alternate" hreflang="ru" href="https://flatfinderil.com/"/>\n'
+                    '    <xhtml:link rel="alternate" hreflang="en" href="https://flatfinderil.com/"/>\n'
+                    '    <xhtml:link rel="alternate" hreflang="he" href="https://flatfinderil.co.il/"/>\n'
+                    '    <xhtml:link rel="alternate" hreflang="x-default" href="https://flatfinderil.com/"/>\n'
+                    '  </url>\n'
+                    '  <url>\n'
+                    '    <loc>https://flatfinderil.co.il/</loc>\n'
+                    '    <changefreq>weekly</changefreq>\n'
+                    '    <priority>0.9</priority>\n'
+                    '  </url>\n'
+                    '</urlset>\n'
+                ).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/xml; charset=utf-8")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+
             if path in ("/", "/legal"):
                 file_path = LEGAL_FILE if path == "/legal" else LANDING_FILE
                 try:
