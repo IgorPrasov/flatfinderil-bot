@@ -1020,12 +1020,13 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
             # ── robots.txt ────────────────────────────────────────────────
             if path == "/robots.txt":
+                sitemap_domain = "https://flatfinderil.co.il" if "co.il" in host else "https://flatfinderil.com"
                 body = (
                     "User-agent: *\n"
                     "Allow: /\n"
                     "Disallow: /backoffice/\n"
                     "Disallow: /api/\n\n"
-                    "Sitemap: https://flatfinderil.com/sitemap.xml\n"
+                    f"Sitemap: {sitemap_domain}/sitemap.xml\n"
                 ).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/plain; charset=utf-8")
@@ -1036,26 +1037,44 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
             # ── sitemap.xml ───────────────────────────────────────────────
             if path == "/sitemap.xml":
-                body = (
-                    '<?xml version="1.0" encoding="UTF-8"?>\n'
-                    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
-                    '        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
-                    '  <url>\n'
-                    '    <loc>https://flatfinderil.com/</loc>\n'
-                    '    <changefreq>weekly</changefreq>\n'
-                    '    <priority>1.0</priority>\n'
-                    '    <xhtml:link rel="alternate" hreflang="ru" href="https://flatfinderil.com/"/>\n'
-                    '    <xhtml:link rel="alternate" hreflang="en" href="https://flatfinderil.com/"/>\n'
-                    '    <xhtml:link rel="alternate" hreflang="he" href="https://flatfinderil.co.il/"/>\n'
-                    '    <xhtml:link rel="alternate" hreflang="x-default" href="https://flatfinderil.com/"/>\n'
-                    '  </url>\n'
-                    '  <url>\n'
-                    '    <loc>https://flatfinderil.co.il/</loc>\n'
-                    '    <changefreq>weekly</changefreq>\n'
-                    '    <priority>0.9</priority>\n'
-                    '  </url>\n'
-                    '</urlset>\n'
-                ).encode()
+                if "co.il" in host:
+                    # co.il sitemap: Hebrew version is primary
+                    body = (
+                        '<?xml version="1.0" encoding="UTF-8"?>\n'
+                        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+                        '        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
+                        '  <url>\n'
+                        '    <loc>https://flatfinderil.co.il/</loc>\n'
+                        '    <changefreq>weekly</changefreq>\n'
+                        '    <priority>1.0</priority>\n'
+                        '    <xhtml:link rel="alternate" hreflang="he" href="https://flatfinderil.co.il/"/>\n'
+                        '    <xhtml:link rel="alternate" hreflang="ru" href="https://flatfinderil.com/"/>\n'
+                        '    <xhtml:link rel="alternate" hreflang="en" href="https://flatfinderil.com/"/>\n'
+                        '    <xhtml:link rel="alternate" hreflang="x-default" href="https://flatfinderil.co.il/"/>\n'
+                        '  </url>\n'
+                        '</urlset>\n'
+                    ).encode()
+                else:
+                    body = (
+                        '<?xml version="1.0" encoding="UTF-8"?>\n'
+                        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+                        '        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
+                        '  <url>\n'
+                        '    <loc>https://flatfinderil.com/</loc>\n'
+                        '    <changefreq>weekly</changefreq>\n'
+                        '    <priority>1.0</priority>\n'
+                        '    <xhtml:link rel="alternate" hreflang="ru" href="https://flatfinderil.com/"/>\n'
+                        '    <xhtml:link rel="alternate" hreflang="en" href="https://flatfinderil.com/"/>\n'
+                        '    <xhtml:link rel="alternate" hreflang="he" href="https://flatfinderil.co.il/"/>\n'
+                        '    <xhtml:link rel="alternate" hreflang="x-default" href="https://flatfinderil.com/"/>\n'
+                        '  </url>\n'
+                        '  <url>\n'
+                        '    <loc>https://flatfinderil.co.il/</loc>\n'
+                        '    <changefreq>weekly</changefreq>\n'
+                        '    <priority>0.9</priority>\n'
+                        '  </url>\n'
+                        '</urlset>\n'
+                    ).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/xml; charset=utf-8")
                 self.send_header("Content-Length", len(body))
@@ -1072,6 +1091,16 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                         b'data-default-lang="auto"',
                         f'data-default-lang="{default_lang}"'.encode()
                     )
+                    # co.il: fix canonical + og:url to point to THIS domain
+                    if "co.il" in host and path == "/":
+                        content = content.replace(
+                            b'<link rel="canonical" href="https://flatfinderil.com/">',
+                            b'<link rel="canonical" href="https://flatfinderil.co.il/">'
+                        )
+                        content = content.replace(
+                            b'<meta property="og:url" content="https://flatfinderil.com/">',
+                            b'<meta property="og:url" content="https://flatfinderil.co.il/">'
+                        )
                     self.send_response(200)
                     self.send_header("Content-Type", "text/html; charset=utf-8")
                     self.send_header("Content-Length", len(content))
