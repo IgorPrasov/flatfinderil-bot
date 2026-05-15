@@ -783,6 +783,46 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 logger.error(f"[FB-POST] {e}")
                 return self._send_json({"error": str(e)}, 500)
 
+        # db-export — GET /backoffice/api/db-export  (download full listings_db.json)
+        if resource == "db-export" and method == "GET":
+            import database as _db, json as _json
+            data = _db._load()
+            body = _json.dumps(data, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="listings_db.json"')
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        # db-import — POST /backoffice/api/db-import  (upload full listings_db.json)
+        if resource == "db-import" and method == "POST":
+            import database as _db, json as _json, os as _os
+            body = self._read_body()
+            incoming = body.get("data")
+            if not incoming:
+                return self._send_json({"error": "data required"}, 400)
+            try:
+                if isinstance(incoming, str):
+                    incoming = _json.loads(incoming)
+                # Merge: keep existing listings, add new ones
+                current = _db._load()
+                existing_ids = set(current.get("listings", {}).keys())
+                new_listings = incoming.get("listings", {})
+                added = 0
+                for lid, listing in new_listings.items():
+                    if lid not in existing_ids:
+                        current.setdefault("listings", {})[lid] = listing
+                        added += 1
+                # Update next_id
+                all_ids = [int(i) for i in current["listings"].keys() if str(i).isdigit()]
+                current["next_id"] = max(all_ids) + 1 if all_ids else 1
+                _db._save(current)
+                return self._send_json({"ok": True, "added": added, "total": len(current["listings"])})
+            except Exception as e:
+                return self._send_json({"error": str(e)}, 500)
+
         # fb-post-log — GET /backoffice/api/fb-post-log
         if resource == "fb-post-log" and method == "GET":
             import os as _os, json as _json
