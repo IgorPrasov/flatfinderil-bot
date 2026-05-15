@@ -270,8 +270,8 @@ _PUBLIC_DOMAINS = {
 }
 
 
-def _stripe_notify_user(user_id: int, plan_key: str, expiry) -> None:
-    """Send a Telegram confirmation message after successful Stripe payment."""
+def _payment_notify_user(user_id: int, plan_key: str, expiry) -> None:
+    """Send a Telegram confirmation message after successful card payment (PayPlus)."""
     try:
         from config import BOT_TOKEN
         import requests as _req
@@ -280,7 +280,7 @@ def _stripe_notify_user(user_id: int, plan_key: str, expiry) -> None:
         plan = PLANS.get(plan_key, {})
         expiry_str = expiry.strftime("%d.%m.%Y") if hasattr(expiry, "strftime") else str(expiry)
 
-        # Try each language and pick the one stored for the user; default ru
+        # Look up stored language for this user, default to Russian
         try:
             import database as _db
             data = _db._load()
@@ -291,9 +291,9 @@ def _stripe_notify_user(user_id: int, plan_key: str, expiry) -> None:
         plan_name = plan.get(f"name_{lang}") or plan.get("name_ru", plan_key)
 
         msgs = {
-            "ru": (f"✅ <b>Оплата прошла!</b>\n\nПодписка <b>{plan_name}</b> активна до <b>{expiry_str}</b>.\n\nСпасибо, что выбрали FlatFinderIL! 🏠"),
-            "en": (f"✅ <b>Payment successful!</b>\n\n<b>{plan_name}</b> subscription active until <b>{expiry_str}</b>.\n\nThank you for choosing FlatFinderIL! 🏠"),
-            "he": (f"✅ <b>התשלום בוצע!</b>\n\nמנוי <b>{plan_name}</b> פעיל עד <b>{expiry_str}</b>.\n\nתודה שבחרתם FlatFinderIL! 🏠"),
+            "ru": f"✅ <b>Оплата прошла!</b>\n\nПодписка <b>{plan_name}</b> активна до <b>{expiry_str}</b>.\n\nСпасибо, что выбрали FlatFinderIL! 🏠",
+            "en": f"✅ <b>Payment successful!</b>\n\n<b>{plan_name}</b> subscription active until <b>{expiry_str}</b>.\n\nThank you for choosing FlatFinderIL! 🏠",
+            "he": f"✅ <b>התשלום בוצע!</b>\n\nמנוי <b>{plan_name}</b> פעיל עד <b>{expiry_str}</b>.\n\nתודה שבחרתם FlatFinderIL! 🏠",
         }
         text = msgs.get(lang, msgs["ru"])
 
@@ -302,9 +302,9 @@ def _stripe_notify_user(user_id: int, plan_key: str, expiry) -> None:
             json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
             timeout=10,
         )
-        logger.info(f"[STRIPE] Confirmation sent to user={user_id}")
+        logger.info(f"[PAYPLUS] Confirmation sent to user={user_id}")
     except Exception as e:
-        logger.error(f"[STRIPE] Failed to notify user={user_id}: {e}")
+        logger.error(f"[PAYPLUS] Failed to notify user={user_id}: {e}")
 
 def _request_host(headers) -> str:
     """Return the real public hostname from request headers."""
@@ -1374,49 +1374,49 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             except Exception as e:
                 result = {"error": str(e)}
             return self._send_json(result)
-        # ── Stripe webhook ────────────────────────────────────────────────
-        if path == "/webhook/stripe":
-            return self._handle_stripe_webhook()
+        # ── PayPlus webhook ───────────────────────────────────────────────
+        if path == "/webhook/payplus":
+            return self._handle_payplus_webhook()
         self._send_json({"error":"Not found"},404)
 
-    def _handle_stripe_webhook(self):
-        """Verify Stripe signature and activate subscription on payment."""
-        import json as _json
+    def _handle_payplus_webhook(self):
+        """Verify PayPlus callback and activate subscription on payment."""
         try:
             content_len = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_len)
-            sig_header = self.headers.get("Stripe-Signature", "")
 
-            import stripe_payment
-            event = stripe_payment.verify_webhook(body, sig_header)
-            if event is None:
-                logger.warning("[STRIPE] Webhook verification failed")
-                self.send_response(400)
-                self.end_headers()
-                return
+            import json as _json
+            try:
+                callback_data = _json.loads(body)
+            except Exception:
+                from urllib.parse import parse_qs
+                callback_data = {k: v[0] for k, v in parse_qs(body.decode("utf-8", errors="replace")).items()}
 
-            user_id, plan_key = stripe_payment.extract_payment_info(event)
+            logger.info(f"[PAYPLUS] Webhook received: {_json.dumps(callback_data)[:300]}")
+
+            import payplus_payment
+            user_id, plan_key = payplus_payment.verify_and_extract(callback_data)
 
             if user_id and plan_key:
-                logger.info(f"[STRIPE] Payment confirmed user={user_id} plan={plan_key}")
-                from subscription import activate_subscription, PLANS
+                logger.info(f"[PAYPLUS] Payment confirmed user={user_id} plan={plan_key}")
+                from subscription import activate_subscription
                 expiry = activate_subscription(user_id, plan_key)
                 if expiry:
-                    logger.info(f"[STRIPE] Subscription activated user={user_id} plan={plan_key} until={expiry}")
-                    # Send Telegram notification to user
-                    _stripe_notify_user(user_id, plan_key, expiry)
+                    logger.info(f"[PAYPLUS] Subscription activated user={user_id} plan={plan_key} until={expiry}")
+                    _payment_notify_user(user_id, plan_key, expiry)
                 else:
-                    logger.error(f"[STRIPE] activate_subscription returned None for user={user_id} plan={plan_key}")
+                    logger.error(f"[PAYPLUS] activate_subscription returned None user={user_id} plan={plan_key}")
             else:
-                logger.info(f"[STRIPE] Ignored event type={event.get('type')}")
+                logger.info("[PAYPLUS] Callback ignored (not a confirmed payment or missing metadata)")
 
+            # PayPlus requires HTTP 200 to stop retries
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(b'{"ok":true}')
         except Exception as e:
-            logger.error(f"[STRIPE] Webhook handler exception: {e}")
-            self.send_response(500)
+            logger.error(f"[PAYPLUS] Webhook handler exception: {e}")
+            self.send_response(200)  # still 200 to avoid PayPlus retry storm
             self.end_headers()
 
     def _handle_send_message(self):

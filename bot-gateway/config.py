@@ -1,9 +1,10 @@
 import os
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8047585631:AAH9OTvRuJWEMBieIyaZRBPEalOda6nLo0Q")
 
-# ─── Stripe payment settings (env-overridable) ──────────────────────────────
-STRIPE_SECRET_KEY     = os.environ.get("STRIPE_SECRET_KEY", "")
-STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+# ─── PayPlus (Cardcom) payment settings ─────────────────────────────────────
+PAYPLUS_API_KEY    = os.environ.get("PAYPLUS_API_KEY", "")
+PAYPLUS_SECRET_KEY = os.environ.get("PAYPLUS_SECRET_KEY", "")
+PAYPLUS_PAGE_UID   = os.environ.get("PAYPLUS_PAGE_UID", "")
 
 # ─── Subscription pricing (env-overridable) ─────────────────────────────────
 # Single source of truth for all subscription prices. Values can be overridden
