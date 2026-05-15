@@ -304,13 +304,31 @@ def city_multi_keyboard(ctx, selected=None, districts=None):
     return InlineKeyboardMarkup(keyboard)
 
 def subscription_keyboard(ctx):
-    return InlineKeyboardMarkup([
+    import stripe_payment
+    rows = [
         [InlineKeyboardButton(t("btn_sub_week", ctx),         callback_data="sub_week")],
         [InlineKeyboardButton(t("btn_sub_two_weeks", ctx),    callback_data="sub_two_weeks")],
         [InlineKeyboardButton(t("btn_sub_month", ctx),        callback_data="sub_month")],
         [InlineKeyboardButton(t("btn_sub_search_alert", ctx), callback_data="sub_search_alert")],
-        [InlineKeyboardButton("₿ Оплатить криптовалютой",     callback_data="sub_crypto")],
-        [InlineKeyboardButton(t("btn_back_menu", ctx),        callback_data="back_to_menu")],
+    ]
+    if stripe_payment.is_enabled():
+        rows.append([InlineKeyboardButton("💳 Оплатить картой (Stripe)", callback_data="sub_stripe")])
+    rows.append([InlineKeyboardButton("₿ Оплатить криптовалютой",     callback_data="sub_crypto")])
+    rows.append([InlineKeyboardButton(t("btn_back_menu", ctx),        callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+def stripe_plan_keyboard(ctx):
+    """Plan selection for Stripe card payment."""
+    from config import PLAN_PRICES_ILS
+    week_price      = PLAN_PRICES_ILS.get("week", 19.9)
+    two_weeks_price = PLAN_PRICES_ILS.get("two_weeks", 29.9)
+    month_price     = PLAN_PRICES_ILS.get("month", 39.9)
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"1 неделя — {week_price:.0f}₪",       callback_data="stripe_plan_week")],
+        [InlineKeyboardButton(f"2 недели — {two_weeks_price:.0f}₪",   callback_data="stripe_plan_two_weeks")],
+        [InlineKeyboardButton(f"1 месяц — {month_price:.0f}₪",        callback_data="stripe_plan_month")],
+        [InlineKeyboardButton("◀ Назад",                               callback_data="subscription")],
     ])
 
 

@@ -269,6 +269,43 @@ _PUBLIC_DOMAINS = {
     "flatfinderil.co.il", "www.flatfinderil.co.il",
 }
 
+
+def _stripe_notify_user(user_id: int, plan_key: str, expiry) -> None:
+    """Send a Telegram confirmation message after successful Stripe payment."""
+    try:
+        from config import BOT_TOKEN
+        import requests as _req
+        from subscription import PLANS
+
+        plan = PLANS.get(plan_key, {})
+        expiry_str = expiry.strftime("%d.%m.%Y") if hasattr(expiry, "strftime") else str(expiry)
+
+        # Try each language and pick the one stored for the user; default ru
+        try:
+            import database as _db
+            data = _db._load()
+            lang = data.get("agent_profiles", {}).get(str(user_id), {}).get("lang", "ru") or "ru"
+        except Exception:
+            lang = "ru"
+
+        plan_name = plan.get(f"name_{lang}") or plan.get("name_ru", plan_key)
+
+        msgs = {
+            "ru": (f"✅ <b>Оплата прошла!</b>\n\nПодписка <b>{plan_name}</b> активна до <b>{expiry_str}</b>.\n\nСпасибо, что выбрали FlatFinderIL! 🏠"),
+            "en": (f"✅ <b>Payment successful!</b>\n\n<b>{plan_name}</b> subscription active until <b>{expiry_str}</b>.\n\nThank you for choosing FlatFinderIL! 🏠"),
+            "he": (f"✅ <b>התשלום בוצע!</b>\n\nמנוי <b>{plan_name}</b> פעיל עד <b>{expiry_str}</b>.\n\nתודה שבחרתם FlatFinderIL! 🏠"),
+        }
+        text = msgs.get(lang, msgs["ru"])
+
+        _req.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
+            timeout=10,
+        )
+        logger.info(f"[STRIPE] Confirmation sent to user={user_id}")
+    except Exception as e:
+        logger.error(f"[STRIPE] Failed to notify user={user_id}: {e}")
+
 def _request_host(headers) -> str:
     """Return the real public hostname from request headers."""
     for h in ("X-Forwarded-Host", "X-Original-Host", "Host"):
@@ -1149,6 +1186,39 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 except Exception:
                     self.send_response(500); self.end_headers()
                 return
+            # Stripe success/cancel pages — allowed on public domain
+            if path in ("/stripe/success", "/stripe/cancel"):
+                lang_param = "he" if "co.il" in host else "ru"
+                if path == "/stripe/success":
+                    msgs = {
+                        "ru": ("✅ Оплата прошла успешно!", "Вернитесь в бот — подписка уже активна."),
+                        "en": ("✅ Payment successful!", "Return to the bot — your subscription is now active."),
+                        "he": ("✅ התשלום בוצע בהצלחה!", "חזרו לבוט — המנוי שלכם פעיל."),
+                    }
+                else:
+                    msgs = {
+                        "ru": ("❌ Оплата отменена", "Вы можете попробовать снова в боте."),
+                        "en": ("❌ Payment cancelled", "You can try again in the bot."),
+                        "he": ("❌ התשלום בוטל", "תוכלו לנסות שוב בבוט."),
+                    }
+                title, sub = msgs.get(lang_param, msgs["ru"])
+                html = (
+                    "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                    "<style>body{font-family:sans-serif;text-align:center;padding:60px 20px;background:#f0f4f8}"
+                    "h1{font-size:2em}a{display:inline-block;margin-top:20px;padding:12px 28px;"
+                    "background:#2563eb;color:white;border-radius:8px;text-decoration:none;font-size:1.1em}"
+                    "</style></head><body>"
+                    f"<h1>{title}</h1><p>{sub}</p>"
+                    "<a href='https://t.me/flatfinderil_bot'>↩ Открыть бот</a>"
+                    "</body></html>"
+                ).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", len(html))
+                self.end_headers()
+                self.wfile.write(html)
+                return
             # Block ALL internal pages/API on public domains
             body = b"Not found"
             self.send_response(404)
@@ -1304,7 +1374,50 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             except Exception as e:
                 result = {"error": str(e)}
             return self._send_json(result)
+        # ── Stripe webhook ────────────────────────────────────────────────
+        if path == "/webhook/stripe":
+            return self._handle_stripe_webhook()
         self._send_json({"error":"Not found"},404)
+
+    def _handle_stripe_webhook(self):
+        """Verify Stripe signature and activate subscription on payment."""
+        import json as _json
+        try:
+            content_len = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_len)
+            sig_header = self.headers.get("Stripe-Signature", "")
+
+            import stripe_payment
+            event = stripe_payment.verify_webhook(body, sig_header)
+            if event is None:
+                logger.warning("[STRIPE] Webhook verification failed")
+                self.send_response(400)
+                self.end_headers()
+                return
+
+            user_id, plan_key = stripe_payment.extract_payment_info(event)
+
+            if user_id and plan_key:
+                logger.info(f"[STRIPE] Payment confirmed user={user_id} plan={plan_key}")
+                from subscription import activate_subscription, PLANS
+                expiry = activate_subscription(user_id, plan_key)
+                if expiry:
+                    logger.info(f"[STRIPE] Subscription activated user={user_id} plan={plan_key} until={expiry}")
+                    # Send Telegram notification to user
+                    _stripe_notify_user(user_id, plan_key, expiry)
+                else:
+                    logger.error(f"[STRIPE] activate_subscription returned None for user={user_id} plan={plan_key}")
+            else:
+                logger.info(f"[STRIPE] Ignored event type={event.get('type')}")
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+        except Exception as e:
+            logger.error(f"[STRIPE] Webhook handler exception: {e}")
+            self.send_response(500)
+            self.end_headers()
 
     def _handle_send_message(self):
         # Optional internal API key check

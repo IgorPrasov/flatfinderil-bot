@@ -1,6 +1,10 @@
 import os
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8047585631:AAH9OTvRuJWEMBieIyaZRBPEalOda6nLo0Q")
 
+# ─── Stripe payment settings (env-overridable) ──────────────────────────────
+STRIPE_SECRET_KEY     = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+
 # ─── Subscription pricing (env-overridable) ─────────────────────────────────
 # Single source of truth for all subscription prices. Values can be overridden
 # by environment variables for staging/A-B testing without a code deploy.

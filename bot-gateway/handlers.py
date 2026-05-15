@@ -17,8 +17,10 @@ from keyboards import (
     tenant_deal_confirm_keyboard, owner_deal_confirm_keyboard,
     search_alert_confirm_keyboard,
     crypto_plan_keyboard, crypto_asset_keyboard,
+    stripe_plan_keyboard,
 )
 import cryptopay
+import stripe_payment
 from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
 from subscription import (
@@ -355,6 +357,77 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=subscription_keyboard(context),
                     parse_mode="HTML",
                 )
+
+    # ── Stripe card payments ──────────────────────────────────────────────
+    elif data == "sub_stripe":
+        if not stripe_payment.is_enabled():
+            await query.edit_message_text(
+                "⚠️ Оплата картой временно недоступна. Используйте другой способ.",
+                reply_markup=subscription_keyboard(context),
+                parse_mode="HTML",
+            )
+        else:
+            lang = get_lang(context)
+            titles = {"ru": "💳 Оплата картой", "en": "💳 Card payment", "he": "💳 תשלום בכרטיס"}
+            descs  = {
+                "ru": "Выберите тариф — оплата через защищённую форму Stripe:",
+                "en": "Choose a plan — pay via secure Stripe checkout:",
+                "he": "בחרו תוכנית — תשלום דרך Stripe:",
+            }
+            await query.edit_message_text(
+                f"<b>{titles.get(lang, titles['ru'])}</b>\n\n{descs.get(lang, descs['ru'])}",
+                reply_markup=stripe_plan_keyboard(context),
+                parse_mode="HTML",
+            )
+
+    elif data.startswith("stripe_plan_"):
+        plan_key = data.replace("stripe_plan_", "")
+        lang     = get_lang(context)
+        user_id  = update.effective_user.id
+
+        await query.answer("Создаём ссылку для оплаты...", show_alert=False)
+
+        session = stripe_payment.create_checkout_session(plan_key, user_id, lang)
+        if session and session.get("url"):
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            from subscription import PLANS
+            plan = PLANS.get(plan_key, {})
+            plan_name = plan.get(f"name_{lang}") or plan.get("name_ru", plan_key)
+            pay_url = session["url"]
+
+            pay_labels = {"ru": f"💳 Оплатить — {plan_name}", "en": f"💳 Pay — {plan_name}", "he": f"💳 לתשלום — {plan_name}"}
+            back_labels = {"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}
+            msgs = {
+                "ru": (
+                    f"💳 <b>Оплата картой — {plan_name}</b>\n\n"
+                    "Нажмите кнопку ниже — откроется безопасная страница оплаты Stripe.\n\n"
+                    "✅ После оплаты подписка активируется автоматически."
+                ),
+                "en": (
+                    f"💳 <b>Card payment — {plan_name}</b>\n\n"
+                    "Click the button below to open the secure Stripe payment page.\n\n"
+                    "✅ Your subscription will activate automatically after payment."
+                ),
+                "he": (
+                    f"💳 <b>תשלום בכרטיס — {plan_name}</b>\n\n"
+                    "לחצו על הכפתור למטה לדף תשלום מאובטח של Stripe.\n\n"
+                    "✅ המנוי יופעל אוטומטית לאחר התשלום."
+                ),
+            }
+            await query.edit_message_text(
+                msgs.get(lang, msgs["ru"]),
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(pay_labels.get(lang, pay_labels["ru"]), url=pay_url)],
+                    [InlineKeyboardButton(back_labels.get(lang, back_labels["ru"]), callback_data="sub_stripe")],
+                ]),
+                parse_mode="HTML",
+            )
+        else:
+            await query.edit_message_text(
+                "❌ Не удалось создать ссылку для оплаты. Попробуйте позже.",
+                reply_markup=subscription_keyboard(context),
+                parse_mode="HTML",
+            )
 
     elif data == "favorites":
         user_id = update.effective_user.id
