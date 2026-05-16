@@ -1186,6 +1186,15 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 except Exception:
                     self.send_response(500); self.end_headers()
                 return
+            # Google Search Console verification
+            if path == "/google6c7ba3b919c578f9.html":
+                body = b"google-site-verification: google6c7ba3b919c578f9.html"
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+                return
             # Stripe success/cancel pages — allowed on public domain
             if path in ("/stripe/success", "/stripe/cancel"):
                 lang_param = "he" if "co.il" in host else "ru"
