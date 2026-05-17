@@ -334,8 +334,20 @@ def _extract_posts_from_page(page) -> list[dict]:
                     }
                 }
 
+                // Extract content images (filter out avatars/icons)
+                const photos = [];
+                art.querySelectorAll('img[src]').forEach(img => {
+                    const src = img.src || '';
+                    const w = img.naturalWidth || img.width || 0;
+                    const h = img.naturalHeight || img.height || 0;
+                    if (src.includes('scontent') && w > 200 && h > 200) {
+                        const cleanSrc = src.split('&_nc_cat')[0].split('?_nc_cat')[0];
+                        if (!photos.includes(cleanSrc)) photos.push(cleanSrc);
+                    }
+                });
+
                 if (text.length > 80 && url) {
-                    results.push({ text: text, url: url });
+                    results.push({ text: text, url: url, photos: photos.slice(0, 5) });
                 }
             });
             return results;
@@ -344,8 +356,9 @@ def _extract_posts_from_page(page) -> list[dict]:
         raw_posts = page.evaluate(article_js)
 
         for item in raw_posts:
-            url  = item.get("url", "")
-            text = _clean_post_text(item.get("text", ""))
+            url    = item.get("url", "")
+            text   = _clean_post_text(item.get("text", ""))
+            photos = item.get("photos", [])
 
             if not url or url in seen_urls:
                 continue
@@ -353,7 +366,7 @@ def _extract_posts_from_page(page) -> list[dict]:
                 continue
 
             seen_urls.add(url)
-            posts.append({"text": text, "url": url})
+            posts.append({"text": text, "url": url, "photos": photos})
 
     except Exception as e:
         log.error(f"   Ошибка извлечения постов из DOM: {e}")
@@ -364,6 +377,20 @@ def _extract_posts_from_page(page) -> list[dict]:
 # ══════════════════════════════════════════════════════════════════════════════
 #  ФОРМИРОВАНИЕ ОБЪЯВЛЕНИЯ
 # ══════════════════════════════════════════════════════════════════════════════
+
+def _upload_fb_photos(photo_urls: list) -> list:
+    """Upload Facebook photo URLs to R2. Falls back to original URLs if R2 not configured."""
+    try:
+        import photo_storage
+        if photo_storage.is_enabled():
+            uploaded = photo_storage.upload_photos(photo_urls, folder="facebook", max_photos=5)
+            if uploaded:
+                return uploaded
+    except Exception:
+        pass
+    # Fallback: use Facebook CDN URLs directly (expire eventually)
+    return [u for u in photo_urls[:5] if u]
+
 
 def _url_exists(url: str) -> bool:
     try:
@@ -376,7 +403,7 @@ def _url_exists(url: str) -> bool:
     return False
 
 
-def build_listing(post: dict) -> dict | None:
+def build_listing(post: dict, photos: list | None = None) -> dict | None:
     text = post["text"]
 
     if not is_listing(text):
@@ -398,6 +425,8 @@ def build_listing(post: dict) -> dict | None:
     if len(text) > 100:
         title += "…"
 
+    uploaded_photos = _upload_fb_photos(photos or post.get("photos", []))
+
     return {
         "title":          title,
         "description":    text[:2000],
@@ -414,7 +443,7 @@ def build_listing(post: dict) -> dict | None:
         "pool":           extract_pool(text),
         "infrastructure": extract_infrastructure(text),
         "contact":        None,
-        "photos":         [],
+        "photos":         uploaded_photos,
         "source":         "facebook",
         "source_url":     post["url"],
         "active":         True,

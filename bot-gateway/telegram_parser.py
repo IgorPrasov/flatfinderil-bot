@@ -38,22 +38,6 @@ CHANNELS = [
     # ── Бат-Ям / Холон / Рамат-Ган / Гиватаим ────────────────────────────
     "rentapartmentbatyam",   # 1.7K — Бат-Ям
     "rentbatyam",            # 340  — Бат-Ям
-    # ── Петах-Тиква ───────────────────────────────────────────────────────
-    "petah_tikva_rent",      # Петах-Тиква аренда
-    "petahtikva_arenda",     # Петах-Тиква аренда (альт.)
-    "ptikva_nedvizimost",    # Петах-Тиква недвижимость
-    # ── Рош-аин ──────────────────────────────────────────────────────────
-    "rosh_haayin_arenda",    # Рош-аин аренда
-    "rosh_haayin_rent",      # Рош-аин аренда (альт.)
-    # ── Центр / Шарон ────────────────────────────────────────────────────
-    "israel_center_rent",    # Центральный район аренда
-    "kfar_saba_arenda",      # Кфар-Саба аренда
-    "raanana_arenda",        # Раанана аренда
-    "rehovot_arenda",        # Реховот аренда
-    "rishon_arenda",         # Ришон-ле-Цион аренда
-    # ── Юг — Ашдод доп. ──────────────────────────────────────────────────
-    "ashdod_arenda",         # Ашдод аренда (доп.)
-    "ashdod_nedvizimost",    # Ашдод недвижимость
     # ── Приватные — убраны (требуют авторизации) ─────────────────────────
     # "RealEstateIsraelBot",   # bot, not a channel
 ]
@@ -746,7 +730,14 @@ def scrape_channel_web(channel: str, limit: int = 100) -> list:
                 text = text_elems[0].text_content().strip()
                 if text:
                     source_url = f"https://t.me/{channel}/{post_id}"
-                    results.append((post_id, text, source_url))
+                    # Extract photo URLs from background-image style
+                    photo_urls = []
+                    for ph in wrap.xpath('.//*[contains(@class,"tgme_widget_message_photo_wrap")]'):
+                        style = ph.get("style", "")
+                        m = re.search(r"url\('([^']+)'\)", style)
+                        if m:
+                            photo_urls.append(m.group(1))
+                    results.append((post_id, text, source_url, photo_urls))
 
             if len(results) >= limit:
                 break
@@ -765,9 +756,12 @@ def scrape_channel_web(channel: str, limit: int = 100) -> list:
 def parse_channel_web(channel: str, limit: int = 50) -> int:
     """Parse one channel via web scraping. Returns count of newly added listings."""
     import owners_db
+    import photo_storage
     added = 0
     messages = scrape_channel_web(channel, limit)
-    for _post_id, text, source_url in messages:
+    for item in messages:
+        _post_id, text, source_url = item[0], item[1], item[2]
+        raw_photo_urls = item[3] if len(item) > 3 else []
         if url_exists(source_url):
             owners_db.upsert_from_text(text, channel, source_url)
             continue
@@ -776,6 +770,12 @@ def parse_channel_web(channel: str, limit: int = 50) -> int:
         city = detect_city(text) or "Израиль"
         deal_type = extract_deal_type(text)
         prop_type = extract_property_type(text)
+        # Upload photos to R2 (or keep CDN URLs as fallback)
+        photos = photo_storage.upload_photos(raw_photo_urls, folder="telegram", max_photos=5)
+        if not photos and raw_photo_urls:
+            photos = raw_photo_urls[:5]  # fallback: use Telegram CDN URLs directly
+        if not photos:
+            photos = ["🏢"]
         listing = {
             "title": f"📱 {text[:70].replace(chr(10), ' ').strip()}...",
             "description": text[:600],
@@ -792,7 +792,7 @@ def parse_channel_web(channel: str, limit: int = 50) -> int:
             "pool": extract_pool(text),
             "infrastructure": extract_infrastructure(text),
             "contact": f"@{channel}",
-            "photos": ["🏢"],
+            "photos": photos,
             "source": "telegram",
             "source_url": source_url,
         }
