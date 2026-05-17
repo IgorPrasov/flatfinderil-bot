@@ -19,6 +19,10 @@ from commercial_handler import CommercialHandler
 from service_handler import ServiceHandler
 from crm_handler import CRMHandler
 from support_handler import get_conversation_handler as get_support_handler, admin_reply_cmd
+from alert_handler import (
+    get_conversation_handler as get_alert_handler,
+    show_alerts_menu, handle_alert_subscribe, handle_alert_delete,
+)
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -239,7 +243,12 @@ def main():
     app.add_handler(search.get_conversation_handler())
     app.add_handler(listing.get_conversation_handler())
     app.add_handler(get_support_handler())
+    app.add_handler(get_alert_handler())
     app.add_handler(CommandHandler("reply", admin_reply_cmd))
+    # Alert standalone callbacks (outside the wizard conversation)
+    app.add_handler(CallbackQueryHandler(show_alerts_menu,      pattern="^alerts_menu$"))
+    app.add_handler(CallbackQueryHandler(handle_alert_subscribe, pattern="^alert_subscribe$"))
+    app.add_handler(CallbackQueryHandler(handle_alert_delete,   pattern="^alert_del_"))
     app.add_handler(CallbackQueryHandler(handle_menu))
     # Payment handlers in group=-1 so they run BEFORE any ConversationHandler
     # (prevents a mid-conversation state from swallowing the pre_checkout_query)
@@ -261,6 +270,14 @@ def main():
     # Morning digest auto-scheduling DISABLED — available on-demand only via /digest command
     # (was: schedule_daily_digest(app.bot, hour=9, minute=0))
     logger.info("Morning digest auto-broadcast is disabled; available via /digest on demand")
+
+    # Start alert checker (every 5 min — matches new listings against user alerts)
+    try:
+        from alert_checker import start_alert_checker
+        start_alert_checker(app.bot)
+        logger.info("Alert checker started")
+    except Exception as _e:
+        logger.warning(f"Alert checker not started: {_e}")
 
     # Start Facebook parser if cookies are configured (env var OR database)
     if os.environ.get("FB_COOKIES_JSON"):
@@ -447,6 +464,50 @@ def _notify_mover_subscription(user_id: int, pkg: dict, expiry_iso: str) -> None
         logger.info(f"[PAYPLUS] Mover subscription notification sent user={user_id}")
     except Exception as e:
         logger.error(f"[PAYPLUS] Failed to notify mover user={user_id}: {e}")
+
+
+async def _notify_alert_activated(user_id: int, expiry_iso: str) -> None:
+    """Notify user that alert subscription is active."""
+    try:
+        from config import BOT_TOKEN
+        import requests as _req
+        import database as _db
+        try:
+            lang = _db._load().get("user_settings", {}).get(str(user_id), {}).get("lang", "ru") or "ru"
+        except Exception:
+            lang = "ru"
+        try:
+            from datetime import datetime
+            expiry_str = datetime.fromisoformat(expiry_iso).strftime("%d.%m.%Y")
+        except Exception:
+            expiry_str = (expiry_iso or "")[:10]
+        msgs = {
+            "ru": (
+                f"✅ <b>Оплата прошла!</b>\n\n"
+                f"Подписка <b>🔔 Уведомления</b> активна до <b>{expiry_str}</b>.\n\n"
+                "Теперь настройте фильтры — бот будет присылать новые объявления автоматически.\n\n"
+                "Нажмите 🔔 Уведомления в главном меню."
+            ),
+            "en": (
+                f"✅ <b>Payment successful!</b>\n\n"
+                f"<b>🔔 Alerts</b> subscription active until <b>{expiry_str}</b>.\n\n"
+                "Now set your filters — the bot will send new listings automatically.\n\n"
+                "Tap 🔔 Alerts in the main menu."
+            ),
+            "he": (
+                f"✅ <b>התשלום בוצע!</b>\n\n"
+                f"מנוי <b>🔔 התראות</b> פעיל עד <b>{expiry_str}</b>.\n\n"
+                "עכשיו הגדר פילטרים — הבוט ישלח מודעות חדשות אוטומטית.\n\n"
+                "לחץ 🔔 התראות בתפריט הראשי."
+            ),
+        }
+        _req.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={"chat_id": user_id, "text": msgs.get(lang, msgs["ru"]), "parse_mode": "HTML"},
+            timeout=10,
+        )
+    except Exception as e:
+        logger.error(f"[PAYPLUS] Failed to notify alert user={user_id}: {e}")
 
 
 def _request_host(headers) -> str:
@@ -1584,6 +1645,17 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                         _notify_mover_subscription(user_id, pkg, expiry)
                     else:
                         logger.error(f"[PAYPLUS] Unknown mover pkg={pkg_key!r}")
+
+                # ── Alert subscription (39.90₪/month) ───────────────────────
+                elif plan_key == "alerts":
+                    import database as _db
+                    _db.set_alert_expiry(user_id, days=30)
+                    expiry = _db.get_alert_expiry(user_id)
+                    logger.info(f"[PAYPLUS] Alert sub activated user={user_id} until={expiry}")
+                    asyncio.run_coroutine_threadsafe(
+                        _notify_alert_activated(user_id, expiry),
+                        asyncio.get_event_loop()
+                    )
 
                 # ── Bot subscription (week / two_weeks / month) ──────────────
                 else:

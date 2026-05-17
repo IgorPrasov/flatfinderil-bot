@@ -31,14 +31,16 @@ def main_menu_keyboard(ctx):
     svc_label = {"ru": "🚚 Услуги", "en": "🚚 Services", "he": "🚚 שירותים", "fr": "🚚 Services"}.get(lang, "🚚 Услуги")
     contact_label = {"ru": "✉️ Написать нам", "en": "✉️ Contact us", "he": "✉️ כתוב לנו", "fr": "✉️ Nous écrire"}.get(lang, "✉️ Написать нам")
     insta_label   = {"ru": "📸 Instagram", "en": "📸 Instagram", "he": "📸 אינסטגרם", "fr": "📸 Instagram"}.get(lang, "📸 Instagram")
+    alerts_label = {"ru": "🔔 Уведомления", "en": "🔔 Alerts", "he": "🔔 התראות", "fr": "🔔 Alertes"}.get(lang, "🔔 Уведомления")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(t("btn_search", ctx), callback_data="search"), InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites")],
         [InlineKeyboardButton(t("btn_commercial", ctx), callback_data="commercial"), InlineKeyboardButton(svc_label, callback_data="services")],
         [InlineKeyboardButton(t("btn_my_listings", ctx), callback_data="my_listings"), InlineKeyboardButton(t("btn_add_listing", ctx), callback_data="add_listing")],
         [InlineKeyboardButton(t("btn_all_listings", ctx), callback_data="all_listings"), InlineKeyboardButton(t("btn_help", ctx), callback_data="help")],
-        [InlineKeyboardButton(sub_label, callback_data="subscription"), InlineKeyboardButton(t("btn_my_subscriptions", ctx), callback_data="my_subscriptions")],
-        [InlineKeyboardButton(t("btn_cabinet", ctx), callback_data="cabinet"), InlineKeyboardButton(t("btn_language", ctx), callback_data="choose_lang")],
-        [InlineKeyboardButton(contact_label, callback_data="contact_admin"), InlineKeyboardButton(insta_label, url="https://www.instagram.com/flatfinderil/")],
+        [InlineKeyboardButton(sub_label, callback_data="subscription"), InlineKeyboardButton(alerts_label, callback_data="alerts_menu")],
+        [InlineKeyboardButton(t("btn_my_subscriptions", ctx), callback_data="my_subscriptions"), InlineKeyboardButton(t("btn_cabinet", ctx), callback_data="cabinet")],
+        [InlineKeyboardButton(t("btn_language", ctx), callback_data="choose_lang"), InlineKeyboardButton(contact_label, callback_data="contact_admin")],
+        [InlineKeyboardButton(insta_label, url="https://www.instagram.com/flatfinderil/")],
     ])
 
 def back_to_menu_keyboard(ctx):
@@ -574,3 +576,123 @@ def commercial_price_keyboard(ctx, prefix, deal_type):
     rows = [[InlineKeyboardButton(label, callback_data=f"{prefix}_{val}")] for val, label in opts]
     rows.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="comm_back")])
     return InlineKeyboardMarkup(rows)
+
+
+# ── Alert keyboards ───────────────────────────────────────────────────────────
+
+def alerts_menu_keyboard(ctx, alerts_list: list, is_active: bool):
+    """Main alerts screen — list existing alerts + Add button."""
+    lang = get_lang(ctx)
+    rows = []
+    if not is_active:
+        sub_btn = {
+            "ru": "💳 Подписаться — 39.90 ₪/мес",
+            "en": "💳 Subscribe — ₪39.90/mo",
+            "he": "💳 הירשם — 39.90 ₪/חודש",
+        }.get(lang, "💳 Subscribe — 39.90 ₪/mo")
+        rows.append([InlineKeyboardButton(sub_btn, callback_data="alert_subscribe")])
+    else:
+        for i, alert in enumerate(alerts_list):
+            f = alert.get("filters", {})
+            deal = {"rent": "🏠 Аренда", "buy": "🏦 Покупка"}.get(f.get("deal_type", ""), "🔎 Любой тип")
+            city = f.get("city", "") or {"ru": "Любой город", "en": "Any city", "he": "כל עיר"}.get(lang, "Any city")
+            rooms_min = f.get("rooms_min", "")
+            rooms_max = f.get("rooms_max", "")
+            rooms_str = f"{rooms_min}–{rooms_max}" if rooms_min and rooms_max else (rooms_min or rooms_max or "")
+            price_max = f.get("price_max", "")
+            price_str = f"до {price_max}₪" if price_max else ""
+            parts = [deal, city]
+            if rooms_str:
+                parts.append(f"{rooms_str} комн.")
+            if price_str:
+                parts.append(price_str)
+            label = " · ".join(parts)[:50]
+            del_label = {"ru": "❌", "en": "❌", "he": "❌"}.get(lang, "❌")
+            rows.append([
+                InlineKeyboardButton(label, callback_data="noop"),
+                InlineKeyboardButton(del_label, callback_data=f"alert_del_{alert['id']}"),
+            ])
+
+        if len(alerts_list) < 5:
+            add_label = {"ru": "➕ Добавить фильтр", "en": "➕ Add filter", "he": "➕ הוסף פילטר"}.get(lang, "➕ Add filter")
+            rows.append([InlineKeyboardButton(add_label, callback_data="alert_add")])
+
+    rows.append([InlineKeyboardButton({"ru": "◀ Главное меню", "en": "◀ Main menu", "he": "◀ תפריט ראשי"}.get(lang, "◀ Main menu"), callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+def alert_deal_type_keyboard(ctx):
+    lang = get_lang(ctx)
+    rent  = {"ru": "🏠 Аренда", "en": "🏠 Rent", "he": "🏠 שכירות"}.get(lang, "🏠 Rent")
+    buy   = {"ru": "🏦 Покупка", "en": "🏦 Buy", "he": "🏦 קנייה"}.get(lang, "🏦 Buy")
+    any_  = {"ru": "🔎 Любой", "en": "🔎 Any", "he": "🔎 הכל"}.get(lang, "🔎 Any")
+    back  = {"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀ Back")
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(rent, callback_data="aldeal_rent"), InlineKeyboardButton(buy, callback_data="aldeal_buy")],
+        [InlineKeyboardButton(any_, callback_data="aldeal_any")],
+        [InlineKeyboardButton(back, callback_data="alerts_menu")],
+    ])
+
+
+def alert_city_keyboard(ctx):
+    lang = get_lang(ctx)
+    rows = []
+    row = []
+    for city in ALL_CITIES:
+        display = get_city_name(city, lang)
+        row.append(InlineKeyboardButton(display, callback_data=f"alcity_{city}"))
+        if len(row) == 2:
+            rows.append(row); row = []
+    if row:
+        rows.append(row)
+    any_label  = {"ru": "🌍 Весь Израиль", "en": "🌍 All Israel", "he": "🌍 כל ישראל"}.get(lang, "🌍 All Israel")
+    back_label = {"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀ Back")
+    rows.append([InlineKeyboardButton(any_label, callback_data="alcity_any")])
+    rows.append([InlineKeyboardButton(back_label, callback_data="alert_add")])
+    return InlineKeyboardMarkup(rows)
+
+
+def alert_rooms_keyboard(ctx):
+    lang = get_lang(ctx)
+    rows = []
+    row = []
+    for r in ROOMS_OPTIONS:
+        row.append(InlineKeyboardButton(r, callback_data=f"alrooms_{r}"))
+        if len(row) == 5: rows.append(row); row = []
+    if row: rows.append(row)
+    skip  = {"ru": "⏭ Любое кол-во", "en": "⏭ Any rooms", "he": "⏭ כל מספר"}.get(lang, "⏭ Any")
+    back  = {"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀ Back")
+    rows.append([InlineKeyboardButton(skip, callback_data="alrooms_any")])
+    rows.append([InlineKeyboardButton(back, callback_data="alert_city_step")])
+    return InlineKeyboardMarkup(rows)
+
+
+def alert_price_keyboard(ctx, deal_type: str = "rent"):
+    lang = get_lang(ctx)
+    if deal_type == "buy":
+        opts = [("500000","до 500 000₪"),("1000000","до 1 000 000₪"),("2000000","до 2 000 000₪"),("5000000","до 5 000 000₪")]
+    else:
+        opts = [("3000","до 3 000₪"),("5000","до 5 000₪"),("8000","до 8 000₪"),("12000","до 12 000₪"),("20000","до 20 000₪")]
+    rows = []
+    row = []
+    for val, label in opts:
+        row.append(InlineKeyboardButton(label, callback_data=f"alprice_{val}"))
+        if len(row) == 2: rows.append(row); row = []
+    if row: rows.append(row)
+    skip = {"ru": "⏭ Без лимита", "en": "⏭ No limit", "he": "⏭ ללא מגבלה"}.get(lang, "⏭ No limit")
+    back = {"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀ Back")
+    rows.append([InlineKeyboardButton(skip, callback_data="alprice_any")])
+    rows.append([InlineKeyboardButton(back, callback_data="alert_rooms_step")])
+    return InlineKeyboardMarkup(rows)
+
+
+def alert_confirm_keyboard(ctx):
+    lang = get_lang(ctx)
+    save  = {"ru": "✅ Сохранить", "en": "✅ Save", "he": "✅ שמור"}.get(lang, "✅ Save")
+    reset = {"ru": "🔄 Сначала", "en": "🔄 Start over", "he": "🔄 התחל מחדש"}.get(lang, "🔄 Restart")
+    back  = {"ru": "◀ Мои уведомления", "en": "◀ My alerts", "he": "◀ ההתראות שלי"}.get(lang, "◀ Alerts")
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(save, callback_data="alert_save")],
+        [InlineKeyboardButton(reset, callback_data="alert_add")],
+        [InlineKeyboardButton(back, callback_data="alerts_menu")],
+    ])

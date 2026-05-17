@@ -353,6 +353,78 @@ def update_subscription_last_checked(user_id: int, sub_index: int, last_result_i
             data["subscriptions"][uid] = subs
             _save(data)
 
+# ── Alert subscriptions (paid, 39.90₪/month) ─────────────────────────────────
+
+ALERT_PLAN_DAYS = 30
+
+def is_alert_active(user_id: int) -> bool:
+    """Return True if user has a non-expired alert subscription."""
+    data = _load()
+    expiry = data.get("alert_expiry", {}).get(str(user_id))
+    if not expiry:
+        return False
+    return datetime.fromisoformat(expiry) > datetime.now()
+
+def set_alert_expiry(user_id: int, days: int = ALERT_PLAN_DAYS):
+    """Activate or extend alert subscription for user."""
+    with _DB_LOCK:
+        data = _load()
+        expiries = data.setdefault("alert_expiry", {})
+        uid = str(user_id)
+        existing = expiries.get(uid)
+        base = max(datetime.fromisoformat(existing), datetime.now()) if existing else datetime.now()
+        expiries[uid] = (base + timedelta(days=days)).isoformat()
+        _save(data)
+
+def get_alert_expiry(user_id: int) -> Optional[str]:
+    data = _load()
+    return data.get("alert_expiry", {}).get(str(user_id))
+
+def add_alert(user_id: int, filters: Dict) -> str:
+    """Add an alert filter for user. Returns alert_id."""
+    with _DB_LOCK:
+        data = _load()
+        alerts = data.setdefault("user_alerts", {})
+        uid = str(user_id)
+        user_alerts = alerts.setdefault(uid, [])
+        alert_id = f"{uid}_{len(user_alerts)}_{int(datetime.now().timestamp())}"
+        user_alerts.append({
+            "id": alert_id,
+            "filters": filters,
+            "created": datetime.now().isoformat(),
+            "last_sent_ids": [],
+        })
+        _save(data)
+        return alert_id
+
+def get_user_alerts(user_id: int) -> list:
+    data = _load()
+    return data.get("user_alerts", {}).get(str(user_id), [])
+
+def delete_alert(user_id: int, alert_id: str):
+    with _DB_LOCK:
+        data = _load()
+        uid = str(user_id)
+        alerts = data.get("user_alerts", {}).get(uid, [])
+        data["user_alerts"][uid] = [a for a in alerts if a["id"] != alert_id]
+        _save(data)
+
+def get_all_alerts() -> Dict:
+    """Return {uid: [alerts]} for all users with alerts."""
+    data = _load()
+    return data.get("user_alerts", {})
+
+def update_alert_sent(user_id: int, alert_id: str, sent_ids: list):
+    with _DB_LOCK:
+        data = _load()
+        uid = str(user_id)
+        for alert in data.get("user_alerts", {}).get(uid, []):
+            if alert["id"] == alert_id:
+                alert["last_sent_ids"] = sent_ids[-200:]  # keep last 200
+                alert["last_checked"] = datetime.now().isoformat()
+                break
+        _save(data)
+
 # ── Price drop tracking ───────────────────────────────────────────────────────
 
 def get_all_favorites_with_prices() -> Dict:

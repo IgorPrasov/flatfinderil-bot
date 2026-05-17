@@ -44,12 +44,14 @@ _PRICES_ILS = {
     "week":      19.90,
     "two_weeks": 29.90,
     "month":     39.90,
+    "alerts":    39.90,   # alert notifications subscription, 30 days
 }
 
 _PLAN_NAMES = {
     "week":      {"ru": "1 неделя",  "en": "1 week",  "he": "שבוע 1"},
     "two_weeks": {"ru": "2 недели",   "en": "2 weeks", "he": "2 שבועות"},
     "month":     {"ru": "1 месяц",    "en": "1 month", "he": "חודש 1"},
+    "alerts":    {"ru": "🔔 Уведомления — 1 месяц", "en": "🔔 Alerts — 1 month", "he": "🔔 התראות — חודש 1"},
 }
 
 
