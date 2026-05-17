@@ -175,7 +175,10 @@ def _get_pricing_stats(db) -> dict:
     mover_subs_list.sort(key=lambda x: (not x["active"], x["expiry"]))
 
     # ── Revenue estimate (from payments_log) ──────────────────────────────────
-    from pricing import AGENT_PACKAGES, MOVER_PACKAGES
+    from pricing import (AGENT_PACKAGES, MOVER_PACKAGES,
+                         MOVER_WEEKLY_BASE_ILS, MOVER_TOP_CITY_ILS,
+                         CLEANING_LEAD_PRICE_MIN, CLEANING_LEAD_PRICE_MAX,
+                         PACKING_COMMISSION_PCT)
     pkg_prices = {p["key"]: p["price_ils"] for p in AGENT_PACKAGES}
     mover_prices = {p["key"]: p["price_ils"] for p in MOVER_PACKAGES}
 
@@ -217,17 +220,19 @@ def _get_pricing_stats(db) -> dict:
         },
         "price_table": {
             "agents": [
-                {"label": "1 объявление",  "price": 50,  "note": ""},
-                {"label": "5 объявлений",  "price": 200, "note": "40 ₪/шт"},
-                {"label": "10 объявлений", "price": 450, "note": "45 ₪/шт"},
-                {"label": "20 объявлений", "price": 850, "note": "42.5 ₪/шт"},
+                {
+                    "label": p["label"]["ru"],
+                    "price": p["price_ils"],
+                    "note":  p["note"]["ru"],
+                }
+                for p in AGENT_PACKAGES
             ],
             "movers": [
-                {"label": "База (присутствие в базе)", "price": 150, "note": "₪/нед"},
-                {"label": "ТОП-место в городе",        "price": 200, "note": "₪/нед (+50 за город)"},
+                {"label": "База (присутствие в базе)", "price": MOVER_WEEKLY_BASE_ILS,                    "note": "₪/нед"},
+                {"label": "ТОП-место в городе",        "price": MOVER_WEEKLY_BASE_ILS + MOVER_TOP_CITY_ILS, "note": f"₪/нед (+{MOVER_TOP_CITY_ILS} за город)"},
             ],
-            "cleaning": {"model": "per_lead", "min": 40, "max": 60},
-            "packers":  {"model": "commission", "pct": 15},
+            "cleaning": {"model": "per_lead",   "min": CLEANING_LEAD_PRICE_MIN, "max": CLEANING_LEAD_PRICE_MAX},
+            "packers":  {"model": "commission", "pct": PACKING_COMMISSION_PCT},
         },
     }
 
