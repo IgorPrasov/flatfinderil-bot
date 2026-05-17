@@ -55,9 +55,9 @@ AGENT_PACKAGES = [
     {
         "key":       "agent_20",
         "count":     20,
-        "price_ils": 900,
+        "price_ils": 850,
         "label": {"ru": "20 объявлений",  "en": "20 listings", "he": "20 מודעות"},
-        "note":  {"ru": "45 ₪/шт",        "en": "45 ₪/ea",     "he": "45 ₪ ליחידה"},
+        "note":  {"ru": "42.5 ₪/шт",      "en": "42.5 ₪/ea",   "he": "42.5 ₪ ליחידה"},
     },
 ]
 

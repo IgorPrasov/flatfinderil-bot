@@ -1283,21 +1283,19 @@ class ListingHandler:
         user_id = update.effective_user.id
 
         if seller_type == "agent":
-            import payplus_payment as _pp
-            # Free first listing
+            # Free first listing — always granted once per account
             if not db.has_used_free_listing(user_id):
                 db.mark_free_listing_used(user_id)
                 # proceed to publish (fall through)
             elif db.get_listing_credits(user_id) > 0:
+                # Purchased slot available
                 db.use_listing_credit(user_id)
                 # proceed to publish (fall through)
-            elif _pp.is_enabled():
-                # Show paywall — PayPlus is configured
+            else:
+                # No free listing and no credits — show paywall
+                # (works with or without PayPlus configured)
                 await _show_agent_paywall(update, context, lang)
                 return ADD_AWAIT_PAYMENT
-            else:
-                # PayPlus not configured yet — allow free publishing (trial)
-                pass  # fall through to publish
 
         # Save city coordinates for proximity sorting
         try:
@@ -1399,36 +1397,46 @@ class ListingHandler:
         if data.startswith("agent_pkg_"):
             pkg_key = data[len("agent_pkg_"):]
             import payplus_payment as _pp
-            result = _pp.create_agent_package_link(pkg_key, update.effective_user.id, lang)
-            if result and result.get("url"):
-                from pricing import get_agent_package
-                pkg = get_agent_package(pkg_key)
-                label = pkg["label"].get(lang, pkg["label"]["ru"]) if pkg else pkg_key
-                price = pkg["price_ils"] if pkg else "?"
-                check_btn = {
-                    "ru": "✅ Я оплатил — опубликовать",
-                    "en": "✅ I paid — publish",
-                    "he": "✅ שילמתי — לפרסם",
+            from pricing import get_agent_package
+            pkg = get_agent_package(pkg_key)
+            label = pkg["label"].get(lang, pkg["label"]["ru"]) if pkg else pkg_key
+            price = pkg["price_ils"] if pkg else "?"
+            cancel_btn = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}
+
+            if _pp.is_enabled():
+                result = _pp.create_agent_package_link(pkg_key, update.effective_user.id, lang)
+                if result and result.get("url"):
+                    check_btn = {
+                        "ru": "✅ Я оплатил — опубликовать",
+                        "en": "✅ I paid — publish",
+                        "he": "✅ שילמתי — לפרסם",
+                    }
+                    keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton(f"💳 {label} — {price} ₪", url=result["url"])],
+                        [InlineKeyboardButton(check_btn.get(lang, check_btn["ru"]), callback_data="agent_check_payment")],
+                        [InlineKeyboardButton(cancel_btn.get(lang, cancel_btn["ru"]), callback_data="add_cancel")],
+                    ])
+                    msgs = {
+                        "ru": f"💳 Нажмите кнопку ниже для оплаты <b>{label} — {price} ₪</b>.\n\nПосле оплаты нажмите «✅ Я оплатил — опубликовать».",
+                        "en": f"💳 Tap the button below to pay for <b>{label} — {price} ₪</b>.\n\nAfter payment tap «✅ I paid — publish».",
+                        "he": f"💳 לחץ על הכפתור למטה לתשלום <b>{label} — {price} ₪</b>.\n\nלאחר התשלום לחץ על «✅ שילמתי — לפרסם».",
+                    }
+                    await query.edit_message_text(msgs.get(lang, msgs["ru"]), reply_markup=keyboard, parse_mode="HTML")
+                else:
+                    err = {"ru": "⚠️ Ошибка создания ссылки. Попробуйте позже.", "en": "⚠️ Failed to create payment link. Try later.", "he": "⚠️ שגיאה ביצירת קישור. נסה שוב מאוחר יותר."}
+                    await query.answer(err.get(lang, err["ru"]), show_alert=True)
+            else:
+                # PayPlus not yet configured — show "coming soon" info
+                msgs = {
+                    "ru": f"⏳ <b>Оплата картой скоро будет доступна!</b>\n\nВыбранный пакет: <b>{label} — {price} ₪</b>\n\nСвяжитесь с нами в Telegram для ручной активации слотов.",
+                    "en": f"⏳ <b>Card payment coming soon!</b>\n\nSelected package: <b>{label} — {price} ₪</b>\n\nContact us in Telegram for manual slot activation.",
+                    "he": f"⏳ <b>תשלום בכרטיס אשראי בקרוב!</b>\n\nחבילה נבחרת: <b>{label} — {price} ₪</b>\n\nצרו קשר בטלגרם להפעלה ידנית.",
                 }
-                cancel_btn = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}
                 keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton(f"💳 {label} — {price} ₪", url=result["url"])],
-                    [InlineKeyboardButton(check_btn.get(lang, check_btn["ru"]), callback_data="agent_check_payment")],
+                    [InlineKeyboardButton("💬 Написать нам", url="https://t.me/flatfinderil_bot")],
                     [InlineKeyboardButton(cancel_btn.get(lang, cancel_btn["ru"]), callback_data="add_cancel")],
                 ])
-                msgs = {
-                    "ru": f"💳 Нажмите кнопку ниже для оплаты <b>{label} — {price} ₪</b>.\n\nПосле оплаты нажмите «✅ Я оплатил — опубликовать».",
-                    "en": f"💳 Tap the button below to pay for <b>{label} — {price} ₪</b>.\n\nAfter payment tap «✅ I paid — publish».",
-                    "he": f"💳 לחץ על הכפתור למטה לתשלום <b>{label} — {price} ₪</b>.\n\nלאחר התשלום לחץ על «✅ שילמתי — לפרסם».",
-                }
-                await query.edit_message_text(
-                    msgs.get(lang, msgs["ru"]),
-                    reply_markup=keyboard,
-                    parse_mode="HTML",
-                )
-            else:
-                err = {"ru": "⚠️ Ошибка создания ссылки. Попробуйте позже.", "en": "⚠️ Failed to create payment link. Try later.", "he": "⚠️ שגיאה ביצירת קישור. נסה שוב מאוחר יותר."}
-                await query.answer(err.get(lang, err["ru"]), show_alert=True)
+                await query.edit_message_text(msgs.get(lang, msgs["ru"]), reply_markup=keyboard, parse_mode="HTML")
             return ADD_AWAIT_PAYMENT
 
         # Unknown callback — re-show paywall
