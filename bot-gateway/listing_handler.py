@@ -1486,9 +1486,9 @@ class ListingHandler:
             return ADD_AWAIT_PAYMENT
 
         if data.startswith("agent_crypto_pay_"):
-            parts = data.split("_", 4)  # agent_crypto_pay_PKGKEY_ASSET
-            pkg_key = parts[3]
-            asset = parts[4]
+            # data = "agent_crypto_pay_agent_1_USDT" → strip prefix, rsplit once
+            rest = data[len("agent_crypto_pay_"):]   # "agent_1_USDT"
+            pkg_key, asset = rest.rsplit("_", 1)      # ("agent_1", "USDT")
             import cryptopay
             from pricing import get_agent_package
             from config import PLAN_PRICES_USD
@@ -1496,10 +1496,10 @@ class ListingHandler:
             label = pkg["label"].get(lang, pkg["label"]["ru"]) if pkg else pkg_key
             usd = PLAN_PRICES_USD.get(pkg_key, "?")
             invoice = cryptopay.create_invoice(pkg_key, update.effective_user.id, asset)
-            if invoice and invoice.get("bot_invoice_url"):
+            if invoice and invoice.get("pay_url"):
                 check_btn = {"ru": "✅ Я оплатил — опубликовать", "en": "✅ I paid — publish", "he": "✅ שילמתי — לפרסם"}.get(lang, "✅ I paid")
                 keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton(f"₿ Оплатить {usd} {asset}", url=invoice["bot_invoice_url"])],
+                    [InlineKeyboardButton(f"₿ Оплатить {usd} {asset}", url=invoice["pay_url"])],
                     [InlineKeyboardButton(check_btn, callback_data="agent_check_payment")],
                     [InlineKeyboardButton({"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀"), callback_data=f"agent_crypto_plan_{pkg_key}")],
                 ])
