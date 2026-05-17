@@ -100,13 +100,13 @@ canvas{max-width:100%}
   </div>
   <!-- Date filter bar -->
   <div class="date-bar">
-    <button class="date-btn active" id="dbtn-today"  onclick="setDatePreset('today')">Сегодня</button>
-    <button class="date-btn"        id="dbtn-7"      onclick="setDatePreset('7')">7 дней</button>
-    <button class="date-btn"        id="dbtn-30"     onclick="setDatePreset('30')">30 дней</button>
-    <button class="date-btn"        id="dbtn-90"     onclick="setDatePreset('90')">90 дней</button>
-    <button class="date-btn"        id="dbtn-all"    onclick="setDatePreset('all')">Всё время</button>
+    <button class="date-btn active" id="dbtn-today"  onclick="setDatePreset('today')" data-i18n="today">Сегодня</button>
+    <button class="date-btn"        id="dbtn-7"      onclick="setDatePreset('7')" data-i18n="days7">7 дней</button>
+    <button class="date-btn"        id="dbtn-30"     onclick="setDatePreset('30')" data-i18n="days30">30 дней</button>
+    <button class="date-btn"        id="dbtn-90"     onclick="setDatePreset('90')" data-i18n="days90">90 дней</button>
+    <button class="date-btn"        id="dbtn-all"    onclick="setDatePreset('all')" data-i18n="all_time_btn">Всё время</button>
     <span class="date-sep">|</span>
-    <span style="font-size:11px;color:#888">Период:</span>
+    <span style="font-size:11px;color:#888" data-i18n="period_lbl">Период:</span>
     <input type="date" id="date-from" onchange="setDateCustom()">
     <span class="date-sep">—</span>
     <input type="date" id="date-to"   onchange="setDateCustom()">
@@ -114,23 +114,23 @@ canvas{max-width:100%}
   </div>
 
   <div class="nav">
-    <button class="nav-btn active" onclick="showTab('overview',this)">📊 Обзор</button>
-    <button class="nav-btn" onclick="showTab('users',this)">👥 Пользователи</button>
-    <button class="nav-btn" onclick="showTab('searches',this)">🔍 Поиски</button>
-    <button class="nav-btn" onclick="showTab('listings',this)">🏠 Объявления</button>
-    <button class="nav-btn" onclick="showTab('parsers',this)">🤖 Парсеры</button>
-    <button class="nav-btn" onclick="showTab('commercial',this)">🏢 Коммерческая</button>
-    <button class="nav-btn" onclick="showTab('services',this)">🚚 Услуги</button>
-    <button class="nav-btn" onclick="showTab('cabinets',this)">🗂 Кабинеты</button>
-    <button class="nav-btn" onclick="showTab('sellers',this)">🏢 Агент / Частные</button>
-    <button class="nav-btn" onclick="showTab('emails',this)">📧 Email рассылка</button>
-    <button class="nav-btn" onclick="showTab('crm',this)">👥 CRM</button>
-    <button class="nav-btn" onclick="showTab('engage',this)">💬 Вовлечённость</button>
-    <button class="nav-btn" onclick="showTab('money',this)">💰 Доход</button>
-    <button class="nav-btn" onclick="showTab('monetization',this)">💳 Монетизация</button>
-    <button class="nav-btn" onclick="showTab('price',this)">📈 Цены</button>
-    <button class="nav-btn" onclick="showTab('news',this)">📰 Новости</button>
-    <button class="nav-btn" onclick="showTab('digest',this)">🌅 Дайджест</button>
+    <button class="nav-btn active" onclick="showTab('overview',this)" data-i18n="nav_overview">📊 Обзор</button>
+    <button class="nav-btn" onclick="showTab('users',this)" data-i18n="nav_users">👥 Пользователи</button>
+    <button class="nav-btn" onclick="showTab('searches',this)" data-i18n="nav_searches">🔍 Поиски</button>
+    <button class="nav-btn" onclick="showTab('listings',this)" data-i18n="nav_listings">🏠 Объявления</button>
+    <button class="nav-btn" onclick="showTab('parsers',this)" data-i18n="nav_parsers">🤖 Парсеры</button>
+    <button class="nav-btn" onclick="showTab('commercial',this)" data-i18n="nav_commercial">🏢 Коммерческая</button>
+    <button class="nav-btn" onclick="showTab('services',this)" data-i18n="nav_services">🚚 Услуги</button>
+    <button class="nav-btn" onclick="showTab('cabinets',this)" data-i18n="nav_cabinets">🗂 Кабинеты</button>
+    <button class="nav-btn" onclick="showTab('sellers',this)" data-i18n="nav_sellers">🏢 Агент / Частные</button>
+    <button class="nav-btn" onclick="showTab('emails',this)" data-i18n="nav_emails">📧 Email рассылка</button>
+    <button class="nav-btn" onclick="showTab('crm',this)" data-i18n="nav_crm">👥 CRM</button>
+    <button class="nav-btn" onclick="showTab('engage',this)" data-i18n="nav_engage">💬 Вовлечённость</button>
+    <button class="nav-btn" onclick="showTab('money',this)" data-i18n="nav_money">💰 Доход</button>
+    <button class="nav-btn" onclick="showTab('monetization',this)" data-i18n="nav_monetization">💳 Монетизация</button>
+    <button class="nav-btn" onclick="showTab('price',this)" data-i18n="nav_price">📈 Цены</button>
+    <button class="nav-btn" onclick="showTab('news',this)" data-i18n="nav_news">📰 Новости</button>
+    <button class="nav-btn" onclick="showTab('digest',this)" data-i18n="nav_digest">🌅 Дайджест</button>
     <select id="ui-lang" onchange="setUILang(this.value)" style="margin-left:8px;font-size:11px;border:1px solid #e0e0da;border-radius:6px;padding:3px 6px;background:#f8f8f4;cursor:pointer">
       <option value="ru">🇷🇺 RU</option>
       <option value="en">🇬🇧 EN</option>
@@ -146,11 +146,11 @@ canvas{max-width:100%}
     <div class="kpi-row" id="kpi-overview"></div>
     <div class="grid2">
       <div class="card">
-        <div class="card-title">Активность за неделю</div>
+        <div class="card-title" data-i18n="card_activity">Активность за неделю</div>
         <div class="card-body"><canvas id="chart-activity" height="160"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-title">Языки</div>
+        <div class="card-title" data-i18n="card_langs">Языки</div>
         <div class="card-body">
           <canvas id="chart-langs" height="120"></canvas>
           <div id="langs-list" style="margin-top:8px"></div>
@@ -159,11 +159,11 @@ canvas{max-width:100%}
     </div>
     <div class="grid11">
       <div class="card">
-        <div class="card-title">Топ городов поиска</div>
+        <div class="card-title" data-i18n="card_cities_search">Топ городов поиска</div>
         <div class="card-body" id="cities-search"></div>
       </div>
       <div class="card">
-        <div class="card-title">Объявления по городам</div>
+        <div class="card-title" data-i18n="card_cities_listings">Объявления по городам</div>
         <div class="card-body" id="cities-listings"></div>
       </div>
     </div>
@@ -173,11 +173,11 @@ canvas{max-width:100%}
   <div class="tab" id="tab-users">
     <div class="kpi-row" id="kpi-users"></div>
     <div class="card">
-      <div class="card-title">Прирост пользователей по дням</div>
+      <div class="card-title" data-i18n="card_user_growth">Прирост пользователей по дням</div>
       <div class="card-body"><canvas id="chart-users" height="180"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-title">Распределение по языкам</div>
+      <div class="card-title" data-i18n="card_lang_dist">Распределение по языкам</div>
       <div class="card-body" id="langs-cards"></div>
     </div>
     <div class="card">
@@ -210,16 +210,16 @@ canvas{max-width:100%}
     <div class="kpi-row" id="kpi-searches"></div>
     <div class="grid11">
       <div class="card">
-        <div class="card-title">Поиски по городам</div>
+        <div class="card-title" data-i18n="card_searches_by_city">Поиски по городам</div>
         <div class="card-body" id="searches-cities"></div>
       </div>
       <div class="card">
-        <div class="card-title">Популярные фильтры</div>
+        <div class="card-title" data-i18n="card_popular_filters">Популярные фильтры</div>
         <div class="card-body" id="filters-list"></div>
       </div>
     </div>
     <div class="card">
-      <div class="card-title">🔍 Кто искал — журнал поисков</div>
+      <div class="card-title" data-i18n="card_search_log">🔍 Кто искал — журнал поисков</div>
       <div class="card-body" style="padding:0;overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
           <thead><tr style="color:#999;font-size:10px;border-bottom:1px solid #f0f0ea;background:#fafafa">
@@ -243,16 +243,16 @@ canvas{max-width:100%}
     <div class="kpi-row" id="kpi-listings"></div>
     <div class="grid11">
       <div class="card">
-        <div class="card-title">По городам</div>
+        <div class="card-title" data-i18n="card_by_city">По городам</div>
         <div class="card-body"><canvas id="chart-listing-cities" height="160"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-title">Источники Telegram</div>
+        <div class="card-title" data-i18n="card_tg_sources">Источники Telegram</div>
         <div class="card-body" id="sources-list"></div>
       </div>
     </div>
     <div class="card">
-      <div class="card-title">Статус Telegram-каналов</div>
+      <div class="card-title" data-i18n="card_tg_channels">Статус Telegram-каналов</div>
       <div class="card-body"><div class="channel-grid" id="channels-grid"></div></div>
     </div>
     <div class="card">
@@ -1603,6 +1603,24 @@ const UI_LABELS = {
         rss_link:"RSS-лента", category:"Категория", cat_all:"Все",
         cat_news:"Новости", cat_mortgage:"Ипотека", cat_project:"Проект", cat_program:"Программа",
         datagov:"Реестр сделок (data.gov.il)", rooms:"Комнат",
+        // nav
+        nav_overview:"📊 Обзор", nav_users:"👥 Пользователи", nav_searches:"🔍 Поиски",
+        nav_listings:"🏠 Объявления", nav_parsers:"🤖 Парсеры", nav_commercial:"🏢 Коммерческая",
+        nav_services:"🚚 Услуги", nav_cabinets:"🗂 Кабинеты", nav_sellers:"🏢 Агент / Частные",
+        nav_emails:"📧 Email рассылка", nav_crm:"👥 CRM", nav_engage:"💬 Вовлечённость",
+        nav_money:"💰 Доход", nav_monetization:"💳 Монетизация", nav_price:"📈 Цены",
+        nav_news:"📰 Новости", nav_digest:"🌅 Дайджест",
+        // date bar
+        today:"Сегодня", days7:"7 дней", days30:"30 дней", days90:"90 дней",
+        all_time_btn:"Всё время", period_lbl:"Период:",
+        // card titles
+        card_activity:"Активность за неделю", card_langs:"Языки",
+        card_cities_search:"Топ городов поиска", card_cities_listings:"Объявления по городам",
+        card_user_growth:"Прирост пользователей по дням", card_lang_dist:"Распределение по языкам",
+        card_searches_by_city:"Поиски по городам", card_popular_filters:"Популярные фильтры",
+        card_search_log:"🔍 Кто искал — журнал поисков",
+        card_by_city:"По городам", card_tg_sources:"Источники Telegram",
+        card_tg_channels:"Статус Telegram-каналов",
   },
   en: { price:"📈 Price Analytics", news:"📰 News", digest:"🌅 Digest",
         city:"City", deal:"Deal type", days:"Period (days)", rent:"Rent", buy:"Buy",
@@ -1615,6 +1633,24 @@ const UI_LABELS = {
         rss_link:"RSS feed", category:"Category", cat_all:"All",
         cat_news:"News", cat_mortgage:"Mortgage", cat_project:"Project", cat_program:"Program",
         datagov:"Transaction registry (data.gov.il)", rooms:"Rooms",
+        // nav
+        nav_overview:"📊 Overview", nav_users:"👥 Users", nav_searches:"🔍 Searches",
+        nav_listings:"🏠 Listings", nav_parsers:"🤖 Parsers", nav_commercial:"🏢 Commercial",
+        nav_services:"🚚 Services", nav_cabinets:"🗂 Dashboards", nav_sellers:"🏢 Agent / Private",
+        nav_emails:"📧 Email campaign", nav_crm:"👥 CRM", nav_engage:"💬 Engagement",
+        nav_money:"💰 Revenue", nav_monetization:"💳 Monetization", nav_price:"📈 Prices",
+        nav_news:"📰 News", nav_digest:"🌅 Digest",
+        // date bar
+        today:"Today", days7:"7 days", days30:"30 days", days90:"90 days",
+        all_time_btn:"All time", period_lbl:"Period:",
+        // card titles
+        card_activity:"Weekly activity", card_langs:"Languages",
+        card_cities_search:"Top search cities", card_cities_listings:"Listings by city",
+        card_user_growth:"User growth by day", card_lang_dist:"Language distribution",
+        card_searches_by_city:"Searches by city", card_popular_filters:"Popular filters",
+        card_search_log:"🔍 Search log",
+        card_by_city:"By city", card_tg_sources:"Telegram sources",
+        card_tg_channels:"Telegram channel status",
   },
   he: { price:"📈 ניתוח מחירים", news:"📰 חדשות", digest:"🌅 סיכום",
         city:"עיר", deal:"סוג עסקה", days:"תקופה (ימים)", rent:"שכירות", buy:"מכירה",
@@ -1627,6 +1663,24 @@ const UI_LABELS = {
         rss_link:"פיד RSS", category:"קטגוריה", cat_all:"הכל",
         cat_news:"חדשות", cat_mortgage:"משכנתא", cat_project:"פרויקט", cat_program:"תוכנית",
         datagov:"מרשם עסקאות (data.gov.il)", rooms:"חדרים",
+        // nav
+        nav_overview:"📊 סקירה", nav_users:"👥 משתמשים", nav_searches:"🔍 חיפושים",
+        nav_listings:"🏠 מודעות", nav_parsers:"🤖 פרסרים", nav_commercial:"🏢 מסחרי",
+        nav_services:"🚚 שירותים", nav_cabinets:"🗂 לוחות", nav_sellers:"🏢 סוכן / פרטי",
+        nav_emails:"📧 דיוור", nav_crm:"👥 CRM", nav_engage:"💬 מעורבות",
+        nav_money:"💰 הכנסה", nav_monetization:"💳 מונטיזציה", nav_price:"📈 מחירים",
+        nav_news:"📰 חדשות", nav_digest:"🌅 סיכום",
+        // date bar
+        today:"היום", days7:"7 ימים", days30:"30 ימים", days90:"90 ימים",
+        all_time_btn:"כל הזמן", period_lbl:"תקופה:",
+        // card titles
+        card_activity:"פעילות שבועית", card_langs:"שפות",
+        card_cities_search:"ערים מובילות בחיפוש", card_cities_listings:"מודעות לפי עיר",
+        card_user_growth:"צמיחת משתמשים לפי יום", card_lang_dist:"התפלגות שפות",
+        card_searches_by_city:"חיפושים לפי עיר", card_popular_filters:"פילטרים פופולריים",
+        card_search_log:"🔍 יומן חיפושים",
+        card_by_city:"לפי עיר", card_tg_sources:"מקורות טלגרם",
+        card_tg_channels:"סטטוס ערוצי טלגרם",
   },
   fr: { price:"📈 Analyse des prix", news:"📰 Actualités", digest:"🌅 Résumé",
         city:"Ville", deal:"Type de transaction", days:"Période (jours)", rent:"Location", buy:"Vente",
@@ -1639,22 +1693,42 @@ const UI_LABELS = {
         rss_link:"Flux RSS", category:"Catégorie", cat_all:"Tout",
         cat_news:"Actualités", cat_mortgage:"Prêt immo", cat_project:"Projet", cat_program:"Programme",
         datagov:"Registre des transactions (data.gov.il)", rooms:"Pièces",
+        // nav
+        nav_overview:"📊 Aperçu", nav_users:"👥 Utilisateurs", nav_searches:"🔍 Recherches",
+        nav_listings:"🏠 Annonces", nav_parsers:"🤖 Parseurs", nav_commercial:"🏢 Commercial",
+        nav_services:"🚚 Services", nav_cabinets:"🗂 Tableaux", nav_sellers:"🏢 Agent / Privé",
+        nav_emails:"📧 Campagne email", nav_crm:"👥 CRM", nav_engage:"💬 Engagement",
+        nav_money:"💰 Revenus", nav_monetization:"💳 Monétisation", nav_price:"📈 Prix",
+        nav_news:"📰 Actualités", nav_digest:"🌅 Résumé",
+        // date bar
+        today:"Aujourd'hui", days7:"7 jours", days30:"30 jours", days90:"90 jours",
+        all_time_btn:"Tout le temps", period_lbl:"Période:",
+        // card titles
+        card_activity:"Activité hebdomadaire", card_langs:"Langues",
+        card_cities_search:"Villes top recherches", card_cities_listings:"Annonces par ville",
+        card_user_growth:"Croissance utilisateurs", card_lang_dist:"Répartition des langues",
+        card_searches_by_city:"Recherches par ville", card_popular_filters:"Filtres populaires",
+        card_search_log:"🔍 Journal de recherches",
+        card_by_city:"Par ville", card_tg_sources:"Sources Telegram",
+        card_tg_channels:"Statut canaux Telegram",
   },
 };
 let _uiLang = localStorage.getItem("uiLang") || "ru";
 function L(k){ return (UI_LABELS[_uiLang]||UI_LABELS.ru)[k] || k; }
+function refreshStaticLabels(){
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    el.textContent = L(el.dataset.i18n);
+  });
+  // RTL support for Hebrew
+  document.documentElement.dir = _uiLang === "he" ? "rtl" : "ltr";
+}
 function setUILang(lang){
   _uiLang = lang;
   localStorage.setItem("uiLang", lang);
-  document.getElementById("ui-lang").value = lang;
-  // Refresh price / news tabs if open
-  const activeTab = document.querySelector(".tab.active");
-  if(activeTab){
-    const id = activeTab.id;
-    if(id === "tab-price") loadPriceStats();
-    if(id === "tab-news")  loadNews();
-    if(id === "tab-digest") loadDigest();
-  }
+  // Reload with a fresh URL so no cached HTML is used
+  const u = new URL(location.href);
+  u.searchParams.set('v', Date.now());
+  location.replace(u.toString());
 }
 
 // ── PRICE ANALYTICS TAB ─────────────────────────────────────────────────────
@@ -1984,8 +2058,9 @@ function renderDataGov(d){
   document.getElementById("gov-result").innerHTML = html;
 }
 
-// Init UI lang selector
+// Init UI lang selector and apply saved language
 document.getElementById("ui-lang").value = _uiLang;
+refreshStaticLabels();
 
 loadData();
 setInterval(loadData,30000);
