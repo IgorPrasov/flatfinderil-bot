@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import json
 import os
+import re
 import threading
 
 _DB_LOCK = threading.RLock()
@@ -170,13 +171,29 @@ def get_listing(listing_id: int) -> Optional[Dict]:
     data = _load()
     return data["listings"].get(str(listing_id))
 
+def _text_fingerprint(text: str) -> str:
+    """Normalized first-200-char fingerprint for duplicate detection."""
+    t = re.sub(r'\s+', '', text.lower())
+    t = re.sub(r'[^\wЀ-ӿא-ת]', '', t)
+    return t[:200]
+
+
 def add_listing(listing_data: Dict) -> int:
     """
-    Save a new listing. Returns assigned ID, or -1 if listing is blacklisted.
+    Save a new listing. Returns assigned ID, or -1 if listing is blacklisted/duplicate.
     Integrates classifier: auto-detects phones, marks poster_type, blocks blacklist.
     """
     with _DB_LOCK:
         data = _load()
+
+        # ── Text-fingerprint dedup ────────────────────────────────────────────
+        desc = listing_data.get("description", "")
+        if desc and listing_data.get("source") in ("facebook", "telegram"):
+            fp = _text_fingerprint(desc)
+            seen_fps = data.setdefault("listing_fingerprints", {})
+            if fp in seen_fps:
+                return -1  # duplicate text
+            seen_fps[fp] = True
 
         # ── Phone classification (skips if no classifier module) ──────────────
         if listing_data.get("source") in ("facebook", "telegram") and \
