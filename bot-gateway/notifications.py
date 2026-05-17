@@ -258,17 +258,46 @@ def _check_crypto_payments_sync():
                 user_id = int(uid_str)
             except ValueError:
                 continue
-            from subscription import activate_subscription, PLANS
-            from analytics import track_subscription
             asset = inv.get("asset", "USDT")
             amount = inv.get("amount", "")
+            logger.info(f"[CRYPTOPAY] Payment confirmed uid={user_id} plan={plan_key} {amount} {asset}")
+
+            # ── Agent listing package ────────────────────────────────────────
+            if plan_key.startswith("agent_"):
+                from pricing import get_agent_package
+                import database as _db
+                pkg = get_agent_package(plan_key)
+                if pkg:
+                    _db.add_listing_credits(user_id, pkg["count"],
+                                            duration_days=pkg.get("duration_days", 30))
+                    lbl = pkg["label"].get("ru", plan_key)
+                    cnt = pkg["count"]
+                    slots_str = "∞" if cnt >= 999999 else str(cnt)
+                    async def _notify_agent(uid=user_id, label=lbl, slots=slots_str, amt=amount, ast=asset):
+                        if _bot_app:
+                            try:
+                                await _bot_app.bot.send_message(
+                                    chat_id=uid,
+                                    text=(f"✅ <b>Крипто-оплата получена!</b>\n\n"
+                                          f"Пакет: <b>{label}</b>\n"
+                                          f"Слотов добавлено: <b>{slots}</b>\n"
+                                          f"Оплачено: {amt} {ast}\n\nСпасибо! 🏠"),
+                                    parse_mode="HTML",
+                                )
+                            except Exception as e:
+                                logger.error(f"[CRYPTOPAY] notify agent error: {e}")
+                    _run_coroutine(_notify_agent())
+                continue
+
+            # ── Subscription plan ────────────────────────────────────────────
+            from subscription import activate_subscription, PLANS
+            from analytics import track_subscription
             expiry = activate_subscription(user_id, plan_key)
             track_subscription(user_id, plan_key, payment_type="crypto",
                                 crypto_asset=asset, crypto_amount=amount)
             plan = PLANS.get(plan_key, {})
             plan_name = plan.get("name_ru", plan_key)
             expiry_str = expiry.strftime("%d.%m.%Y")
-            logger.info(f"[CRYPTOPAY] Payment confirmed uid={user_id} plan={plan_key} {amount} {asset}")
             async def _notify(uid=user_id, pname=plan_name, exp=expiry_str, amt=amount, ast=asset):
                 if _bot_app:
                     try:

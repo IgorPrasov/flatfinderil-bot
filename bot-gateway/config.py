@@ -53,9 +53,15 @@ PLAN_PRICES_ILS = {
     "search_alert": SUB_PRICE_SEARCH_ALERT_ILS,
 }
 PLAN_PRICES_USD = {
-    "week":      SUB_PRICE_WEEK_USD,
-    "two_weeks": SUB_PRICE_TWO_WEEKS_USD,
-    "month":     SUB_PRICE_MONTH_USD,
+    "week":            SUB_PRICE_WEEK_USD,
+    "two_weeks":       SUB_PRICE_TWO_WEEKS_USD,
+    "month":           SUB_PRICE_MONTH_USD,
+    # Agent listing packages — ILS price / 3.65 (rounded)
+    "agent_1":         "19",
+    "agent_5":         "82",
+    "agent_10":        "151",
+    "agent_20":        "274",
+    "agent_unlimited": "822",
 }
 PLAN_DAYS = {
     "week":         SUB_DAYS_WEEK,

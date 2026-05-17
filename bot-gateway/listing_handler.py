@@ -310,6 +310,10 @@ async def _show_agent_paywall(update, context, lang: str):
         btn_text = f"{label} — {pkg['price_ils']} ₪{note_str}"
         rows.append([InlineKeyboardButton(btn_text, callback_data=f"agent_pkg_{pkg['key']}")])
 
+    # Crypto payment option
+    crypto_label = {"ru": "₿ Оплатить криптовалютой", "en": "₿ Pay with crypto", "he": "₿ תשלום בקריפטו"}.get(lang, "₿ Pay with crypto")
+    rows.append([InlineKeyboardButton(crypto_label, callback_data="agent_crypto")])
+
     cancel_label = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}.get(lang, "❌ Cancel")
     rows.append([InlineKeyboardButton(cancel_label, callback_data="add_cancel")])
 
@@ -427,7 +431,7 @@ class ListingHandler:
                     CallbackQueryHandler(self.cancel, pattern="^add_cancel$"),
                 ],
                 ADD_AWAIT_PAYMENT: [
-                    CallbackQueryHandler(self.handle_await_payment, pattern="^(agent_pkg_|agent_check_payment|add_cancel)"),
+                    CallbackQueryHandler(self.handle_await_payment, pattern="^(agent_pkg_|agent_crypto|agent_check_payment|add_cancel)"),
                 ],
             },
             fallbacks=[
@@ -1437,6 +1441,77 @@ class ListingHandler:
                     [InlineKeyboardButton(cancel_btn.get(lang, cancel_btn["ru"]), callback_data="add_cancel")],
                 ])
                 await query.edit_message_text(msgs.get(lang, msgs["ru"]), reply_markup=keyboard, parse_mode="HTML")
+            return ADD_AWAIT_PAYMENT
+
+        # ── Crypto payment flow ──────────────────────────────────────────────
+        if data == "agent_crypto":
+            import cryptopay
+            from pricing import AGENT_PACKAGES
+            from config import PLAN_PRICES_USD
+            if not cryptopay.is_enabled():
+                msgs = {
+                    "ru": "⏳ <b>Крипто-оплата скоро будет доступна!</b>\n\nСвяжитесь с нами в Telegram для ручной активации.",
+                    "en": "⏳ <b>Crypto payment coming soon!</b>\n\nContact us in Telegram for manual activation.",
+                    "he": "⏳ <b>תשלום בקריפטו בקרוב!</b>\n\nצרו קשר בטלגרם להפעלה ידנית.",
+                }
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("💬 Написать нам", url="https://t.me/flatfinderil_bot")],
+                    [InlineKeyboardButton({"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀ Back"), callback_data="add_cancel")],
+                ])
+                await query.edit_message_text(msgs.get(lang, msgs["ru"]), reply_markup=keyboard, parse_mode="HTML")
+                return ADD_AWAIT_PAYMENT
+
+            header = {"ru": "₿ Выберите пакет (цена в USD):", "en": "₿ Choose package (price in USD):", "he": "₿ בחר חבילה (מחיר ב-USD):"}.get(lang, "₿ Choose package:")
+            rows = []
+            for pkg in AGENT_PACKAGES:
+                lbl = pkg["label"].get(lang, pkg["label"]["ru"])
+                usd = PLAN_PRICES_USD.get(pkg["key"], "?")
+                rows.append([InlineKeyboardButton(f"{lbl} — ${usd}", callback_data=f"agent_crypto_plan_{pkg['key']}")])
+            rows.append([InlineKeyboardButton({"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀"), callback_data="add_cancel")])
+            await query.edit_message_text(header, reply_markup=InlineKeyboardMarkup(rows))
+            return ADD_AWAIT_PAYMENT
+
+        if data.startswith("agent_crypto_plan_"):
+            pkg_key = data[len("agent_crypto_plan_"):]
+            from pricing import get_agent_package
+            from config import PLAN_PRICES_USD
+            pkg = get_agent_package(pkg_key)
+            label = pkg["label"].get(lang, pkg["label"]["ru"]) if pkg else pkg_key
+            usd = PLAN_PRICES_USD.get(pkg_key, "?")
+            header = {"ru": f"₿ {label} — ${usd}\n\nВыберите криптовалюту:", "en": f"₿ {label} — ${usd}\n\nChoose currency:", "he": f"₿ {label} — ${usd}\n\nבחר מטבע:"}.get(lang, f"₿ {label} — ${usd}\nChoose currency:")
+            assets = [("USDT", "💵 USDT"), ("TON", "💎 TON"), ("BTC", "₿ BTC"), ("ETH", "Ξ ETH")]
+            rows = [[InlineKeyboardButton(name, callback_data=f"agent_crypto_pay_{pkg_key}_{asset}")] for asset, name in assets]
+            rows.append([InlineKeyboardButton({"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀"), callback_data="agent_crypto")])
+            await query.edit_message_text(header, reply_markup=InlineKeyboardMarkup(rows))
+            return ADD_AWAIT_PAYMENT
+
+        if data.startswith("agent_crypto_pay_"):
+            parts = data.split("_", 4)  # agent_crypto_pay_PKGKEY_ASSET
+            pkg_key = parts[3]
+            asset = parts[4]
+            import cryptopay
+            from pricing import get_agent_package
+            from config import PLAN_PRICES_USD
+            pkg = get_agent_package(pkg_key)
+            label = pkg["label"].get(lang, pkg["label"]["ru"]) if pkg else pkg_key
+            usd = PLAN_PRICES_USD.get(pkg_key, "?")
+            invoice = cryptopay.create_invoice(pkg_key, update.effective_user.id, asset)
+            if invoice and invoice.get("bot_invoice_url"):
+                check_btn = {"ru": "✅ Я оплатил — опубликовать", "en": "✅ I paid — publish", "he": "✅ שילמתי — לפרסם"}.get(lang, "✅ I paid")
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton(f"₿ Оплатить {usd} {asset}", url=invoice["bot_invoice_url"])],
+                    [InlineKeyboardButton(check_btn, callback_data="agent_check_payment")],
+                    [InlineKeyboardButton({"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀"), callback_data=f"agent_crypto_plan_{pkg_key}")],
+                ])
+                msgs = {
+                    "ru": f"₿ Оплатите <b>{label}</b> — <b>${usd} {asset}</b> через @CryptoBot.\n\nПосле оплаты нажмите «✅ Я оплатил».",
+                    "en": f"₿ Pay <b>{label}</b> — <b>${usd} {asset}</b> via @CryptoBot.\n\nAfter payment tap «✅ I paid».",
+                    "he": f"₿ שלם עבור <b>{label}</b> — <b>${usd} {asset}</b> דרך @CryptoBot.\n\nלאחר התשלום לחץ «✅ שילמתי».",
+                }
+                await query.edit_message_text(msgs.get(lang, msgs["ru"]), reply_markup=keyboard, parse_mode="HTML")
+            else:
+                err = {"ru": "⚠️ Ошибка создания инвойса. Попробуйте позже.", "en": "⚠️ Invoice creation failed. Try later.", "he": "⚠️ שגיאה ביצירת חשבונית. נסה מאוחר יותר."}.get(lang, "⚠️ Error")
+                await query.answer(err, show_alert=True)
             return ADD_AWAIT_PAYMENT
 
         # Unknown callback — re-show paywall
