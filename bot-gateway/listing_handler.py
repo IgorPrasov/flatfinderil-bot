@@ -1533,25 +1533,20 @@ async def _send_welcome_message(context, user_id: int, listing: dict, listing_id
 </div>
 </body></html>"""
 
-    import os, json, urllib.request
-    resend_key = os.environ.get("RESEND_API_KEY","")
-    if not resend_key:
-        return
-    payload = json.dumps({
-        "from": "FlatFinderIL <onboarding@resend.dev>",
-        "to": [email],
-        "subject": subject,
-        "html": html,
-    }).encode()
-    req = urllib.request.Request(
-        "https://api.resend.com/emails",
-        data=payload,
-        headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
-        method="POST"
-    )
+    # Send via welcome_emails (SMTP → Resend fallback)
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            pass
+        import welcome_emails as _we
+        _we.send_agent_welcome(
+            user_id=user_id,
+            lang=lang,
+            name=name,
+            email=email,
+            listing_id=listing_id,
+            city=listing.get("city", ""),
+            price=listing.get("price", 0),
+            deal_label=deal_label,
+            is_agent=is_agent,
+        )
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning(f"Email welcome send failed: {e}")
+        logging.getLogger(__name__).warning(f"[WELCOME] Agent email failed: {e}")

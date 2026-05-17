@@ -618,6 +618,22 @@ class ServiceHandler:
         lang = get_lang(context)
         svc_name = svc.get("name") or svc.get("company") or ""
         svc_type = svc.get("service_type") or svc.get("type") or ""
+
+        # ── Send welcome email to the new service provider ────────────────
+        try:
+            svc_email = svc.get("email") or db.get_service_email(user.id)
+            if svc_email and svc_type:
+                import welcome_emails
+                welcome_emails.send_service_welcome(
+                    user_id=user.id,
+                    svc_type=svc_type,
+                    lang=lang,
+                    name=svc_name,
+                    email=svc_email,
+                )
+        except Exception as _we:
+            import logging as _log
+            _log.getLogger(__name__).warning(f"[WELCOME] service email error: {_we}")
         type_label = {
             "movers":   {"ru":"Перевозчики","en":"Movers","he":"הובלות", "fr": "Déménageurs"},
             "packers":  {"ru":"Упаковщики","en":"Packers","he":"אריזה", "fr": "Emballeurs"},
