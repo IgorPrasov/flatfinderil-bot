@@ -9,6 +9,7 @@ Agents / Realtors
       5  listings →  300 ₪  (60 ₪/ea)
      10  listings →  550 ₪  (55 ₪/ea)
      20  listings → 1200 ₪  (60 ₪/ea)
+      ♾  unlimited → 3000 ₪
 
 Movers / הובלות
 ---------------
@@ -58,6 +59,13 @@ AGENT_PACKAGES = [
         "price_ils": 1200,
         "label": {"ru": "20 объявлений",  "en": "20 listings", "he": "20 מודעות"},
         "note":  {"ru": "60 ₪/шт",        "en": "60 ₪/ea",     "he": "60 ₪ ליחידה"},
+    },
+    {
+        "key":       "agent_unlimited",
+        "count":     999999,
+        "price_ils": 3000,
+        "label": {"ru": "♾ Безлимит",     "en": "♾ Unlimited", "he": "♾ ללא הגבלה"},
+        "note":  {"ru": "неограниченно",   "en": "unlimited",   "he": "ללא הגבלה"},
     },
 ]
 

@@ -487,16 +487,20 @@ def add_listing_credits(user_id: int, count: int):
         _save(data)
 
 
+UNLIMITED_CREDITS = 999999  # sentinel value for unlimited package
+
 def use_listing_credit(user_id: int) -> bool:
-    """Consume one listing slot. Returns True if slot was available, False if none."""
+    """Consume one listing slot. Returns True if slot was available, False if none.
+    Unlimited plan (credits >= UNLIMITED_CREDITS) is never decremented."""
     with _DB_LOCK:
         data = _load()
         uid = str(user_id)
         credits = data.get("listing_credits", {}).get(uid, 0)
         if credits <= 0:
             return False
-        data["listing_credits"][uid] = credits - 1
-        _save(data)
+        if credits < UNLIMITED_CREDITS:
+            data["listing_credits"][uid] = credits - 1
+            _save(data)
         return True
 
 
