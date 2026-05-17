@@ -1505,11 +1505,11 @@ function _renderInner(){
     </div>`;
   }).join("");
   // ── Monetization tab ─────────────────────────────────────────────────────
-  const P = D.pricing || {};
-  const AC = P.agent_credits || {};
-  const MS = P.mover_subscriptions || {};
-  const REV = P.revenue || {};
-  const PT = P.price_table || {};
+  const PR = D.pricing || {};
+  const AC = PR.agent_credits || {};
+  const MS = PR.mover_subscriptions || {};
+  const REV = PR.revenue || {};
+  const PT = PR.price_table || {};
 
   // KPIs
   document.getElementById("kpi-monetization").innerHTML =
@@ -1519,22 +1519,22 @@ function _renderInner(){
     kpi("🚛", "Подписки перевозчиков", n(MS.active||0) + " / " + n(MS.total||0), "активные / всего", PURPLE);
 
   // Price table — Agents
-  const agRows = (PT.agents||[]).map(r=>`<tr>
+  const ptAgRows = (PT.agents||[]).map(r=>`<tr>
     <td style="padding:4px 6px">${r.label}</td>
     <td style="padding:4px 6px;font-weight:600;color:#2563eb;text-align:right">${r.price} ₪</td>
     <td style="padding:4px 6px;color:#94a3b8;font-size:11px">${r.note}</td>
   </tr>`).join("");
   const agTbl = document.getElementById("price-agents");
-  if(agTbl) agTbl.innerHTML = agRows;
+  if(agTbl) agTbl.innerHTML = ptAgRows;
 
   // Price table — Movers
-  const mvRows = (PT.movers||[]).map(r=>`<tr>
+  const ptMvRows = (PT.movers||[]).map(r=>`<tr>
     <td style="padding:4px 6px">${r.label}</td>
     <td style="padding:4px 6px;font-weight:600;color:#0ea5e9;text-align:right">${r.price} ₪</td>
     <td style="padding:4px 6px;color:#94a3b8;font-size:11px">${r.note}</td>
   </tr>`).join("");
   const mvTbl = document.getElementById("price-movers");
-  if(mvTbl) mvTbl.innerHTML = mvRows;
+  if(mvTbl) mvTbl.innerHTML = ptMvRows;
 
   // Cleaning
   const cl = PT.cleaning || {};
