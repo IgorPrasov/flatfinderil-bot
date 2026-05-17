@@ -115,6 +115,123 @@ def track_subscription(user_id: int, plan: str, payment_type: str = "card",
     log.append(entry)
     _save_stats(data)
 
+def _get_pricing_stats(db) -> dict:
+    """Collect monetisation stats from database for the dashboard."""
+    from datetime import datetime as _dt
+    try:
+        raw = db._load()
+    except Exception:
+        raw = {}
+
+    # ── Agent credits ─────────────────────────────────────────────────────────
+    credits_map    = raw.get("listing_credits", {})          # {uid: count}
+    free_used_map  = raw.get("listing_free_used", {})        # {uid: bool}
+    total_credits  = sum(int(v) for v in credits_map.values())
+    agents_with_credits = sum(1 for v in credits_map.values() if int(v) > 0)
+    free_used_count = sum(1 for v in free_used_map.values() if v)
+
+    # Agent credit table (non-zero only)
+    users_data = raw.get("users", {})
+    agent_credits_list = []
+    for uid, cnt in credits_map.items():
+        cnt = int(cnt)
+        if cnt <= 0:
+            continue
+        u = users_data.get(str(uid), {})
+        name = ((u.get("first_name","") or "") + " " + (u.get("last_name","") or "")).strip()
+        agent_credits_list.append({
+            "user_id":  uid,
+            "name":     name or f"user_{uid}",
+            "username": u.get("username",""),
+            "credits":  cnt,
+        })
+    agent_credits_list.sort(key=lambda x: x["credits"], reverse=True)
+
+    # ── Mover subscriptions ───────────────────────────────────────────────────
+    svc_subs = raw.get("service_subscriptions", {})          # {svc_id: {plan_key, expiry}}
+    now_iso  = _dt.utcnow().isoformat()
+    mover_subs_list = []
+    active_mover_subs = 0
+    for svc_id, sub in svc_subs.items():
+        expiry = sub.get("expiry", "")
+        is_active = expiry > now_iso if expiry else False
+        if is_active:
+            active_mover_subs += 1
+        # look up service name
+        svc_all = raw.get("services", {})
+        svc = svc_all.get(str(svc_id), {})
+        pkg_label = {
+            "mover_base": "База",
+            "mover_top":  "База + ТОП",
+        }.get(sub.get("plan_key",""), sub.get("plan_key",""))
+        mover_subs_list.append({
+            "svc_id":   svc_id,
+            "name":     svc.get("name") or svc.get("company") or f"svc_{svc_id}",
+            "region":   svc.get("region",""),
+            "plan":     pkg_label,
+            "expiry":   expiry[:10] if expiry else "—",
+            "active":   is_active,
+        })
+    mover_subs_list.sort(key=lambda x: (not x["active"], x["expiry"]))
+
+    # ── Revenue estimate (from payments_log) ──────────────────────────────────
+    from pricing import AGENT_PACKAGES, MOVER_PACKAGES
+    pkg_prices = {p["key"]: p["price_ils"] for p in AGENT_PACKAGES}
+    mover_prices = {p["key"]: p["price_ils"] for p in MOVER_PACKAGES}
+
+    revenue_agent  = 0
+    revenue_movers = 0
+    payments_log   = raw.get("payments_log", []) if hasattr(raw, "get") else []
+    # Also check analytics stats payments log
+    try:
+        stats = _load_stats()
+        payments_log = stats.get("payments_log", [])
+    except Exception:
+        pass
+
+    for p in payments_log:
+        pk = p.get("plan") or p.get("plan_key","")
+        if pk.startswith("agent_pkg_"):
+            pkg_key = pk[len("agent_pkg_"):]
+            revenue_agent += pkg_prices.get(pkg_key, 0)
+        elif pk.startswith("mover_pkg_"):
+            pkg_key = pk[len("mover_pkg_"):]
+            revenue_movers += mover_prices.get(pkg_key, 0)
+
+    return {
+        "agent_credits": {
+            "total_credits_available": total_credits,
+            "agents_with_credits":    agents_with_credits,
+            "free_listings_used":     free_used_count,
+            "list":                   agent_credits_list[:100],
+        },
+        "mover_subscriptions": {
+            "total":  len(svc_subs),
+            "active": active_mover_subs,
+            "list":   mover_subs_list[:100],
+        },
+        "revenue": {
+            "agent_packages":     revenue_agent,
+            "mover_subs":         revenue_movers,
+            "total":              revenue_agent + revenue_movers,
+        },
+        "price_table": {
+            "agents": [
+                {"label": "1 объявление",  "price": 50,  "note": ""},
+                {"label": "5 объявлений",  "price": 200, "note": "40 ₪/шт"},
+                {"label": "10 объявлений", "price": 450, "note": "45 ₪/шт"},
+                {"label": "20 объявлений", "price": 900, "note": "45 ₪/шт"},
+            ],
+            "movers": [
+                {"label": "База (присутствие в базе)", "price": 150, "note": "₪/нед"},
+                {"label": "ТОП-место в городе",        "price": 200, "note": "₪/нед (+50 за город)"},
+            ],
+            "cleaning": {"model": "per_lead", "min": 40, "max": 60},
+            "packers":  {"model": "commission", "pct": 15},
+        },
+    }
+
+
 def get_analytics(date_from: str = None, date_to: str = None):
     data = _load_stats()
     import database as db
@@ -724,4 +841,5 @@ def get_analytics(date_from: str = None, date_to: str = None):
             key=lambda x: x.get("date","") + x.get("time",""),
             reverse=True
         )[:200],
+        "pricing": _get_pricing_stats(db),
     }

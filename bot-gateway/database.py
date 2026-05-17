@@ -56,6 +56,7 @@ def _load():
                 ("services_next_id", 1), ("crm_contacts", {}), ("crm_contact_next_id", 1),
                 ("crm_deals", {}), ("crm_deal_next_id", 1), ("crm_notes", {}),
                 ("paid_subscriptions", {}), ("agent_profiles", {}), ("service_profiles", {}),
+                ("listing_credits", {}), ("listing_free_used", {}), ("service_subscriptions", {}),
             ]:
                 if key not in data:
                     data[key] = default
@@ -466,6 +467,72 @@ def mark_trial_warning_sent(user_id: int, threshold: int):
         if threshold not in sent:
             sent.append(threshold)
         _save(data)
+
+
+# ── Listing credits (agent paid slots) ───────────────────────────────────────
+
+def get_listing_credits(user_id: int) -> int:
+    """Return number of purchased listing slots available for user."""
+    data = _load()
+    return int(data.get("listing_credits", {}).get(str(user_id), 0))
+
+
+def add_listing_credits(user_id: int, count: int):
+    """Add purchased listing slots for user."""
+    with _DB_LOCK:
+        data = _load()
+        uid = str(user_id)
+        data.setdefault("listing_credits", {})
+        data["listing_credits"][uid] = data["listing_credits"].get(uid, 0) + count
+        _save(data)
+
+
+def use_listing_credit(user_id: int) -> bool:
+    """Consume one listing slot. Returns True if slot was available, False if none."""
+    with _DB_LOCK:
+        data = _load()
+        uid = str(user_id)
+        credits = data.get("listing_credits", {}).get(uid, 0)
+        if credits <= 0:
+            return False
+        data["listing_credits"][uid] = credits - 1
+        _save(data)
+        return True
+
+
+def has_used_free_listing(user_id: int) -> bool:
+    """Return True if the user already consumed their one free agent listing."""
+    data = _load()
+    return bool(data.get("listing_free_used", {}).get(str(user_id), False))
+
+
+def mark_free_listing_used(user_id: int):
+    """Mark that the user has consumed their free agent listing."""
+    with _DB_LOCK:
+        data = _load()
+        data.setdefault("listing_free_used", {})
+        data["listing_free_used"][str(user_id)] = True
+        _save(data)
+
+
+# ── Service subscriptions (movers weekly) ────────────────────────────────────
+
+def set_service_subscription(service_id: str, plan_key: str, expiry_iso: str):
+    """Save weekly subscription for a service provider."""
+    with _DB_LOCK:
+        data = _load()
+        data.setdefault("service_subscriptions", {})
+        data["service_subscriptions"][service_id] = {
+            "plan_key": plan_key,
+            "expiry":   expiry_iso,
+        }
+        _save(data)
+
+
+def get_service_subscription(service_id: str) -> dict:
+    """Return subscription dict {plan_key, expiry} or {}."""
+    data = _load()
+    return data.get("service_subscriptions", {}).get(str(service_id), {})
 
 
 # ── Price market comparison ───────────────────────────────────────────────────

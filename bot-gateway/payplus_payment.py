@@ -144,6 +144,135 @@ def create_payment_link(plan_key: str, user_id: int, lang: str = "ru") -> dict |
         return None
 
 
+def create_agent_package_link(package_key: str, user_id: int, lang: str = "ru") -> dict | None:
+    """
+    Create a PayPlus payment link for an agent listing package.
+
+    more_info   = user_id
+    more_info_1 = "agent_pkg_{package_key}"
+    """
+    if not is_enabled():
+        logger.warning("[PAYPLUS] credentials not set — cannot create agent package link")
+        return None
+
+    from pricing import get_agent_package
+    pkg = get_agent_package(package_key)
+    if not pkg:
+        logger.error(f"[PAYPLUS] Unknown agent package key={package_key!r}")
+        return None
+
+    label = pkg["label"].get(lang) or pkg["label"]["ru"]
+    note  = pkg["note"].get(lang, "")
+    item_name = f"FlatFinderIL — {label}" + (f" ({note})" if note else "")
+
+    success_url  = os.environ.get("PAYPLUS_SUCCESS_URL", "https://flatfinderil.com/stripe/success")
+    cancel_url   = os.environ.get("PAYPLUS_CANCEL_URL",  "https://flatfinderil.com/stripe/cancel")
+    callback_url = os.environ.get("PAYPLUS_WEBHOOK_URL", "https://flatfinderil.com/webhook/payplus")
+
+    payload = {
+        "payment_page_uid": PAYPLUS_PAGE_UID,
+        "amount":           pkg["price_ils"],
+        "currency_code":    "ILS",
+        "refURL_success":   success_url,
+        "refURL_failure":   cancel_url,
+        "refURL_callback":  callback_url,
+        "send_failure_callback": False,
+        "more_info":   str(user_id),
+        "more_info_1": f"agent_pkg_{package_key}",
+        "more_info_2": lang,
+        "items": [{
+            "name":     item_name,
+            "quantity": 1,
+            "price":    pkg["price_ils"],
+            "vat_type": 1,
+        }],
+    }
+
+    try:
+        resp = requests.post(
+            f"{_BASE}/PaymentPages/generateLink",
+            headers=_headers(),
+            json=payload,
+            timeout=10,
+        )
+        data = resp.json()
+        if resp.status_code == 200 and data.get("results", {}).get("status") == "success":
+            url = data["data"]["payment_page_link"]
+            uid = data["data"].get("page_request_uid", "")
+            logger.info(f"[PAYPLUS] Agent pkg link created pkg={package_key} user={user_id} amount={pkg['price_ils']}₪")
+            return {"url": url, "uid": uid}
+        else:
+            logger.error(f"[PAYPLUS] Agent pkg generateLink failed: {data.get('results', {})}")
+            return None
+    except Exception as e:
+        logger.error(f"[PAYPLUS] create_agent_package_link exception: {e}")
+        return None
+
+
+def create_mover_subscription_link(package_key: str, user_id: int, lang: str = "ru") -> dict | None:
+    """
+    Create a PayPlus payment link for a mover weekly subscription.
+
+    more_info   = user_id
+    more_info_1 = "mover_pkg_{package_key}"
+    """
+    if not is_enabled():
+        logger.warning("[PAYPLUS] credentials not set — cannot create mover subscription link")
+        return None
+
+    from pricing import get_mover_package
+    pkg = get_mover_package(package_key)
+    if not pkg:
+        logger.error(f"[PAYPLUS] Unknown mover package key={package_key!r}")
+        return None
+
+    label = pkg["label"].get(lang) or pkg["label"]["ru"]
+    item_name = f"FlatFinderIL — {label}"
+
+    success_url  = os.environ.get("PAYPLUS_SUCCESS_URL", "https://flatfinderil.com/stripe/success")
+    cancel_url   = os.environ.get("PAYPLUS_CANCEL_URL",  "https://flatfinderil.com/stripe/cancel")
+    callback_url = os.environ.get("PAYPLUS_WEBHOOK_URL", "https://flatfinderil.com/webhook/payplus")
+
+    payload = {
+        "payment_page_uid": PAYPLUS_PAGE_UID,
+        "amount":           pkg["price_ils"],
+        "currency_code":    "ILS",
+        "refURL_success":   success_url,
+        "refURL_failure":   cancel_url,
+        "refURL_callback":  callback_url,
+        "send_failure_callback": False,
+        "more_info":   str(user_id),
+        "more_info_1": f"mover_pkg_{package_key}",
+        "more_info_2": lang,
+        "items": [{
+            "name":     item_name,
+            "quantity": 1,
+            "price":    pkg["price_ils"],
+            "vat_type": 1,
+        }],
+    }
+
+    try:
+        resp = requests.post(
+            f"{_BASE}/PaymentPages/generateLink",
+            headers=_headers(),
+            json=payload,
+            timeout=10,
+        )
+        data = resp.json()
+        if resp.status_code == 200 and data.get("results", {}).get("status") == "success":
+            url = data["data"]["payment_page_link"]
+            uid = data["data"].get("page_request_uid", "")
+            logger.info(f"[PAYPLUS] Mover sub link created pkg={package_key} user={user_id} amount={pkg['price_ils']}₪")
+            return {"url": url, "uid": uid}
+        else:
+            logger.error(f"[PAYPLUS] Mover sub generateLink failed: {data.get('results', {})}")
+            return None
+    except Exception as e:
+        logger.error(f"[PAYPLUS] create_mover_subscription_link exception: {e}")
+        return None
+
+
 def verify_and_extract(callback_data: dict) -> tuple[int | None, str | None]:
     """
     Verify a PayPlus callback and extract (user_id, plan_key).
@@ -193,7 +322,21 @@ def verify_and_extract(callback_data: dict) -> tuple[int | None, str | None]:
         more_info_1 = txn_data.get("more_info_1") or callback_data.get("more_info_1", "")
 
         user_id  = int(more_info) if more_info and str(more_info).isdigit() else None
-        plan_key = more_info_1 if more_info_1 in ("week", "two_weeks", "month") else None
+
+        # Accepted plan keys:
+        #   subscription: "week" | "two_weeks" | "month"
+        #   agent pkg:    "agent_pkg_agent_1" | "agent_pkg_agent_5" | ...
+        #   mover pkg:    "mover_pkg_mover_base" | "mover_pkg_mover_top"
+        valid_subscriptions = {"week", "two_weeks", "month"}
+        if more_info_1 in valid_subscriptions:
+            plan_key = more_info_1
+        elif more_info_1 and (
+            more_info_1.startswith("agent_pkg_") or
+            more_info_1.startswith("mover_pkg_")
+        ):
+            plan_key = more_info_1
+        else:
+            plan_key = None
 
         if not user_id or not plan_key:
             logger.error(

@@ -3,6 +3,7 @@ Welcome emails sent upon registration on FlatFinderIL.
 
 Covers:
   • Real estate agent / realtor  (listing_handler calls send_agent_welcome)
+  • Private individual           (listing_handler calls send_private_welcome)
   • Movers   (service_handler calls send_service_welcome with svc_type="movers")
   • Packers  (service_handler calls send_service_welcome with svc_type="packers")
   • Cleaning (service_handler calls send_service_welcome with svc_type="cleaning")
@@ -437,6 +438,126 @@ _SERVICE_CONTENT = {
         },
     },
 }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Private individual welcome email (non-agent listing owner)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _private_body(lang: str, name: str, listing_id: int, city: str,
+                  price: int, deal_label: str) -> str:
+    greeting = {"ru": "Здравствуйте", "en": "Hello", "he": "שלום"}.get(lang, "Hello")
+    name_part = f", <b>{name}</b>" if name else ""
+
+    if lang == "ru":
+        return f"""
+<h2>🏠 Ваше объявление опубликовано!</h2>
+<p>{greeting}{name_part}!</p>
+<p>Отличная новость — ваше объявление уже видно тысячам пользователей <b>FlatFinderIL</b> в Израиле.</p>
+<div class="highlight">
+  📋 <b>ID объявления:</b> #{listing_id}<br>
+  📍 <b>Город:</b> {city}<br>
+  💰 <b>Цена:</b> {price:,} ₪ &nbsp;·&nbsp; {deal_label}
+</div>
+<div class="steps">
+  <b>Что происходит дальше:</b>
+  <ol>
+    <li>Люди ищут жильё в вашем городе и видят ваше объявление</li>
+    <li>Когда кто-то хочет связаться — вы получаете уведомление в Telegram</li>
+    <li>Управляйте объявлением в разделе <b>📋 Мои объявления</b></li>
+  </ol>
+</div>
+<p><b>Советы для быстрой сдачи/продажи:</b></p>
+<ul>
+  <li>Добавьте фотографии — объявления с фото просматривают в 5 раз чаще</li>
+  <li>Укажите точный адрес или район — это помогает в поиске</li>
+  <li>Отвечайте на запросы быстро — первые минуты решают всё</li>
+</ul>
+<a href="https://t.me/flatfinderil_bot" class="btn">Открыть бот →</a>
+<hr class="divider">
+<p style="color:#64748b;font-size:13px;">Удачи в поиске! Если нужна помощь — напишите нам в Telegram. 🤝</p>
+"""
+    elif lang == "he":
+        return f"""
+<h2>🏠 המודעה שלך פורסמה!</h2>
+<p>{greeting}{name_part}!</p>
+<p>חדשות מעולות — המודעה שלך כבר נראית לאלפי משתמשים של <b>FlatFinderIL</b> בישראל.</p>
+<div class="highlight">
+  📋 <b>מספר מודעה:</b> #{listing_id}<br>
+  📍 <b>עיר:</b> {city}<br>
+  💰 <b>מחיר:</b> ₪{price:,} &nbsp;·&nbsp; {deal_label}
+</div>
+<div class="steps">
+  <b>מה קורה עכשיו:</b>
+  <ol>
+    <li>אנשים מחפשים דיור בעיר שלך ורואים את המודעה שלך</li>
+    <li>כשמישהו רוצה ליצור קשר — תקבל/י התראה בטלגרם</li>
+    <li>נהל/י את המודעה תחת <b>📋 המודעות שלי</b></li>
+  </ol>
+</div>
+<p><b>טיפים להשכרה/מכירה מהירה:</b></p>
+<ul>
+  <li>הוסף/י תמונות — מודעות עם תמונות נצפות פי 5 יותר</li>
+  <li>ציין/י כתובת מדויקת או שכונה — זה עוזר בחיפוש</li>
+  <li>הגב/י לפניות מהר — הדקות הראשונות קובעות הכל</li>
+</ul>
+<a href="https://t.me/flatfinderil_bot" class="btn">פתיחת הבוט ←</a>
+<hr class="divider">
+<p style="color:#64748b;font-size:13px;">בהצלחה! אם צריך עזרה — כתוב/י לנו בטלגרם. 🤝</p>
+"""
+    else:  # en
+        return f"""
+<h2>🏠 Your Listing Is Live!</h2>
+<p>{greeting}{name_part}!</p>
+<p>Great news — your listing is already visible to thousands of <b>FlatFinderIL</b> users across Israel.</p>
+<div class="highlight">
+  📋 <b>Listing ID:</b> #{listing_id}<br>
+  📍 <b>City:</b> {city}<br>
+  💰 <b>Price:</b> ₪{price:,} &nbsp;·&nbsp; {deal_label}
+</div>
+<div class="steps">
+  <b>What happens next:</b>
+  <ol>
+    <li>People searching for housing in your city will see your listing</li>
+    <li>When someone wants to contact you — you'll get a Telegram notification</li>
+    <li>Manage your listing under <b>📋 My Listings</b></li>
+  </ol>
+</div>
+<p><b>Tips for a quick deal:</b></p>
+<ul>
+  <li>Add photos — listings with photos get 5× more views</li>
+  <li>Include the exact address or neighborhood — it helps in search</li>
+  <li>Respond to enquiries fast — the first minutes matter most</li>
+</ul>
+<a href="https://t.me/flatfinderil_bot" class="btn">Open Bot →</a>
+<hr class="divider">
+<p style="color:#64748b;font-size:13px;">Good luck! If you need help — just message us in Telegram. 🤝</p>
+"""
+
+
+def send_private_welcome(user_id: int, lang: str, name: str, email: str,
+                         listing_id: int, city: str, price: int,
+                         deal_label: str) -> bool:
+    """Send welcome email to a private individual after publishing a listing."""
+    if not email:
+        return False
+    try:
+        from email_reporter import _send_email_simple
+        subjects = {
+            "ru": f"🏠 Объявление #{listing_id} опубликовано — FlatFinderIL",
+            "en": f"🏠 Your listing #{listing_id} is live — FlatFinderIL",
+            "he": f"🏠 המודעה #{listing_id} פורסמה — FlatFinderIL",
+        }
+        effective_lang = lang if lang in ("ru", "he", "en") else "ru"
+        body = _private_body(effective_lang, name, listing_id, city, price, deal_label)
+        html = _wrap(body, effective_lang, accent="#f59e0b")
+        ok = _send_email_simple(email, subjects.get(effective_lang, subjects["en"]), html)
+        if ok:
+            logger.info(f"[WELCOME] Private email sent user={user_id} lang={effective_lang}")
+        return ok
+    except Exception as e:
+        logger.error(f"[WELCOME] Private email failed user={user_id}: {e}")
+        return False
 
 
 def send_service_welcome(user_id: int, svc_type: str, lang: str,

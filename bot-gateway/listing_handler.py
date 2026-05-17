@@ -18,8 +18,9 @@ import upload_handler as uploader
     ADD_ADDRESS,
     ADD_ROOMS, ADD_FLOOR, ADD_AREA, ADD_PRICE,
     ADD_PARKING, ADD_POOL, ADD_SHELTER, ADD_ELEVATOR,
-    ADD_INFRASTRUCTURE, ADD_DESCRIPTION, ADD_NAME, ADD_PHONE, ADD_CONTACT, ADD_EMAIL, ADD_PHOTOS, ADD_CONFIRM
-) = range(23)
+    ADD_INFRASTRUCTURE, ADD_DESCRIPTION, ADD_NAME, ADD_PHONE, ADD_CONTACT, ADD_EMAIL, ADD_PHOTOS, ADD_CONFIRM,
+    ADD_AWAIT_PAYMENT,
+) = range(24)
 
 PROPERTY_TYPES = {
     "apartment": {"ru": "🏢 Квартира", "en": "🏢 Apartment", "he": "🏢 דירה", "fr": "🏢 Appartement"},
@@ -272,6 +273,55 @@ def _back_kb(ctx):
     ])
 
 
+async def _show_agent_paywall(update, context, lang: str):
+    """Show agent listing paywall with package selection buttons."""
+    from pricing import AGENT_PACKAGES, format_agent_pricing
+
+    credits = db.get_listing_credits(update.effective_user.id)
+    pricing_text = format_agent_pricing(lang)
+
+    msgs = {
+        "ru": (
+            f"🔒 <b>Лимит бесплатных объявлений исчерпан</b>\n\n"
+            f"Первое объявление — бесплатно ✅\n"
+            f"Для публикации следующих выберите пакет:\n\n"
+            f"{pricing_text}"
+        ),
+        "en": (
+            f"🔒 <b>Free listing limit reached</b>\n\n"
+            f"First listing — free ✅\n"
+            f"Choose a package to publish more:\n\n"
+            f"{pricing_text}"
+        ),
+        "he": (
+            f"🔒 <b>מכסת המודעות החינמיות הגיעה לסיומה</b>\n\n"
+            f"מודעה ראשונה — חינם ✅\n"
+            f"בחר חבילה לפרסום נוסף:\n\n"
+            f"{pricing_text}"
+        ),
+    }
+
+    # Build package buttons
+    rows = []
+    for pkg in AGENT_PACKAGES:
+        label = pkg["label"].get(lang, pkg["label"]["ru"])
+        note  = pkg["note"].get(lang, "")
+        note_str = f" ({note})" if note else ""
+        btn_text = f"{label} — {pkg['price_ils']} ₪{note_str}"
+        rows.append([InlineKeyboardButton(btn_text, callback_data=f"agent_pkg_{pkg['key']}")])
+
+    cancel_label = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}.get(lang, "❌ Cancel")
+    rows.append([InlineKeyboardButton(cancel_label, callback_data="add_cancel")])
+
+    keyboard = InlineKeyboardMarkup(rows)
+    query = update.callback_query
+    await query.edit_message_text(
+        msgs.get(lang, msgs["ru"]),
+        reply_markup=keyboard,
+        parse_mode="HTML",
+    )
+
+
 class ListingHandler:
     def get_conversation_handler(self):
         return ConversationHandler(
@@ -375,6 +425,9 @@ class ListingHandler:
                     CallbackQueryHandler(self.handle_confirm, pattern="^add_confirm_"),
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
                     CallbackQueryHandler(self.cancel, pattern="^add_cancel$"),
+                ],
+                ADD_AWAIT_PAYMENT: [
+                    CallbackQueryHandler(self.handle_await_payment, pattern="^(agent_pkg_|agent_check_payment|add_cancel)"),
                 ],
             },
             fallbacks=[
@@ -1224,6 +1277,28 @@ class ListingHandler:
             d["photos"] = ["🏠"]
         d["neighborhood"] = d.get("neighborhood", "")
 
+        # ── Agent paywall check ────────────────────────────────────────────────
+        lang = get_lang(context)
+        seller_type = d.get("seller_type", "private")
+        user_id = update.effective_user.id
+
+        if seller_type == "agent":
+            import payplus_payment as _pp
+            # Free first listing
+            if not db.has_used_free_listing(user_id):
+                db.mark_free_listing_used(user_id)
+                # proceed to publish (fall through)
+            elif db.get_listing_credits(user_id) > 0:
+                db.use_listing_credit(user_id)
+                # proceed to publish (fall through)
+            elif _pp.is_enabled():
+                # Show paywall — PayPlus is configured
+                await _show_agent_paywall(update, context, lang)
+                return ADD_AWAIT_PAYMENT
+            else:
+                # PayPlus not configured yet — allow free publishing (trial)
+                pass  # fall through to publish
+
         # Save city coordinates for proximity sorting
         try:
             from geocoding import get_city_coords
@@ -1260,6 +1335,105 @@ class ListingHandler:
             logging.getLogger(__name__).warning(f"Welcome message failed: {e}")
 
         return ConversationHandler.END
+
+    async def handle_await_payment(self, update, context):
+        """
+        State: ADD_AWAIT_PAYMENT
+        User is waiting to pay for an agent listing package.
+        Callbacks:
+          agent_pkg_{key}        — create PayPlus link and send it
+          agent_check_payment    — check if credits arrived, publish if yes
+          add_cancel             — cancel
+        """
+        query = update.callback_query
+        await query.answer()
+        lang = get_lang(context)
+        data = query.data
+
+        if data == "add_cancel":
+            text = _step_text(context, "❌ Публикация отменена.", "❌ Publishing cancelled.", "❌ הפרסום בוטל.")
+            await query.edit_message_text(text)
+            return ConversationHandler.END
+
+        if data == "agent_check_payment":
+            user_id = update.effective_user.id
+            if db.get_listing_credits(user_id) > 0:
+                db.use_listing_credit(user_id)
+                # Publish the pending listing
+                d = context.user_data.get("add_listing", {})
+                d["user_id"] = user_id
+                if not d.get("photos"):
+                    d["photos"] = ["🏠"]
+                try:
+                    from geocoding import get_city_coords
+                    coords = get_city_coords(d.get("city", ""))
+                    if coords:
+                        d["lat"], d["lng"] = coords
+                except Exception:
+                    pass
+                listing_id = db.add_listing(d)
+                db.add_bonus_days(user_id, 3)
+                credits_left = db.get_listing_credits(user_id)
+                cr_msg = {"ru": f"Остаток слотов: {credits_left}", "en": f"Remaining slots: {credits_left}", "he": f"חריצים שנותרו: {credits_left}"}.get(lang, "")
+                text = _step_text(context,
+                    f"✅ Объявление опубликовано!\n\nID: #{listing_id}\n{cr_msg}",
+                    f"✅ Listing published!\n\nID: #{listing_id}\n{cr_msg}",
+                    f"✅ המודעה פורסמה!\n\nID: #{listing_id}\n{cr_msg}",
+                )
+                await query.edit_message_text(text)
+                try:
+                    await _send_welcome_message(context, user_id, d, listing_id, lang)
+                except Exception:
+                    pass
+                return ConversationHandler.END
+            else:
+                # Still no credits
+                msgs = {
+                    "ru": "⏳ Оплата ещё не поступила. Завершите оплату и нажмите «✅ Я оплатил» снова.",
+                    "en": "⏳ Payment not received yet. Complete payment and tap «✅ I paid» again.",
+                    "he": "⏳ התשלום טרם התקבל. השלם את התשלום ולחץ שוב על «✅ שילמתי».",
+                }
+                await query.answer(msgs.get(lang, msgs["ru"]), show_alert=True)
+                return ADD_AWAIT_PAYMENT
+
+        if data.startswith("agent_pkg_"):
+            pkg_key = data[len("agent_pkg_"):]
+            import payplus_payment as _pp
+            result = _pp.create_agent_package_link(pkg_key, update.effective_user.id, lang)
+            if result and result.get("url"):
+                from pricing import get_agent_package
+                pkg = get_agent_package(pkg_key)
+                label = pkg["label"].get(lang, pkg["label"]["ru"]) if pkg else pkg_key
+                price = pkg["price_ils"] if pkg else "?"
+                check_btn = {
+                    "ru": "✅ Я оплатил — опубликовать",
+                    "en": "✅ I paid — publish",
+                    "he": "✅ שילמתי — לפרסם",
+                }
+                cancel_btn = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton(f"💳 {label} — {price} ₪", url=result["url"])],
+                    [InlineKeyboardButton(check_btn.get(lang, check_btn["ru"]), callback_data="agent_check_payment")],
+                    [InlineKeyboardButton(cancel_btn.get(lang, cancel_btn["ru"]), callback_data="add_cancel")],
+                ])
+                msgs = {
+                    "ru": f"💳 Нажмите кнопку ниже для оплаты <b>{label} — {price} ₪</b>.\n\nПосле оплаты нажмите «✅ Я оплатил — опубликовать».",
+                    "en": f"💳 Tap the button below to pay for <b>{label} — {price} ₪</b>.\n\nAfter payment tap «✅ I paid — publish».",
+                    "he": f"💳 לחץ על הכפתור למטה לתשלום <b>{label} — {price} ₪</b>.\n\nלאחר התשלום לחץ על «✅ שילמתי — לפרסם».",
+                }
+                await query.edit_message_text(
+                    msgs.get(lang, msgs["ru"]),
+                    reply_markup=keyboard,
+                    parse_mode="HTML",
+                )
+            else:
+                err = {"ru": "⚠️ Ошибка создания ссылки. Попробуйте позже.", "en": "⚠️ Failed to create payment link. Try later.", "he": "⚠️ שגיאה ביצירת קישור. נסה שוב מאוחר יותר."}
+                await query.answer(err.get(lang, err["ru"]), show_alert=True)
+            return ADD_AWAIT_PAYMENT
+
+        # Unknown callback — re-show paywall
+        await _show_agent_paywall(update, context, lang)
+        return ADD_AWAIT_PAYMENT
 
     async def _warn_navigation(self, update, context):
         """Block any stray button press during the add-listing flow."""
@@ -1536,17 +1710,29 @@ async def _send_welcome_message(context, user_id: int, listing: dict, listing_id
     # Send via welcome_emails (SMTP → Resend fallback)
     try:
         import welcome_emails as _we
-        _we.send_agent_welcome(
-            user_id=user_id,
-            lang=lang,
-            name=name,
-            email=email,
-            listing_id=listing_id,
-            city=listing.get("city", ""),
-            price=listing.get("price", 0),
-            deal_label=deal_label,
-            is_agent=is_agent,
-        )
+        if is_agent:
+            _we.send_agent_welcome(
+                user_id=user_id,
+                lang=lang,
+                name=name,
+                email=email,
+                listing_id=listing_id,
+                city=listing.get("city", ""),
+                price=listing.get("price", 0),
+                deal_label=deal_label,
+                is_agent=True,
+            )
+        else:
+            _we.send_private_welcome(
+                user_id=user_id,
+                lang=lang,
+                name=name,
+                email=email,
+                listing_id=listing_id,
+                city=listing.get("city", ""),
+                price=listing.get("price", 0),
+                deal_label=deal_label,
+            )
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning(f"[WELCOME] Agent email failed: {e}")
+        logging.getLogger(__name__).warning(f"[WELCOME] Email send failed: {e}")

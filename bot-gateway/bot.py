@@ -147,6 +147,52 @@ def _warmup_sessions():
                 logger.warning(f"⚠️ Startup: could not restore IG web cookies: {e}")
 
 
+async def _handle_mover_subscribe(update, context):
+    """Handle mover_subscribe_{pkg_key} callback — create PayPlus link for mover weekly subscription."""
+    from telegram.ext import ContextTypes
+    query = update.callback_query
+    await query.answer()
+    pkg_key = query.data[len("mover_subscribe_"):]
+    user_id = update.effective_user.id
+
+    import database as _db
+    try:
+        data = _db._load()
+        lang = data.get("agent_profiles", {}).get(str(user_id), {}).get("lang", "ru") or "ru"
+    except Exception:
+        lang = "ru"
+
+    import payplus_payment as _pp
+    result = _pp.create_mover_subscription_link(pkg_key, user_id, lang)
+
+    if result and result.get("url"):
+        from pricing import get_mover_package
+        pkg = get_mover_package(pkg_key)
+        label = pkg["label"].get(lang, pkg["label"]["ru"]) if pkg else pkg_key
+        price = pkg["price_ils"] if pkg else "?"
+        msgs = {
+            "ru": f"💳 Нажмите кнопку для оплаты:\n<b>{label} — {price} ₪/неделю</b>\n\nПосле оплаты подписка активируется автоматически.",
+            "en": f"💳 Tap to pay:\n<b>{label} — {price} ₪/week</b>\n\nSubscription activates automatically after payment.",
+            "he": f"💳 לחץ לתשלום:\n<b>{label} — {price} ₪/שבוע</b>\n\nהמנוי יופעל אוטומטית לאחר התשלום.",
+        }
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton(f"💳 {label} — {price} ₪", url=result["url"])
+        ]])
+        await query.message.reply_text(
+            msgs.get(lang, msgs["ru"]),
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
+    else:
+        err = {
+            "ru": "⚠️ Не удалось создать ссылку для оплаты. Попробуйте позже.",
+            "en": "⚠️ Failed to create payment link. Please try again later.",
+            "he": "⚠️ לא ניתן ליצור קישור לתשלום. נסה שוב מאוחר יותר.",
+        }
+        await query.answer(err.get(lang, err["ru"]), show_alert=True)
+
+
 def main():
     global _bot_app, _bot_loop
     fix_city_migration()
@@ -199,6 +245,7 @@ def main():
     # (prevents a mid-conversation state from swallowing the pre_checkout_query)
     # Stars invoice + payment handlers at group=-1 — fire BEFORE ConversationHandlers
     app.add_handler(CallbackQueryHandler(handle_stars_invoice, pattern="^sub_(week|two_weeks|month|search_alert|search_alert_confirm)$"), group=-1)
+    app.add_handler(CallbackQueryHandler(_handle_mover_subscribe, pattern="^mover_subscribe_"), group=-1)
     app.add_handler(PreCheckoutQueryHandler(handle_pre_checkout), group=-1)
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, handle_successful_payment), group=-1)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_text))
@@ -305,6 +352,102 @@ def _payment_notify_user(user_id: int, plan_key: str, expiry) -> None:
         logger.info(f"[PAYPLUS] Confirmation sent to user={user_id}")
     except Exception as e:
         logger.error(f"[PAYPLUS] Failed to notify user={user_id}: {e}")
+
+def _notify_agent_credits(user_id: int, pkg: dict) -> None:
+    """Notify agent that listing credits were added after payment."""
+    try:
+        from config import BOT_TOKEN
+        import requests as _req
+        import database as _db
+
+        try:
+            data = _db._load()
+            lang = data.get("agent_profiles", {}).get(str(user_id), {}).get("lang", "ru") or "ru"
+        except Exception:
+            lang = "ru"
+
+        label = pkg["label"].get(lang, pkg["label"]["ru"])
+        count = pkg["count"]
+        msgs = {
+            "ru": (
+                f"✅ <b>Оплата прошла!</b>\n\n"
+                f"На ваш счёт добавлено <b>{count}</b> слот(а) для объявлений.\n"
+                f"Пакет: <b>{label}</b>\n\n"
+                "Вернитесь в бот и опубликуйте объявление — кредиты уже зачислены! 🏠"
+            ),
+            "en": (
+                f"✅ <b>Payment successful!</b>\n\n"
+                f"<b>{count}</b> listing slot(s) added to your account.\n"
+                f"Package: <b>{label}</b>\n\n"
+                "Go back to the bot and publish your listing — credits are ready! 🏠"
+            ),
+            "he": (
+                f"✅ <b>התשלום בוצע!</b>\n\n"
+                f"נוספו <b>{count}</b> חריצי מודעות לחשבון שלך.\n"
+                f"חבילה: <b>{label}</b>\n\n"
+                "חזור לבוט ופרסם את המודעה — הקרדיטים כבר זוכו! 🏠"
+            ),
+        }
+        text = msgs.get(lang, msgs["ru"])
+
+        _req.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
+            timeout=10,
+        )
+        logger.info(f"[PAYPLUS] Agent credits notification sent user={user_id}")
+    except Exception as e:
+        logger.error(f"[PAYPLUS] Failed to notify agent user={user_id}: {e}")
+
+
+def _notify_mover_subscription(user_id: int, pkg: dict, expiry_iso: str) -> None:
+    """Notify mover that weekly subscription is active."""
+    try:
+        from config import BOT_TOKEN
+        import requests as _req
+        import database as _db
+
+        try:
+            data = _db._load()
+            lang = data.get("agent_profiles", {}).get(str(user_id), {}).get("lang", "ru") or "ru"
+        except Exception:
+            lang = "ru"
+
+        label = pkg["label"].get(lang, pkg["label"]["ru"])
+        from datetime import datetime
+        try:
+            expiry_str = datetime.fromisoformat(expiry_iso).strftime("%d.%m.%Y")
+        except Exception:
+            expiry_str = expiry_iso[:10]
+
+        msgs = {
+            "ru": (
+                f"✅ <b>Оплата прошла!</b>\n\n"
+                f"Подписка <b>{label}</b> активна до <b>{expiry_str}</b>.\n\n"
+                "Ваша компания уже отображается пользователям FlatFinderIL! 🚛"
+            ),
+            "en": (
+                f"✅ <b>Payment successful!</b>\n\n"
+                f"<b>{label}</b> subscription active until <b>{expiry_str}</b>.\n\n"
+                "Your company is now visible to FlatFinderIL users! 🚛"
+            ),
+            "he": (
+                f"✅ <b>התשלום בוצע!</b>\n\n"
+                f"מנוי <b>{label}</b> פעיל עד <b>{expiry_str}</b>.\n\n"
+                "החברה שלך כבר מוצגת למשתמשי FlatFinderIL! 🚛"
+            ),
+        }
+        text = msgs.get(lang, msgs["ru"])
+
+        _req.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
+            timeout=10,
+        )
+        logger.info(f"[PAYPLUS] Mover subscription notification sent user={user_id}")
+    except Exception as e:
+        logger.error(f"[PAYPLUS] Failed to notify mover user={user_id}: {e}")
+
 
 def _request_host(headers) -> str:
     """Return the real public hostname from request headers."""
@@ -1408,13 +1551,48 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
             if user_id and plan_key:
                 logger.info(f"[PAYPLUS] Payment confirmed user={user_id} plan={plan_key}")
-                from subscription import activate_subscription
-                expiry = activate_subscription(user_id, plan_key)
-                if expiry:
-                    logger.info(f"[PAYPLUS] Subscription activated user={user_id} plan={plan_key} until={expiry}")
-                    _payment_notify_user(user_id, plan_key, expiry)
+
+                # ── Agent listing package ────────────────────────────────────
+                if plan_key.startswith("agent_pkg_"):
+                    pkg_key = plan_key[len("agent_pkg_"):]
+                    from pricing import get_agent_package
+                    pkg = get_agent_package(pkg_key)
+                    if pkg:
+                        import database as _db
+                        _db.add_listing_credits(user_id, pkg["count"])
+                        logger.info(
+                            f"[PAYPLUS] Agent credits +{pkg['count']} user={user_id} pkg={pkg_key}"
+                        )
+                        _notify_agent_credits(user_id, pkg)
+                    else:
+                        logger.error(f"[PAYPLUS] Unknown agent pkg={pkg_key!r}")
+
+                # ── Mover weekly subscription ────────────────────────────────
+                elif plan_key.startswith("mover_pkg_"):
+                    pkg_key = plan_key[len("mover_pkg_"):]
+                    from pricing import get_mover_package
+                    pkg = get_mover_package(pkg_key)
+                    if pkg:
+                        from datetime import datetime, timedelta
+                        expiry = (datetime.utcnow() + timedelta(weeks=1)).isoformat()
+                        import database as _db
+                        _db.set_service_subscription(str(user_id), pkg_key, expiry)
+                        logger.info(
+                            f"[PAYPLUS] Mover sub activated user={user_id} pkg={pkg_key} until={expiry}"
+                        )
+                        _notify_mover_subscription(user_id, pkg, expiry)
+                    else:
+                        logger.error(f"[PAYPLUS] Unknown mover pkg={pkg_key!r}")
+
+                # ── Bot subscription (week / two_weeks / month) ──────────────
                 else:
-                    logger.error(f"[PAYPLUS] activate_subscription returned None user={user_id} plan={plan_key}")
+                    from subscription import activate_subscription
+                    expiry = activate_subscription(user_id, plan_key)
+                    if expiry:
+                        logger.info(f"[PAYPLUS] Subscription activated user={user_id} plan={plan_key} until={expiry}")
+                        _payment_notify_user(user_id, plan_key, expiry)
+                    else:
+                        logger.error(f"[PAYPLUS] activate_subscription returned None user={user_id} plan={plan_key}")
             else:
                 logger.info("[PAYPLUS] Callback ignored (not a confirmed payment or missing metadata)")
 

@@ -640,29 +640,95 @@ class ServiceHandler:
             "cleaning": {"ru":"Уборка","en":"Cleaning","he":"ניקיון", "fr": "Ménage"},
         }.get(svc_type, {}).get(lang, svc_type)
 
-        text = _t(context,
-            f"🚚 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
-            f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваша услуга успешно размещена на платформе.\n\n"
-            f"📋 <b>Категория:</b> {type_label or 'Услуга'}\n\n"
-            f"Клиенты уже могут найти вас через раздел 🔧 <b>Услуги</b>. "
-            f"Каждую неделю вы будете получать отчёт о просмотрах.\n\n"
-            f"Желаем много заявок! 💼",
+        # ── Pricing block per service type ────────────────────────────────────
+        from pricing import format_service_pricing
+        pricing_block = format_service_pricing(svc_type, lang)
 
-            f"🚚 <b>FlatFinderIL — Service Published!</b>\n\n"
-            f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your service is now live on the platform.\n\n"
-            f"📋 <b>Category:</b> {type_label or 'Service'}\n\n"
-            f"Clients can already find you through the 🔧 <b>Services</b> section. "
-            f"You will receive a weekly views report.\n\n"
-            f"Wishing you many clients! 💼",
+        if svc_type == "movers":
+            text = _t(context,
+                f"🚛 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
+                f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваша компания по перевозкам размещена на платформе.\n\n"
+                f"{pricing_block}\n\n"
+                f"Нажмите кнопку ниже, чтобы оформить подписку и начать получать клиентов. "
+                f"Клиенты находят вас через раздел 🔧 <b>Услуги</b>. 💼",
 
-            f"🚚 <b>FlatFinderIL — השירות פורסם!</b>\n\n"
-            f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} השירות שלך פעיל בפלטפורמה.\n\n"
-            f"📋 <b>קטגוריה:</b> {type_label or 'שירות'}\n\n"
-            f"לקוחות כבר יכולים למצוא אותך בסעיף 🔧 <b>שירותים</b>. "
-            f"כל שבוע תקבל/י דוח על צפיות.\n\n"
-            f"!בהצלחה עם הלקוחות 💼"
-        )
-        await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
+                f"🚛 <b>FlatFinderIL — Service Published!</b>\n\n"
+                f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your moving company is now on the platform.\n\n"
+                f"{pricing_block}\n\n"
+                f"Tap the button below to subscribe and start receiving clients through the 🔧 <b>Services</b> section. 💼",
+
+                f"🚛 <b>FlatFinderIL — השירות פורסם!</b>\n\n"
+                f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} חברת ההובלות שלך פעילה בפלטפורמה.\n\n"
+                f"{pricing_block}\n\n"
+                f"לחץ על הכפתור למטה כדי להירשם לחבילה ולהתחיל לקבל לקוחות. 💼"
+            )
+            # Build mover subscription keyboard
+            import payplus_payment as _pp
+            if _pp.is_enabled():
+                from pricing import MOVER_PACKAGES
+                rows = []
+                for mpkg in MOVER_PACKAGES:
+                    mpkg_label = mpkg["label"].get(lang, mpkg["label"]["ru"])
+                    rows.append([InlineKeyboardButton(
+                        f"{mpkg_label} — {mpkg['price_ils']} ₪/{'нед' if lang=='ru' else 'wk' if lang=='en' else 'שבוע'}",
+                        callback_data=f"mover_subscribe_{mpkg['key']}"
+                    )])
+                rows.append([InlineKeyboardButton(
+                    {"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}.get(lang, "⏭ Later"),
+                    callback_data="back_to_menu"
+                )])
+                kb = InlineKeyboardMarkup(rows)
+            else:
+                kb = _back_kb(context)
+        elif svc_type == "cleaning":
+            text = _t(context,
+                f"🧹 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
+                f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваш клининговый сервис размещён на платформе.\n\n"
+                f"{pricing_block}\n\n"
+                f"Клиенты уже могут найти вас через раздел 🔧 <b>Услуги</b>. Менеджер свяжется с вами для оформления условий работы. 💼",
+
+                f"🧹 <b>FlatFinderIL — Service Published!</b>\n\n"
+                f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your cleaning service is now live.\n\n"
+                f"{pricing_block}\n\n"
+                f"Clients can find you through the 🔧 <b>Services</b> section. Our manager will contact you to set up terms. 💼",
+
+                f"🧹 <b>FlatFinderIL — השירות פורסם!</b>\n\n"
+                f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} שירות הניקיון שלך פעיל בפלטפורמה.\n\n"
+                f"{pricing_block}\n\n"
+                f"לקוחות יכולים למצוא אותך בסעיף 🔧 <b>שירותים</b>. מנהל שלנו יצור איתך קשר לגיבוש תנאי העבודה. 💼"
+            )
+            kb = _back_kb(context)
+        elif svc_type == "packers":
+            text = _t(context,
+                f"📦 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
+                f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваш сервис упаковки размещён на платформе.\n\n"
+                f"{pricing_block}\n\n"
+                f"Клиенты уже могут найти вас через раздел 🔧 <b>Услуги</b>. Менеджер свяжется с вами для оформления условий. 💼",
+
+                f"📦 <b>FlatFinderIL — Service Published!</b>\n\n"
+                f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your packing service is now live.\n\n"
+                f"{pricing_block}\n\n"
+                f"Clients can find you through the 🔧 <b>Services</b> section. Our manager will contact you to set up terms. 💼",
+
+                f"📦 <b>FlatFinderIL — השירות פורסם!</b>\n\n"
+                f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} שירות האריזה שלך פעיל בפלטפורמה.\n\n"
+                f"{pricing_block}\n\n"
+                f"לקוחות יכולים למצוא אותך בסעיף 🔧 <b>שירותים</b>. מנהל שלנו יצור איתך קשר לגיבוש תנאי העבודה. 💼"
+            )
+            kb = _back_kb(context)
+        else:
+            text = _t(context,
+                f"🚚 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
+                f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваша услуга размещена.\n\n"
+                f"Клиенты уже могут найти вас через раздел 🔧 <b>Услуги</b>. 💼",
+                f"🚚 <b>FlatFinderIL — Service Published!</b>\n\n"
+                f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your service is now live. 💼",
+                f"🚚 <b>FlatFinderIL — השירות פורסם!</b>\n\n"
+                f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} השירות שלך פעיל. 💼"
+            )
+            kb = _back_kb(context)
+
+        await query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
         return ConversationHandler.END
 
     async def back_to_menu_cb(self, update, context):

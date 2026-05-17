@@ -127,6 +127,7 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('crm',this)">👥 CRM</button>
     <button class="nav-btn" onclick="showTab('engage',this)">💬 Вовлечённость</button>
     <button class="nav-btn" onclick="showTab('money',this)">💰 Доход</button>
+    <button class="nav-btn" onclick="showTab('monetization',this)">💳 Монетизация</button>
     <button class="nav-btn" onclick="showTab('price',this)">📈 Цены</button>
     <button class="nav-btn" onclick="showTab('news',this)">📰 Новости</button>
     <button class="nav-btn" onclick="showTab('digest',this)">🌅 Дайджест</button>
@@ -497,6 +498,75 @@ canvas{max-width:100%}
     <div class="card">
       <div class="card-title">Прогноз после окончания триала 15 апреля</div>
       <div class="card-body"><div class="forecast-grid" id="forecast-grid"></div></div>
+    </div>
+  </div>
+
+  <!-- MONETIZATION -->
+  <div class="tab" id="tab-monetization">
+    <div class="kpi-row" id="kpi-monetization"></div>
+
+    <!-- Pricing reference card -->
+    <div class="card">
+      <div class="card-title">📋 Прайс-лист</div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
+          <!-- Agents -->
+          <div style="background:#f0f7ff;border-radius:10px;padding:14px">
+            <div style="font-weight:700;font-size:13px;color:#2563eb;margin-bottom:8px">🏢 Агенты / Риелторы</div>
+            <table style="width:100%;font-size:12px;border-collapse:collapse" id="price-agents"></table>
+            <div style="margin-top:6px;font-size:11px;color:#64748b">1-е объявление — бесплатно</div>
+          </div>
+          <!-- Movers -->
+          <div style="background:#f0f9ff;border-radius:10px;padding:14px">
+            <div style="font-weight:700;font-size:13px;color:#0ea5e9;margin-bottom:8px">🚛 Перевозчики</div>
+            <table style="width:100%;font-size:12px;border-collapse:collapse" id="price-movers"></table>
+          </div>
+          <!-- Cleaning -->
+          <div style="background:#f0fdf4;border-radius:10px;padding:14px">
+            <div style="font-weight:700;font-size:13px;color:#10b981;margin-bottom:8px">🧹 Клининг</div>
+            <div style="font-size:12px;color:#1e293b" id="price-cleaning"></div>
+          </div>
+          <!-- Packers -->
+          <div style="background:#faf5ff;border-radius:10px;padding:14px">
+            <div style="font-weight:700;font-size:13px;color:#8b5cf6;margin-bottom:8px">📦 Упаковка</div>
+            <div style="font-size:12px;color:#1e293b" id="price-packers"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent credits table -->
+    <div class="card">
+      <div class="card-title">🏢 Агенты — купленные слоты (остаток)</div>
+      <div class="card-body">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:#f8fafc;color:#64748b;font-size:11px">
+            <th style="padding:6px 10px;text-align:left">Имя</th>
+            <th style="padding:6px 10px;text-align:left">Username</th>
+            <th style="padding:6px 10px;text-align:center">Слоты осталось</th>
+          </tr></thead>
+          <tbody id="tbl-agent-credits"></tbody>
+        </table>
+        <div id="no-agent-credits" style="display:none;color:#94a3b8;font-size:13px;padding:10px 0">Нет агентов с купленными слотами</div>
+      </div>
+    </div>
+
+    <!-- Mover subscriptions table -->
+    <div class="card">
+      <div class="card-title">🚛 Перевозчики — подписки</div>
+      <div class="card-body">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="background:#f8fafc;color:#64748b;font-size:11px">
+            <th style="padding:6px 10px;text-align:left">Компания</th>
+            <th style="padding:6px 10px;text-align:left">Регион</th>
+            <th style="padding:6px 10px;text-align:left">Пакет</th>
+            <th style="padding:6px 10px;text-align:center">Истекает</th>
+            <th style="padding:6px 10px;text-align:center">Статус</th>
+          </tr></thead>
+          <tbody id="tbl-mover-subs"></tbody>
+        </table>
+        <div id="no-mover-subs" style="display:none;color:#94a3b8;font-size:13px;padding:10px 0">Нет активных подписок перевозчиков</div>
+      </div>
     </div>
   </div>
 
@@ -1434,6 +1504,90 @@ function _renderInner(){
       <div style="font-size:11px;color:${s.c};margin-top:4px">${n(val*12)} ₪/год</div>
     </div>`;
   }).join("");
+  // ── Monetization tab ─────────────────────────────────────────────────────
+  const P = D.pricing || {};
+  const AC = P.agent_credits || {};
+  const MS = P.mover_subscriptions || {};
+  const REV = P.revenue || {};
+  const PT = P.price_table || {};
+
+  // KPIs
+  document.getElementById("kpi-monetization").innerHTML =
+    kpi("₪", "Выручка всего", `${n(REV.total||0)} ₪`, "", GREEN) +
+    kpi("🏢", "Агент слоты куплено", n(AC.agents_with_credits||0), "агентов с балансом", TG) +
+    kpi("🆓", "Бесплатных использовано", n(AC.free_listings_used||0), "1-е объявление", GOLD) +
+    kpi("🚛", "Подписки перевозчиков", n(MS.active||0) + " / " + n(MS.total||0), "активные / всего", PURPLE);
+
+  // Price table — Agents
+  const agRows = (PT.agents||[]).map(r=>`<tr>
+    <td style="padding:4px 6px">${r.label}</td>
+    <td style="padding:4px 6px;font-weight:600;color:#2563eb;text-align:right">${r.price} ₪</td>
+    <td style="padding:4px 6px;color:#94a3b8;font-size:11px">${r.note}</td>
+  </tr>`).join("");
+  const agTbl = document.getElementById("price-agents");
+  if(agTbl) agTbl.innerHTML = agRows;
+
+  // Price table — Movers
+  const mvRows = (PT.movers||[]).map(r=>`<tr>
+    <td style="padding:4px 6px">${r.label}</td>
+    <td style="padding:4px 6px;font-weight:600;color:#0ea5e9;text-align:right">${r.price} ₪</td>
+    <td style="padding:4px 6px;color:#94a3b8;font-size:11px">${r.note}</td>
+  </tr>`).join("");
+  const mvTbl = document.getElementById("price-movers");
+  if(mvTbl) mvTbl.innerHTML = mvRows;
+
+  // Cleaning
+  const cl = PT.cleaning || {};
+  const cleanEl = document.getElementById("price-cleaning");
+  if(cleanEl) cleanEl.innerHTML = `За лид: <b style="color:#10b981">${cl.min||40}–${cl.max||60} ₪/лид</b><br><span style="color:#94a3b8;font-size:11px">без абонплаты</span>`;
+
+  // Packers
+  const pk = PT.packers || {};
+  const packEl = document.getElementById("price-packers");
+  if(packEl) packEl.innerHTML = `Комиссия: <b style="color:#8b5cf6">${pk.pct||15}% от заказа</b><br><span style="color:#94a3b8;font-size:11px">без абонплаты</span>`;
+
+  // Agent credits table
+  const acList = AC.list || [];
+  const acTbody = document.getElementById("tbl-agent-credits");
+  if(acTbody){
+    if(acList.length === 0){
+      acTbody.innerHTML = "";
+      const noEl = document.getElementById("no-agent-credits");
+      if(noEl) noEl.style.display = "";
+    } else {
+      acTbody.innerHTML = acList.map(r=>`<tr style="border-bottom:1px solid #f1f5f9">
+        <td style="padding:6px 10px">${r.name}</td>
+        <td style="padding:6px 10px;color:#64748b">@${r.username||"—"}</td>
+        <td style="padding:6px 10px;text-align:center">
+          <span style="background:#dbeafe;color:#1d4ed8;padding:2px 10px;border-radius:12px;font-weight:600">${r.credits}</span>
+        </td>
+      </tr>`).join("");
+    }
+  }
+
+  // Mover subs table
+  const msList = MS.list || [];
+  const msTbody = document.getElementById("tbl-mover-subs");
+  if(msTbody){
+    if(msList.length === 0){
+      msTbody.innerHTML = "";
+      const noEl2 = document.getElementById("no-mover-subs");
+      if(noEl2) noEl2.style.display = "";
+    } else {
+      msTbody.innerHTML = msList.map(r=>`<tr style="border-bottom:1px solid #f1f5f9">
+        <td style="padding:6px 10px">${r.name}</td>
+        <td style="padding:6px 10px;color:#64748b">${r.region||"—"}</td>
+        <td style="padding:6px 10px">${r.plan}</td>
+        <td style="padding:6px 10px;text-align:center;color:#64748b">${r.expiry}</td>
+        <td style="padding:6px 10px;text-align:center">
+          <span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500;
+            background:${r.active?'#dcfce7':'#fee2e2'};color:${r.active?'#16a34a':'#dc2626'}">
+            ${r.active?'✅ Активна':'❌ Истекла'}
+          </span>
+        </td>
+      </tr>`).join("");
+    }
+  }
 } // end _renderInner
 
 // ── i18n UI labels ─────────────────────────────────────────────────────────
