@@ -60,10 +60,10 @@ AGENT_PACKAGES = [
     {
         "key":          "agent_20",
         "count":        20,
-        "price_ils":    1200,
+        "price_ils":    1000,
         "duration_days": AGENT_PACKAGE_DAYS,
         "label": {"ru": "20 объявлений",  "en": "20 listings", "he": "20 מודעות"},
-        "note":  {"ru": "60 ₪/шт · 1 мес", "en": "60 ₪/ea · 1 mo", "he": "60 ₪ ליחידה · חודש"},
+        "note":  {"ru": "50 ₪/шт · 1 мес", "en": "50 ₪/ea · 1 mo", "he": "50 ₪ ליחידה · חודש"},
     },
     {
         "key":          "agent_unlimited",
