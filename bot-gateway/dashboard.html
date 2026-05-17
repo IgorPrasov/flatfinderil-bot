@@ -1539,12 +1539,12 @@ function _renderInner(){
   // Cleaning
   const cl = PT.cleaning || {};
   const cleanEl = document.getElementById("price-cleaning");
-  if(cleanEl) cleanEl.innerHTML = `За лид: <b style="color:#10b981">${cl.min||40}–${cl.max||60} ₪/лид</b><br><span style="color:#94a3b8;font-size:11px">без абонплаты</span>`;
+  if(cleanEl) cleanEl.innerHTML = `Регистрация бесплатно<br>Открыть контакт клиента: <b style="color:#10b981">${cl.price||50} ₪/лид</b><br><span style="color:#94a3b8;font-size:11px">без абонплаты</span>`;
 
   // Packers
   const pk = PT.packers || {};
   const packEl = document.getElementById("price-packers");
-  if(packEl) packEl.innerHTML = `Комиссия: <b style="color:#8b5cf6">${pk.pct||15}% от заказа</b><br><span style="color:#94a3b8;font-size:11px">без абонплаты</span>`;
+  if(packEl) packEl.innerHTML = `Регистрация бесплатно<br>Открыть контакт клиента: <b style="color:#8b5cf6">${pk.price||30} ₪/лид</b><br><span style="color:#94a3b8;font-size:11px">без абонплаты</span>`;
 
   // Agent credits table
   const acList = AC.list || [];
