@@ -76,49 +76,74 @@ AGENT_PACKAGES = [
 ]
 
 # ── Movers ────────────────────────────────────────────────────────────────────
+# Model: fixed monthly base + optional weekly TOP placement
 
-MOVER_WEEKLY_BASE_ILS  = 150   # ₪/week — basic DB entry
-MOVER_TOP_CITY_ILS     = 50    # ₪/week per city — TOP placement
+MOVER_MONTHLY_BASE_ILS = 70    # ₪/month — basic DB entry
+MOVER_TOP_WEEKLY_ILS   = 100   # ₪/week — TOP placement (first rows in city results)
 
 MOVER_PACKAGES = [
     {
-        "key":       "mover_base",
-        "price_ils": MOVER_WEEKLY_BASE_ILS,
+        "key":          "mover_base",
+        "price_ils":    MOVER_MONTHLY_BASE_ILS,
+        "duration_days": 30,
         "label": {
             "ru": "📋 База — присутствие в базе",
             "en": "📋 Base — listed in database",
             "he": "📋 בסיס — רישום במאגר",
         },
         "desc": {
-            "ru": f"Ваша компания видна всем пользователям платформы · {MOVER_WEEKLY_BASE_ILS} ₪/нед",
-            "en": f"Your company visible to all platform users · {MOVER_WEEKLY_BASE_ILS} ₪/week",
-            "he": f"החברה שלך גלויה לכל משתמשי הפלטפורמה · {MOVER_WEEKLY_BASE_ILS} ₪/שבוע",
+            "ru": f"Компания видна всем пользователям платформы · {MOVER_MONTHLY_BASE_ILS} ₪/мес",
+            "en": f"Your company visible to all platform users · {MOVER_MONTHLY_BASE_ILS} ₪/month",
+            "he": f"החברה שלך גלויה לכל משתמשי הפלטפורמה · {MOVER_MONTHLY_BASE_ILS} ₪/חודש",
         },
     },
     {
-        "key":       "mover_top",
-        "price_ils": MOVER_WEEKLY_BASE_ILS + MOVER_TOP_CITY_ILS,
+        "key":          "mover_top",
+        "price_ils":    MOVER_TOP_WEEKLY_ILS,
+        "duration_days": 7,
         "label": {
-            "ru": "⭐ ТОП — первое место в городе",
-            "en": "⭐ TOP — first place in city",
-            "he": "⭐ TOP — מקום ראשון בעיר",
+            "ru": "⭐ ТОП — первые строчки в городе",
+            "en": "⭐ TOP — first rows in city results",
+            "he": "⭐ TOP — שורות ראשונות בתוצאות העיר",
         },
         "desc": {
-            "ru": f"База + ТОП-место в выбранном городе · {MOVER_WEEKLY_BASE_ILS + MOVER_TOP_CITY_ILS} ₪/нед",
-            "en": f"Base + TOP placement in chosen city · {MOVER_WEEKLY_BASE_ILS + MOVER_TOP_CITY_ILS} ₪/week",
-            "he": f"בסיס + מיקום TOP בעיר הנבחרת · {MOVER_WEEKLY_BASE_ILS + MOVER_TOP_CITY_ILS} ₪/שבוע",
+            "ru": f"Первые строчки в выдаче бота по городу · {MOVER_TOP_WEEKLY_ILS} ₪/нед",
+            "en": f"First rows in bot results for your city · {MOVER_TOP_WEEKLY_ILS} ₪/week",
+            "he": f"שורות ראשונות בתוצאות הבוט בעיר · {MOVER_TOP_WEEKLY_ILS} ₪/שבוע",
         },
     },
 ]
 
 # ── Cleaning ──────────────────────────────────────────────────────────────────
+# Model: lead-balance — provider tops up balance, pays per unlocked contact
 
-CLEANING_LEAD_PRICE_MIN = 40   # ₪ per lead
-CLEANING_LEAD_PRICE_MAX = 60   # ₪ per lead
+CLEANING_LEAD_PRICE_ILS = 50   # ₪ per lead (fixed)
 
 # ── Packing ───────────────────────────────────────────────────────────────────
+# Model: lead-balance — same as cleaning
 
-PACKING_COMMISSION_PCT = 15    # % of order value
+PACKING_LEAD_PRICE_ILS  = 30   # ₪ per lead (fixed)
+
+# ── Lead balance top-up packages (for cleaning & packing) ────────────────────
+
+LEAD_BALANCE_PACKAGES = [
+    {
+        "key":       "balance_100",
+        "amount_ils": 100,
+        "label": {"ru": "💳 100 ₪", "en": "💳 100 ₪", "he": "💳 100 ₪"},
+    },
+    {
+        "key":       "balance_200",
+        "amount_ils": 200,
+        "label": {"ru": "💳 200 ₪", "en": "💳 200 ₪", "he": "💳 200 ₪"},
+    },
+    {
+        "key":       "balance_500",
+        "amount_ils": 500,
+        "label": {"ru": "💳 500 ₪  (+50 ₪ бонус)", "en": "💳 500 ₪  (+50 ₪ bonus)", "he": "💳 500 ₪  (+50 ₪ בונוס)"},
+        "bonus_ils": 50,
+    },
+]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -161,66 +186,80 @@ def format_agent_pricing(lang: str = "ru") -> str:
     return "\n".join(lines)
 
 
+def get_lead_price(svc_type: str) -> int:
+    """Return per-lead price in ₪ for lead-balance service types."""
+    return {"cleaning": CLEANING_LEAD_PRICE_ILS, "packers": PACKING_LEAD_PRICE_ILS}.get(svc_type, 0)
+
+
 def format_service_pricing(svc_type: str, lang: str = "ru") -> str:
     """Return pricing info block for service provider type."""
     if svc_type == "movers":
         if lang == "he":
             return (
                 "💳 <b>תמחור:</b>\n"
-                f"  · רישום במאגר — <b>{MOVER_WEEKLY_BASE_ILS} ₪/שבוע</b>\n"
-                f"  · + מיקום TOP בעיר — <b>+{MOVER_TOP_CITY_ILS} ₪/שבוע לעיר</b>"
+                f"  · רישום בסיסי במאגר — <b>{MOVER_MONTHLY_BASE_ILS} ₪/חודש</b>\n"
+                f"  · ⭐ TOP בעיר (שורות ראשונות) — <b>{MOVER_TOP_WEEKLY_ILS} ₪/שבוע</b>\n"
+                "  · ניתן לשלם רק על הבסיס, TOP הוא אופציונלי"
             )
         elif lang == "en":
             return (
                 "💳 <b>Pricing:</b>\n"
-                f"  · Listed in database — <b>{MOVER_WEEKLY_BASE_ILS} ₪/week</b>\n"
-                f"  · + TOP placement per city — <b>+{MOVER_TOP_CITY_ILS} ₪/week per city</b>"
+                f"  · Base listing — <b>{MOVER_MONTHLY_BASE_ILS} ₪/month</b>\n"
+                f"  · ⭐ TOP in city (first rows) — <b>{MOVER_TOP_WEEKLY_ILS} ₪/week</b>\n"
+                "  · Base only is fine, TOP is optional"
             )
         else:
             return (
                 "💳 <b>Тарифы:</b>\n"
-                f"  · Присутствие в базе — <b>{MOVER_WEEKLY_BASE_ILS} ₪/неделя</b>\n"
-                f"  · + ТОП-место в городе — <b>+{MOVER_TOP_CITY_ILS} ₪/нед за город</b>"
+                f"  · Базовое присутствие в базе — <b>{MOVER_MONTHLY_BASE_ILS} ₪/мес</b>\n"
+                f"  · ⭐ ТОП в городе (первые строчки) — <b>{MOVER_TOP_WEEKLY_ILS} ₪/нед</b>\n"
+                "  · Можно только базу, ТОП — по желанию"
             )
 
     elif svc_type == "cleaning":
         if lang == "he":
             return (
-                "💳 <b>תמחור:</b>\n"
-                f"  · תשלום עבור ליד — <b>{CLEANING_LEAD_PRICE_MIN}–{CLEANING_LEAD_PRICE_MAX} ₪ ללידim</b>\n"
-                "  · אין תשלום קבוע — משלמים רק על פניות אמיתיות"
+                "💳 <b>תמחור — מודל יתרת לידים:</b>\n"
+                "  · רישום בחינם\n"
+                f"  · לראות פרטי קשר של לקוח — <b>{CLEANING_LEAD_PRICE_ILS} ₪ ללידים</b>\n"
+                "  · מטעינים יתרה מראש, משלמים רק על פניות אמיתיות"
             )
         elif lang == "en":
             return (
-                "💳 <b>Pricing:</b>\n"
-                f"  · Per lead — <b>{CLEANING_LEAD_PRICE_MIN}–{CLEANING_LEAD_PRICE_MAX} ₪/lead</b>\n"
-                "  · No fixed fee — pay only for real enquiries"
+                "💳 <b>Pricing — lead balance model:</b>\n"
+                "  · Registration is free\n"
+                f"  · Unlock client contact — <b>{CLEANING_LEAD_PRICE_ILS} ₪/lead</b>\n"
+                "  · Top up balance in advance, pay only for real enquiries"
             )
         else:
             return (
-                "💳 <b>Тарифы:</b>\n"
-                f"  · За лид — <b>{CLEANING_LEAD_PRICE_MIN}–{CLEANING_LEAD_PRICE_MAX} ₪/лид</b>\n"
-                "  · Без абонплаты — платите только за реальные обращения"
+                "💳 <b>Тарифы — система баланса лидов:</b>\n"
+                "  · Регистрация бесплатно\n"
+                f"  · Открыть контакт клиента — <b>{CLEANING_LEAD_PRICE_ILS} ₪/лид</b>\n"
+                "  · Пополняете баланс заранее, платите только за реальные заявки"
             )
 
     elif svc_type == "packers":
         if lang == "he":
             return (
-                "💳 <b>תמחור:</b>\n"
-                f"  · עמלה — <b>{PACKING_COMMISSION_PCT}% מסכום ההזמנה</b>\n"
-                "  · אין תשלום קבוע — עמלה רק על עסקאות מוצלחות"
+                "💳 <b>תמחור — מודל יתרת לידים:</b>\n"
+                "  · רישום בחינם\n"
+                f"  · לראות פרטי קשר של לקוח — <b>{PACKING_LEAD_PRICE_ILS} ₪ ללידים</b>\n"
+                "  · מטעינים יתרה מראש, משלמים רק על פניות אמיתיות"
             )
         elif lang == "en":
             return (
-                "💳 <b>Pricing:</b>\n"
-                f"  · Commission — <b>{PACKING_COMMISSION_PCT}% of order value</b>\n"
-                "  · No fixed fee — commission on completed orders only"
+                "💳 <b>Pricing — lead balance model:</b>\n"
+                "  · Registration is free\n"
+                f"  · Unlock client contact — <b>{PACKING_LEAD_PRICE_ILS} ₪/lead</b>\n"
+                "  · Top up balance in advance, pay only for real enquiries"
             )
         else:
             return (
-                "💳 <b>Тарифы:</b>\n"
-                f"  · Комиссия — <b>{PACKING_COMMISSION_PCT}% от суммы заказа</b>\n"
-                "  · Без абонплаты — процент только с выполненных заказов"
+                "💳 <b>Тарифы — система баланса лидов:</b>\n"
+                "  · Регистрация бесплатно\n"
+                f"  · Открыть контакт клиента — <b>{PACKING_LEAD_PRICE_ILS} ₪/лид</b>\n"
+                "  · Пополняете баланс заранее, платите только за реальные заявки"
             )
 
     return ""

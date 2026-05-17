@@ -603,6 +603,59 @@ def get_service_subscription(service_id: str) -> dict:
     return data.get("service_subscriptions", {}).get(str(service_id), {})
 
 
+# ── Lead balance (cleaning / packers) ─────────────────────────────────────────
+
+def get_lead_balance(user_id: int) -> int:
+    """Return current lead balance in ₪ for a service provider."""
+    data = _load()
+    return data.get("lead_balances", {}).get(str(user_id), 0)
+
+
+def add_lead_balance(user_id: int, amount_ils: int) -> int:
+    """Add amount to lead balance. Returns new balance."""
+    with _DB_LOCK:
+        data = _load()
+        balances = data.setdefault("lead_balances", {})
+        uid = str(user_id)
+        balances[uid] = balances.get(uid, 0) + amount_ils
+        _save(data)
+        return balances[uid]
+
+
+def spend_lead_balance(user_id: int, amount_ils: int) -> tuple[bool, int]:
+    """Deduct amount from lead balance if sufficient. Returns (success, new_balance)."""
+    with _DB_LOCK:
+        data = _load()
+        balances = data.setdefault("lead_balances", {})
+        uid = str(user_id)
+        current = balances.get(uid, 0)
+        if current < amount_ils:
+            return False, current
+        balances[uid] = current - amount_ils
+        _save(data)
+        return True, balances[uid]
+
+
+def mark_lead_unlocked(user_id: int, lead_id: str) -> bool:
+    """Record that user has already unlocked this lead. Returns True if first unlock."""
+    with _DB_LOCK:
+        data = _load()
+        unlocked = data.setdefault("unlocked_leads", {})
+        uid = str(user_id)
+        user_leads = unlocked.setdefault(uid, [])
+        if lead_id in user_leads:
+            return False  # already unlocked
+        user_leads.append(lead_id)
+        _save(data)
+        return True
+
+
+def has_unlocked_lead(user_id: int, lead_id: str) -> bool:
+    """Check if user has already paid for this lead."""
+    data = _load()
+    return lead_id in data.get("unlocked_leads", {}).get(str(user_id), [])
+
+
 # ── Price market comparison ───────────────────────────────────────────────────
 
 def delete_listing(listing_id: int, user_id: int) -> bool:
