@@ -5,10 +5,10 @@ Agents / Realtors
 -----------------
   • 1st listing: FREE (one-time per account)
   • Packages (purchased listing slots):
-      1  listing  →  50 ₪
-      5  listings → 200 ₪  (40 ₪/ea)
-     10  listings → 450 ₪  (45 ₪/ea)
-     20  listings → 900 ₪  (45 ₪/ea)
+      1  listing  →   70 ₪
+      5  listings →  300 ₪  (60 ₪/ea)
+     10  listings →  550 ₪  (55 ₪/ea)
+     20  listings → 1200 ₪  (60 ₪/ea)
 
 Movers / הובלות
 ---------------
@@ -34,30 +34,30 @@ AGENT_PACKAGES = [
     {
         "key":       "agent_1",
         "count":     1,
-        "price_ils": 50,
+        "price_ils": 70,
         "label": {"ru": "1 объявление",   "en": "1 listing",   "he": "מודעה אחת"},
         "note":  {"ru": "",                "en": "",             "he": ""},
     },
     {
         "key":       "agent_5",
         "count":     5,
-        "price_ils": 200,
+        "price_ils": 300,
         "label": {"ru": "5 объявлений",   "en": "5 listings",  "he": "5 מודעות"},
-        "note":  {"ru": "40 ₪/шт",        "en": "40 ₪/ea",     "he": "40 ₪ ליחידה"},
+        "note":  {"ru": "60 ₪/шт",        "en": "60 ₪/ea",     "he": "60 ₪ ליחידה"},
     },
     {
         "key":       "agent_10",
         "count":     10,
-        "price_ils": 450,
+        "price_ils": 550,
         "label": {"ru": "10 объявлений",  "en": "10 listings", "he": "10 מודעות"},
-        "note":  {"ru": "45 ₪/шт",        "en": "45 ₪/ea",     "he": "45 ₪ ליחידה"},
+        "note":  {"ru": "55 ₪/шт",        "en": "55 ₪/ea",     "he": "55 ₪ ליחידה"},
     },
     {
         "key":       "agent_20",
         "count":     20,
-        "price_ils": 850,
+        "price_ils": 1200,
         "label": {"ru": "20 объявлений",  "en": "20 listings", "he": "20 מודעות"},
-        "note":  {"ru": "42.5 ₪/шт",      "en": "42.5 ₪/ea",   "he": "42.5 ₪ ליחידה"},
+        "note":  {"ru": "60 ₪/шт",        "en": "60 ₪/ea",     "he": "60 ₪ ליחידה"},
     },
 ]
 
