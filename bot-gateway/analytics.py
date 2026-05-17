@@ -176,9 +176,8 @@ def _get_pricing_stats(db) -> dict:
 
     # ── Revenue estimate (from payments_log) ──────────────────────────────────
     from pricing import (AGENT_PACKAGES, MOVER_PACKAGES,
-                         MOVER_WEEKLY_BASE_ILS, MOVER_TOP_CITY_ILS,
-                         CLEANING_LEAD_PRICE_MIN, CLEANING_LEAD_PRICE_MAX,
-                         PACKING_COMMISSION_PCT)
+                         MOVER_MONTHLY_BASE_ILS, MOVER_TOP_WEEKLY_ILS,
+                         CLEANING_LEAD_PRICE_ILS, PACKING_LEAD_PRICE_ILS)
     pkg_prices = {p["key"]: p["price_ils"] for p in AGENT_PACKAGES}
     mover_prices = {p["key"]: p["price_ils"] for p in MOVER_PACKAGES}
 
@@ -228,11 +227,11 @@ def _get_pricing_stats(db) -> dict:
                 for p in AGENT_PACKAGES
             ],
             "movers": [
-                {"label": "База (присутствие в базе)", "price": MOVER_WEEKLY_BASE_ILS,                    "note": "₪/нед"},
-                {"label": "ТОП-место в городе",        "price": MOVER_WEEKLY_BASE_ILS + MOVER_TOP_CITY_ILS, "note": f"₪/нед (+{MOVER_TOP_CITY_ILS} за город)"},
+                {"label": "База (присутствие в базе)", "price": MOVER_MONTHLY_BASE_ILS, "note": "₪/мес"},
+                {"label": "ТОП-место в городе",        "price": MOVER_TOP_WEEKLY_ILS,   "note": "₪/нед"},
             ],
-            "cleaning": {"model": "per_lead",   "min": CLEANING_LEAD_PRICE_MIN, "max": CLEANING_LEAD_PRICE_MAX},
-            "packers":  {"model": "commission", "pct": PACKING_COMMISSION_PCT},
+            "cleaning": {"model": "per_lead",   "price": CLEANING_LEAD_PRICE_ILS},
+            "packers":  {"model": "per_lead",   "price": PACKING_LEAD_PRICE_ILS},
         },
     }
 
