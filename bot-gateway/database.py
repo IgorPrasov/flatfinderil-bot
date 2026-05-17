@@ -198,6 +198,7 @@ def add_listing(listing_data: Dict) -> int:
         listing_data.setdefault("views", 0)
         listing_data.setdefault("view_requests", 0)
         listing_data.setdefault("poster_type", "unknown")
+        listing_data.setdefault("seller_type", "private")
         data["listings"][str(next_id)] = listing_data
         data["next_id"] = next_id + 1
         user_id = listing_data.get("user_id")

@@ -647,7 +647,8 @@ def get_analytics(date_from: str = None, date_to: str = None):
 
     # ── Seller type split (agent vs private) ──────────────────────────────
     agent_listings   = [l for l in listings if l.get("seller_type") == "agent"]
-    private_listings = [l for l in listings if l.get("seller_type") == "private"]
+    # Listings without seller_type (added before the field existed) → treated as private
+    private_listings = [l for l in listings if l.get("seller_type", "private") != "agent"]
 
     def _avg_price(lst):
         prices = [l.get("price", 0) for l in lst if (l.get("price") or 0) > 0]
