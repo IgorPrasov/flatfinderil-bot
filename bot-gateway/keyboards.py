@@ -186,12 +186,17 @@ def results_navigation_keyboard(ctx, current, total, listing_id, listing=None):
         map_query = ", ".join(query_parts)
         map_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(map_query)}"
 
+    lang = get_lang(ctx)
+    show_phone_label = {"ru": "📞 Показать номер", "en": "📞 Show phone", "he": "📞 הצג מספר", "fr": "📞 Afficher le numéro"}.get(lang, "📞 Show phone")
     action_row = [
         InlineKeyboardButton(t("btn_to_fav", ctx), callback_data=f"fav_{listing_id}"),
         InlineKeyboardButton(t("btn_contact", ctx), callback_data=f"contact_{listing_id}"),
     ]
+    phone_row = [
+        InlineKeyboardButton(show_phone_label, callback_data=f"show_phone_{listing_id}"),
+    ]
     if map_url:
-        action_row.append(InlineKeyboardButton(t("btn_map", ctx), url=map_url))
+        phone_row.append(InlineKeyboardButton(t("btn_map", ctx), url=map_url))
 
     extra_row = [
         InlineKeyboardButton(t("btn_request_view", ctx), callback_data=f"reqview_{listing_id}"),
@@ -205,6 +210,7 @@ def results_navigation_keyboard(ctx, current, total, listing_id, listing=None):
     return InlineKeyboardMarkup([
         nav_row,
         action_row,
+        phone_row,
         extra_row,
         irented_row,
         sub_row,

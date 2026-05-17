@@ -762,6 +762,13 @@ function makeChart(id,type,labels,datasets,opts={}){
 }
 
 function render(){
+  try { _renderInner(); } catch(err) {
+    console.error("render() crashed:", err);
+    const pill = document.getElementById("status-pill");
+    if(pill){ pill.textContent="⚠ Ошибка"; pill.style.color="#E24B4A"; pill.style.borderColor="#E24B4A"; pill.style.background="#fff0f0"; }
+  }
+}
+function _renderInner(){
   const totalSubs=(D.subscription.week||0)+(D.subscription.two_weeks||0)+(D.subscription.month||0);
   const income=D.income?.current||0;
 
@@ -880,13 +887,13 @@ function render(){
   ],{});
 
   // Sources
-  document.getElementById("sources-list").innerHTML=barH(D.listings.sources,"count","name",TG);
+  document.getElementById("sources-list").innerHTML=barH((D.listings.sources||[]).filter(s=>s&&s.name),"count","name",TG);
 
   // Channels
-  document.getElementById("channels-grid").innerHTML=D.listings.sources.map(s=>`
-    <a class="channel-card" href="https://t.me/${s.name.replace('@','')}" target="_blank" rel="noopener" style="text-decoration:none;display:block;color:inherit">
+  document.getElementById("channels-grid").innerHTML=(D.listings.sources||[]).filter(s=>s&&s.name).map(s=>`
+    <a class="channel-card" href="https://t.me/${(s.name||'').replace('@','')}" target="_blank" rel="noopener" style="text-decoration:none;display:block;color:inherit">
       <div style="font-size:10px;color:#4CAF8A;margin-bottom:3px">● активен</div>
-      <div style="font-size:11px;font-weight:500;font-family:monospace;margin-bottom:2px">${s.name}</div>
+      <div style="font-size:11px;font-weight:500;font-family:monospace;margin-bottom:2px">${s.name||''}</div>
       <div style="font-size:22px;font-weight:500;color:#2AABEE">${n(s.count)}</div>
       <div style="font-size:10px;color:#999">объявлений</div>
     </a>`).join("");
@@ -1325,7 +1332,7 @@ function render(){
       <div style="font-size:11px;color:${s.c};margin-top:4px">${n(val*12)} ₪/год</div>
     </div>`;
   }).join("");
-}
+} // end _renderInner
 
 // ── i18n UI labels ─────────────────────────────────────────────────────────
 const UI_LABELS = {

@@ -471,6 +471,27 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         added = db.toggle_favorite(update.effective_user.id, listing_id)
         await query.answer(t("fav_added", context) if added else t("fav_removed", context))
 
+    elif data.startswith("show_phone_"):
+        listing_id = int(data.split("_")[2])
+        listing = db.get_listing(listing_id)
+        lang = get_lang(context)
+        if not listing:
+            await query.answer(t("contact_none", context), show_alert=True)
+            return
+        phone = listing.get("owner_phone", "") or ""
+        if not phone:
+            # Try extracting from description
+            import re
+            desc = listing.get("description", "") or ""
+            phones = _re.findall(r'(?:\+972[-\s]?|0)(?:5[0-9]|7[23])[-\s]?\d{3}[-\s]?\d{4}', desc)
+            phone = " / ".join(dict.fromkeys(phones)) if phones else ""
+        if not phone:
+            no_phone = {"ru": "Номер телефона не указан.", "en": "Phone number not provided.", "he": "מספר טלפון לא צוין."}.get(lang, "Phone not provided.")
+            await query.answer(no_phone, show_alert=True)
+        else:
+            phone_msg = {"ru": f"📞 Телефон: {phone}", "en": f"📞 Phone: {phone}", "he": f"📞 טלפון: {phone}"}.get(lang, f"📞 {phone}")
+            await query.answer(phone_msg[:200], show_alert=True)
+
     elif data.startswith("contact_"):
         listing_id = int(data.split("_")[1])
         listing = db.get_listing(listing_id)

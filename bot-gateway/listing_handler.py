@@ -417,7 +417,6 @@ class ListingHandler:
                 ],
                 ADD_EMAIL: [
                     CallbackQueryHandler(self.handle_back, pattern="^add_back$"),
-                    CallbackQueryHandler(self.handle_email_skip, pattern="^add_email_skip$"),
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_email),
                 ],
                 ADD_PHOTOS: [
@@ -1128,40 +1127,22 @@ class ListingHandler:
         context.user_data["add_listing"]["contact"] = contact
         context.user_data["add_listing"]["photos"] = []
 
-        # Agents get email step; private persons go straight to photos
-        if context.user_data["add_listing"].get("seller_type") == "agent":
-            context.user_data["add_state"] = ADD_EMAIL
-            lang = get_lang(context)
-            # Check if email already saved for this agent
-            user_id = update.effective_user.id
-            existing_email = db.get_agent_email(user_id)
-            if existing_email:
-                hint = _L({"ru": f"(сохранён: {existing_email})", "en": f"(saved: {existing_email})", "he": f"(שמור: {existing_email})"}, lang)
-            else:
-                hint = ""
-            skip_btn = InlineKeyboardMarkup([[
-                InlineKeyboardButton(
-                    _L({"ru": "⏭ Пропустить", "en": "⏭ Skip", "he": "⏭ דלג", "fr": "⏭ Passer"}, lang),
-                    callback_data="add_email_skip"
-                )
-            ]])
-            text = _step_text(context,
-                f"📧 Email для отчётов {hint}\n\nВведите e-mail адрес — раз в неделю будем присылать отчёт о просмотрах ваших объявлений.\nИли пропустите.",
-                f"📧 Email for reports {hint}\n\nEnter your e-mail — weekly report with views will be sent.\nOr skip.",
-                f"📧 אימייל לדוחות {hint}\n\nהזן כתובת אימייל — נשלח דוח שבועי עם צפיות.\nאו דלג."
-            )
-            await update.message.reply_text(text, reply_markup=skip_btn, parse_mode="HTML")
-            return ADD_EMAIL
-
-        # Private person — straight to photos
-        context.user_data["add_state"] = ADD_PHOTOS
+        # All users must provide email (required, no skip)
+        context.user_data["add_state"] = ADD_EMAIL
+        lang = get_lang(context)
+        user_id = update.effective_user.id
+        existing_email = db.get_agent_email(user_id)
+        if existing_email:
+            hint = _L({"ru": f"(сохранён: {existing_email})", "en": f"(saved: {existing_email})", "he": f"(שמור: {existing_email})"}, lang)
+        else:
+            hint = ""
         text = _step_text(context,
-            "📸 Фотографии\n\nОтправьте фотографии объекта (до 10 штук).\nКогда закончите — нажмите кнопку ниже.",
-            "📸 Photos\n\nSend photos of the property (up to 10).\nWhen done, press the button below.",
-            "📸 תמונות\n\nשלח תמונות של הנכס (עד 10).\nכשתסיים, לחץ על הכפתור למטה."
+            f"📧 E-mail {hint}\n\nВведите ваш e-mail. Без e-mail объявление не будет опубликовано.",
+            f"📧 E-mail {hint}\n\nEnter your e-mail. A valid e-mail is required to publish.",
+            f"📧 אימייל {hint}\n\nהזן את האימייל שלך. אימייל נדרש לפרסום המודעה."
         )
-        await update.message.reply_text(text, reply_markup=_photos_keyboard(context, 0))
-        return ADD_PHOTOS
+        await update.message.reply_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
+        return ADD_EMAIL
 
     async def handle_email(self, update, context):
         email = update.message.text.strip().lower()
@@ -1169,9 +1150,9 @@ class ListingHandler:
         if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
             lang = get_lang(context)
             await update.message.reply_text(
-                _L({"ru": "❌ Неверный формат e-mail. Попробуйте ещё раз или нажмите Пропустить.",
-                 "en": "❌ Invalid e-mail format. Try again or press Skip.",
-                 "he": "❌ כתובת אימייל שגויה. נסה שוב או לחץ דלג.", "fr": "❌ Format d'e-mail invalide. Réessayez ou appuyez sur Passer."}, lang)
+                _L({"ru": "❌ Неверный формат e-mail. Попробуйте ещё раз.",
+                 "en": "❌ Invalid e-mail format. Please try again.",
+                 "he": "❌ כתובת אימייל שגויה. נסה שוב.", "fr": "❌ Format d'e-mail invalide. Réessayez."}, lang)
             )
             return ADD_EMAIL
         user_id = update.effective_user.id
@@ -1258,7 +1239,8 @@ class ListingHandler:
 {'Лифт' if lang=='ru' else 'Elevator' if lang=='en' else 'מעלית'}: {'✅' if d.get('elevator')=='yes' else '❌'}
 {'Фото' if lang=='ru' else 'Photos' if lang=='en' else 'תמונות'}: {photo_info}
 {'Имя' if lang=='ru' else 'Name' if lang=='en' else 'שם'}: {owner_name}
-{'Телефон' if lang=='ru' else 'Phone' if lang=='en' else 'טלפון'}: {owner_phone}
+{'Телефон' if lang=='ru' else 'Phone' if lang=='en' else 'טלפון'}: {'скрыт' if lang=='ru' else 'hidden' if lang=='en' else 'מוסתר'} 🔒
+{'Email' if True else ''}: {d.get('agent_email', '—')}
 {'Контакт' if lang=='ru' else 'Contact' if lang=='en' else 'קשר'}: {contact}"""
 
         await query.message.reply_text(summary, reply_markup=_confirm_keyboard(context), parse_mode="HTML")
@@ -1274,7 +1256,37 @@ class ListingHandler:
             return ConversationHandler.END
 
         d = context.user_data["add_listing"]
-        d["user_id"] = update.effective_user.id
+        lang = get_lang(context)
+        user_id = update.effective_user.id
+
+        # ── Required fields validation ────────────────────────────────────────
+        required = ["deal_type", "property_type", "city", "rooms", "floor",
+                    "area_sqm", "price", "owner_name", "owner_phone", "contact", "agent_email"]
+        missing = [f for f in required if not d.get(f)]
+        if missing:
+            field_names = {
+                "deal_type": {"ru": "тип сделки", "en": "deal type", "he": "סוג עסקה"},
+                "property_type": {"ru": "тип недвижимости", "en": "property type", "he": "סוג נכס"},
+                "city": {"ru": "город", "en": "city", "he": "עיר"},
+                "rooms": {"ru": "кол-во комнат", "en": "rooms", "he": "חדרים"},
+                "floor": {"ru": "этаж", "en": "floor", "he": "קומה"},
+                "area_sqm": {"ru": "площадь", "en": "area", "he": "שטח"},
+                "price": {"ru": "цена", "en": "price", "he": "מחיר"},
+                "owner_name": {"ru": "имя", "en": "name", "he": "שם"},
+                "owner_phone": {"ru": "телефон", "en": "phone", "he": "טלפון"},
+                "contact": {"ru": "контакт", "en": "contact", "he": "קשר"},
+                "agent_email": {"ru": "e-mail", "en": "e-mail", "he": "אימייל"},
+            }
+            missing_str = ", ".join(field_names.get(f, {}).get(lang, f) for f in missing)
+            msg = _L({
+                "ru": f"⚠️ Не заполнены обязательные поля: {missing_str}.\n\nВернитесь и заполните их.",
+                "en": f"⚠️ Required fields missing: {missing_str}.\n\nPlease go back and fill them in.",
+                "he": f"⚠️ שדות חובה חסרים: {missing_str}.\n\nחזור ומלא אותם.",
+            }, lang)
+            await query.edit_message_text(msg, reply_markup=_confirm_keyboard(context))
+            return ADD_CONFIRM
+
+        d["user_id"] = user_id
         d["source"] = "user"
         d["title"] = f"{'Аренда' if d.get('deal_type')=='rent' else 'Продажа'}: {d.get('rooms','')} комн., {d.get('city','')}"
         if not d.get("photos"):
@@ -1282,9 +1294,19 @@ class ListingHandler:
         d["neighborhood"] = d.get("neighborhood", "")
 
         # ── Agent paywall check ────────────────────────────────────────────────
-        lang = get_lang(context)
         seller_type = d.get("seller_type", "private")
-        user_id = update.effective_user.id
+
+        # ── Private listing monthly limit ─────────────────────────────────────
+        if seller_type == "private":
+            count_this_month = db.count_user_private_listings_this_month(user_id)
+            if count_this_month >= 1:
+                msg = _L({
+                    "ru": "⚠️ Частные лица могут публиковать <b>1 объявление в месяц</b>.\n\nВаш лимит на этот месяц исчерпан. Удалите старое объявление или подождите следующего месяца.",
+                    "en": "⚠️ Private users may publish <b>1 listing per month</b>.\n\nYour monthly limit is reached. Delete your existing listing or wait for next month.",
+                    "he": "⚠️ משתמשים פרטיים יכולים לפרסם <b>מודעה אחת בחודש</b>.\n\nהגעת למגבלה החודשית. מחק את המודעה הקיימת או המתן לחודש הבא.",
+                }, lang)
+                await query.edit_message_text(msg, parse_mode="HTML")
+                return ConversationHandler.END
 
         if seller_type == "agent":
             # Free first listing — always granted once per account

@@ -221,6 +221,20 @@ def get_user_listings(user_id: int) -> List[Dict]:
     ids = data["user_listings"].get(str(user_id), [])
     return [data["listings"][str(i)] for i in ids if str(i) in data["listings"]]
 
+
+def count_user_private_listings_this_month(user_id: int) -> int:
+    """Count active private listings published by user in the last 30 days."""
+    data = _load()
+    ids = data["user_listings"].get(str(user_id), [])
+    cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    count = 0
+    for i in ids:
+        l = data["listings"].get(str(i))
+        if l and l.get("seller_type") == "private" and l.get("active", True):
+            if l.get("date_added", "") >= cutoff:
+                count += 1
+    return count
+
 def toggle_favorite(user_id: int, listing_id: int) -> bool:
     with _DB_LOCK:
         data = _load()

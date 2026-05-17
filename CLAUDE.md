@@ -92,7 +92,7 @@ All UI strings go through `i18n.py`. Use the `t(key, lang)` helper. Supported la
 
 ## Subscription System (`subscription.py`)
 
-- Trial period: free until **April 15, 2026**
+- Trial period: free until **April 15, 2026** (extended)
 - Paid plans: 19.90₪ / week, 29.90₪ / 2 weeks, 39.90₪ / month
 - Subscriptions are in-memory only (not persisted across restarts)
 
