@@ -646,11 +646,24 @@ def get_analytics(date_from: str = None, date_to: str = None):
     }
 
     # ── Seller type split (agent vs private) ──────────────────────────────
-    # Only user-submitted listings (not parser/Facebook/Telegram)
-    user_submitted   = [l for l in listings_all if l.get("source") == "user"]
-    agent_listings   = [l for l in user_submitted if l.get("seller_type") == "agent"]
-    # Listings without seller_type (added before the field existed) → treated as private
-    private_listings = [l for l in user_submitted if l.get("seller_type", "private") != "agent"]
+    # Reliable set of user-submitted listing IDs (from user_listings registry)
+    _user_listing_ids = set(
+        str(lid)
+        for lids in db_data.get("user_listings", {}).values()
+        for lid in lids
+    )
+    # Include listings that are in user_listings registry OR explicitly source=="user"
+    user_submitted = [
+        l for l in listings_all
+        if str(l.get("id", "")) in _user_listing_ids or l.get("source") == "user"
+    ]
+    # Agent = seller_type=="agent" OR user_id is in agent_profiles registry
+    _agent_user_ids = set(str(k) for k in agent_profiles.keys())
+    agent_listings   = [
+        l for l in user_submitted
+        if l.get("seller_type") == "agent" or str(l.get("user_id", "")) in _agent_user_ids
+    ]
+    private_listings = [l for l in user_submitted if l not in agent_listings]
 
     def _avg_price(lst):
         prices = [l.get("price", 0) for l in lst if (l.get("price") or 0) > 0]
