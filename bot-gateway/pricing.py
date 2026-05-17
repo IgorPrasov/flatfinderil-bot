@@ -4,12 +4,12 @@ Pricing constants and helpers for FlatFinderIL.
 Agents / Realtors
 -----------------
   • 1st listing: FREE (one-time per account)
-  • Packages (purchased listing slots):
-      1  listing  →   70 ₪
-      5  listings →  300 ₪  (60 ₪/ea)
-     10  listings →  550 ₪  (55 ₪/ea)
-     20  listings → 1200 ₪  (60 ₪/ea)
-      ♾  unlimited → 3000 ₪
+  • Packages are valid for 1 month (30 days) from purchase date:
+      1  listing  →   70 ₪/мес
+      5  listings →  300 ₪/мес  (60 ₪/ea)
+     10  listings →  550 ₪/мес  (55 ₪/ea)
+     20  listings → 1200 ₪/мес  (60 ₪/ea)
+      ♾  unlimited → 3000 ₪/мес
 
 Movers / הובלות
 ---------------
@@ -29,43 +29,49 @@ from typing import Optional
 
 # ── Agent packages ────────────────────────────────────────────────────────────
 
-AGENT_FREE_COUNT = 1          # first listing is free, once per account
+AGENT_FREE_COUNT   = 1   # first listing is free, once per account
+AGENT_PACKAGE_DAYS = 30  # all packages valid for 30 days from purchase
 
 AGENT_PACKAGES = [
     {
-        "key":       "agent_1",
-        "count":     1,
-        "price_ils": 70,
+        "key":          "agent_1",
+        "count":        1,
+        "price_ils":    70,
+        "duration_days": AGENT_PACKAGE_DAYS,
         "label": {"ru": "1 объявление",   "en": "1 listing",   "he": "מודעה אחת"},
-        "note":  {"ru": "",                "en": "",             "he": ""},
+        "note":  {"ru": "на 1 месяц",     "en": "for 1 month", "he": "לחודש אחד"},
     },
     {
-        "key":       "agent_5",
-        "count":     5,
-        "price_ils": 300,
+        "key":          "agent_5",
+        "count":        5,
+        "price_ils":    300,
+        "duration_days": AGENT_PACKAGE_DAYS,
         "label": {"ru": "5 объявлений",   "en": "5 listings",  "he": "5 מודעות"},
-        "note":  {"ru": "60 ₪/шт",        "en": "60 ₪/ea",     "he": "60 ₪ ליחידה"},
+        "note":  {"ru": "60 ₪/шт · 1 мес", "en": "60 ₪/ea · 1 mo", "he": "60 ₪ ליחידה · חודש"},
     },
     {
-        "key":       "agent_10",
-        "count":     10,
-        "price_ils": 550,
+        "key":          "agent_10",
+        "count":        10,
+        "price_ils":    550,
+        "duration_days": AGENT_PACKAGE_DAYS,
         "label": {"ru": "10 объявлений",  "en": "10 listings", "he": "10 מודעות"},
-        "note":  {"ru": "55 ₪/шт",        "en": "55 ₪/ea",     "he": "55 ₪ ליחידה"},
+        "note":  {"ru": "55 ₪/шт · 1 мес", "en": "55 ₪/ea · 1 mo", "he": "55 ₪ ליחידה · חודש"},
     },
     {
-        "key":       "agent_20",
-        "count":     20,
-        "price_ils": 1200,
+        "key":          "agent_20",
+        "count":        20,
+        "price_ils":    1200,
+        "duration_days": AGENT_PACKAGE_DAYS,
         "label": {"ru": "20 объявлений",  "en": "20 listings", "he": "20 מודעות"},
-        "note":  {"ru": "60 ₪/шт",        "en": "60 ₪/ea",     "he": "60 ₪ ליחידה"},
+        "note":  {"ru": "60 ₪/шт · 1 мес", "en": "60 ₪/ea · 1 mo", "he": "60 ₪ ליחידה · חודש"},
     },
     {
-        "key":       "agent_unlimited",
-        "count":     999999,
-        "price_ils": 3000,
+        "key":          "agent_unlimited",
+        "count":        999999,
+        "price_ils":    3000,
+        "duration_days": AGENT_PACKAGE_DAYS,
         "label": {"ru": "♾ Безлимит",     "en": "♾ Unlimited", "he": "♾ ללא הגבלה"},
-        "note":  {"ru": "неограниченно",   "en": "unlimited",   "he": "ללא הגבלה"},
+        "note":  {"ru": "неограниченно · 1 мес", "en": "unlimited · 1 mo", "he": "ללא הגבלה · חודש"},
     },
 ]
 
@@ -131,15 +137,15 @@ def format_agent_pricing(lang: str = "ru") -> str:
     """Return a human-readable pricing block for the agent paywall message."""
     lines = {
         "ru": [
-            "💳 <b>Пакеты объявлений:</b>",
+            "💳 <b>Пакеты объявлений на 1 месяц:</b>",
             "",
         ],
         "en": [
-            "💳 <b>Listing packages:</b>",
+            "💳 <b>Listing packages · 1 month:</b>",
             "",
         ],
         "he": [
-            "💳 <b>חבילות מודעות:</b>",
+            "💳 <b>חבילות מודעות לחודש אחד:</b>",
             "",
         ],
     }.get(lang, ["💳 <b>Packages:</b>", ""])
@@ -148,7 +154,9 @@ def format_agent_pricing(lang: str = "ru") -> str:
         label = pkg["label"].get(lang, pkg["label"]["ru"])
         note  = pkg["note"].get(lang, "")
         note_str = f" ({note})" if note else ""
-        lines.append(f"  · {label} — <b>{pkg['price_ils']} ₪</b>{note_str}")
+        lines.append(f"  · {label} — <b>{pkg['price_ils']} ₪/мес</b>{note_str}" if lang == "ru"
+                     else f"  · {label} — <b>{pkg['price_ils']} ₪/mo</b>{note_str}" if lang == "en"
+                     else f"  · {label} — <b>{pkg['price_ils']} ₪/חודש</b>{note_str}")
 
     return "\n".join(lines)
 

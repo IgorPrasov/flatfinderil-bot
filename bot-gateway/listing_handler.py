@@ -284,19 +284,19 @@ async def _show_agent_paywall(update, context, lang: str):
         "ru": (
             f"🔒 <b>Лимит бесплатных объявлений исчерпан</b>\n\n"
             f"Первое объявление — бесплатно ✅\n"
-            f"Для публикации следующих выберите пакет:\n\n"
+            f"Выберите пакет на <b>1 месяц</b>:\n\n"
             f"{pricing_text}"
         ),
         "en": (
             f"🔒 <b>Free listing limit reached</b>\n\n"
             f"First listing — free ✅\n"
-            f"Choose a package to publish more:\n\n"
+            f"Choose a <b>monthly</b> package:\n\n"
             f"{pricing_text}"
         ),
         "he": (
             f"🔒 <b>מכסת המודעות החינמיות הגיעה לסיומה</b>\n\n"
             f"מודעה ראשונה — חינם ✅\n"
-            f"בחר חבילה לפרסום נוסף:\n\n"
+            f"בחר חבילה ל<b>חודש אחד</b>:\n\n"
             f"{pricing_text}"
         ),
     }

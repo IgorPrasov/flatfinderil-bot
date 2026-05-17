@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import json
 import os
@@ -472,35 +472,67 @@ def mark_trial_warning_sent(user_id: int, threshold: int):
 
 # ── Listing credits (agent paid slots) ───────────────────────────────────────
 
+UNLIMITED_CREDITS = 999999  # sentinel value for unlimited package
+
+# ── Credits stored as {"count": N, "expiry": "YYYY-MM-DD"} ──────────────────
+
+def _credits_record(user_id: int, data: dict) -> dict:
+    """Return the credits record for user; normalises legacy int format."""
+    uid = str(user_id)
+    raw = data.get("listing_credits", {}).get(uid, 0)
+    if isinstance(raw, dict):
+        return raw
+    # Legacy: plain integer — treat as no-expiry (migrate on next write)
+    return {"count": int(raw), "expiry": None}
+
+
 def get_listing_credits(user_id: int) -> int:
-    """Return number of purchased listing slots available for user."""
+    """Return available listing slots. Returns 0 if expired or none."""
     data = _load()
-    return int(data.get("listing_credits", {}).get(str(user_id), 0))
+    rec = _credits_record(user_id, data)
+    count = rec.get("count", 0)
+    if count <= 0:
+        return 0
+    expiry = rec.get("expiry")
+    if expiry and expiry < datetime.now().strftime("%Y-%m-%d"):
+        return 0   # package expired
+    return count
 
 
-def add_listing_credits(user_id: int, count: int):
-    """Add purchased listing slots for user."""
+def add_listing_credits(user_id: int, count: int, duration_days: int = 30):
+    """Add purchased listing slots with expiry date (default 30 days)."""
     with _DB_LOCK:
         data = _load()
         uid = str(user_id)
         data.setdefault("listing_credits", {})
-        data["listing_credits"][uid] = data["listing_credits"].get(uid, 0) + count
+        existing = _credits_record(user_id, data)
+        existing_count = existing.get("count", 0) if existing.get("expiry", "") >= datetime.now().strftime("%Y-%m-%d") else 0
+        expiry = (datetime.now() + timedelta(days=duration_days)).strftime("%Y-%m-%d")
+        data["listing_credits"][uid] = {
+            "count":  existing_count + count,
+            "expiry": expiry,
+        }
         _save(data)
 
 
-UNLIMITED_CREDITS = 999999  # sentinel value for unlimited package
-
 def use_listing_credit(user_id: int) -> bool:
-    """Consume one listing slot. Returns True if slot was available, False if none.
-    Unlimited plan (credits >= UNLIMITED_CREDITS) is never decremented."""
+    """Consume one listing slot. Returns True if slot was available, False if none/expired.
+    Unlimited plan (count >= UNLIMITED_CREDITS) is never decremented."""
     with _DB_LOCK:
         data = _load()
         uid = str(user_id)
-        credits = data.get("listing_credits", {}).get(uid, 0)
-        if credits <= 0:
+        rec = _credits_record(user_id, data)
+        count = rec.get("count", 0)
+        expiry = rec.get("expiry")
+        if count <= 0:
             return False
-        if credits < UNLIMITED_CREDITS:
-            data["listing_credits"][uid] = credits - 1
+        if expiry and expiry < datetime.now().strftime("%Y-%m-%d"):
+            return False  # expired
+        if count < UNLIMITED_CREDITS:
+            data.setdefault("listing_credits", {})[uid] = {
+                "count": count - 1,
+                "expiry": expiry,
+            }
             _save(data)
         return True
 

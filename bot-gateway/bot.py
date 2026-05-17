@@ -1559,7 +1559,8 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     pkg = get_agent_package(pkg_key)
                     if pkg:
                         import database as _db
-                        _db.add_listing_credits(user_id, pkg["count"])
+                        _db.add_listing_credits(user_id, pkg["count"],
+                                                duration_days=pkg.get("duration_days", 30))
                         logger.info(
                             f"[PAYPLUS] Agent credits +{pkg['count']} user={user_id} pkg={pkg_key}"
                         )
