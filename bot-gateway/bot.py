@@ -269,6 +269,19 @@ def main():
     app.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, handle_successful_payment), group=-1)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_text))
 
+    # Global error handler — always answer pending callback queries so Telegram
+    # doesn't show "button is outdated" when an exception occurs in a handler.
+    async def _global_error_handler(update: object, context) -> None:
+        logger.error("Unhandled exception in handler:", exc_info=context.error)
+        try:
+            from telegram import Update as _Update
+            if isinstance(update, _Update) and update.callback_query:
+                await update.callback_query.answer()
+        except Exception:
+            pass
+
+    app.add_error_handler(_global_error_handler)
+
     # Start background notification tasks
     from notifications import start_background_tasks
     start_background_tasks(app)

@@ -1506,59 +1506,35 @@ async def handle_stars_invoice(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     if plan_key not in PLANS:
+        await query.answer()
         return
 
-    await query.answer()
+    # Redirect old sub_* buttons to PayPal (same as card_plan_*)
+    await query.answer("Создаём ссылку для оплаты...", show_alert=False)
     lang = get_lang(context)
-    plan = PLANS[plan_key]
-    plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
-    price_agorot = int(plan["price"] * 100)  # ILS → agorot
-    chat_id = update.effective_chat.id
     user_id = update.effective_user.id
-    payload = f"{plan_key}:{user_id}"
-    desc = {
-        "ru": f"Доступ к FlatFinderIL на {plan['days']} дней",
-        "en": f"FlatFinderIL access for {plan['days']} days",
-        "he": f"גישה ל-FlatFinderIL למשך {plan['days']} ימים",
-    }.get(lang, f"FlatFinderIL — {plan['days']} days")
-
-    if not PAYMENT_PROVIDER_TOKEN:
-        # No provider yet — activate free (trial/dev mode)
-        expiry = activate_subscription(user_id, plan_key)
+    result = morning_payment.create_payment_link(plan_key, user_id, lang)
+    if result and result.get("url"):
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        plan = PLANS.get(plan_key, {})
+        plan_name = plan.get(f"name_{lang}") or plan.get("name_ru", plan_key)
+        pay_url = result["url"]
+        msgs = {
+            "ru": f"💳 <b>Оплата — {plan_name}</b>\n\nНажмите кнопку ниже — откроется страница PayPal.\n\n✅ После оплаты подписка активируется автоматически.",
+            "en": f"💳 <b>Payment — {plan_name}</b>\n\nClick below to open the PayPal payment page.\n\n✅ Your subscription will activate automatically after payment.",
+            "he": f"💳 <b>תשלום — {plan_name}</b>\n\nלחצו על הכפתור למטה לדף תשלום של PayPal.\n\n✅ המנוי יופעל אוטומטית לאחר התשלום.",
+        }
         await query.edit_message_text(
-            t("sub_activated", context, plan=plan_name, expiry=expiry.strftime("%d.%m.%Y")),
-            reply_markup=back_to_menu_keyboard(context),
+            msgs.get(lang, msgs["ru"]),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton({"ru": f"💳 Оплатить — {plan_name}", "en": f"💳 Pay — {plan_name}", "he": f"💳 לתשלום — {plan_name}"}.get(lang, f"💳 Pay — {plan_name}"), url=pay_url)],
+                [InlineKeyboardButton({"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀ Back"), callback_data="subscription")],
+            ]),
             parse_mode="HTML",
         )
-        return
-
-    logger.info(f"[PAYMENT] Card invoice plan={plan_key} price={plan['price']}₪ chat={chat_id}")
-    try:
-        import requests as _req
-        from config import BOT_TOKEN
-        resp = _req.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendInvoice",
-            json={
-                "chat_id": chat_id,
-                "title": f"FlatFinderIL — {plan_name}",
-                "description": desc,
-                "payload": payload,
-                "provider_token": PAYMENT_PROVIDER_TOKEN,
-                "currency": "ILS",
-                "prices": [{"label": plan_name, "amount": price_agorot}],
-                "need_name": False,
-                "need_phone_number": False,
-                "need_email": False,
-            },
-            timeout=10,
-        )
-        result = resp.json()
-        logger.info(f"[PAYMENT] API response: {result}")
-        if not result.get("ok"):
-            raise RuntimeError(result.get("description", "Telegram API error"))
-    except Exception as e:
-        logger.error(f"[PAYMENT] Invoice failed: {e}")
-        await query.message.reply_text(
-            f"⚠️ Ошибка оплаты: <code>{e}</code>\n\nСообщите в поддержку.",
+    else:
+        await query.edit_message_text(
+            {"ru": "⚠️ Не удалось создать ссылку для оплаты. Попробуйте позже.", "en": "⚠️ Failed to create payment link. Try again later.", "he": "⚠️ לא ניתן ליצור קישור לתשלום. נסה שוב מאוחר יותר."}.get(lang, "⚠️ Payment error."),
+            reply_markup=subscription_keyboard(context),
             parse_mode="HTML",
         )
