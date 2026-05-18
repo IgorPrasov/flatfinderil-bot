@@ -442,20 +442,167 @@ canvas{max-width:100%}
 
   <!-- CRM -->
   <div class="tab" id="tab-crm">
+    <!-- KPI row -->
     <div class="kpi-row" id="kpi-crm"></div>
-    <div class="grid11">
-      <div class="card">
-        <div class="card-title">Контакты по типам</div>
-        <div class="card-body"><canvas id="chart-crm-types" height="180"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Сделки по статусам</div>
-        <div class="card-body"><canvas id="chart-crm-deals" height="180"></canvas></div>
+
+    <!-- Sub-tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+      <button id="crm-tab-contacts" onclick="crmShowTab('contacts')" style="padding:6px 18px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:13px;background:#2563eb;color:#fff">👤 Контакты</button>
+      <button id="crm-tab-deals"    onclick="crmShowTab('deals')"    style="padding:6px 18px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:13px;background:#1e293b;color:#94a3b8">💼 Сделки</button>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <select id="crm-filter-type" onchange="crmLoadContacts()" style="padding:5px 10px;border-radius:7px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:12px">
+          <option value="">Все типы</option>
+          <option value="agent">🏘 Агент</option>
+          <option value="mover">🚚 Перевозчик</option>
+          <option value="packer">📦 Упаковщик</option>
+          <option value="cleaner">🧹 Клининг</option>
+        </select>
+        <select id="crm-filter-status" onchange="crmLoadDeals()" style="padding:5px 10px;border-radius:7px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:12px;display:none">
+          <option value="">Все статусы</option>
+          <option value="new">🆕 Новая</option>
+          <option value="in_progress">⏳ В работе</option>
+          <option value="done">✅ Завершена</option>
+          <option value="cancelled">❌ Отменена</option>
+        </select>
+        <button onclick="crmOpenAddContact()" id="crm-btn-add-contact" style="padding:6px 14px;border-radius:7px;border:none;cursor:pointer;background:#10b981;color:#fff;font-size:12px;font-weight:600">+ Контакт</button>
+        <button onclick="crmOpenAddDeal()" id="crm-btn-add-deal" style="padding:6px 14px;border-radius:7px;border:none;cursor:pointer;background:#8b5cf6;color:#fff;font-size:12px;font-weight:600;display:none">+ Сделка</button>
       </div>
     </div>
-    <div class="card">
-      <div class="card-title">Последние сделки</div>
-      <div class="card-body" id="crm-recent-deals"></div>
+
+    <!-- Contacts table -->
+    <div id="crm-pane-contacts">
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:#0f172a">
+              <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Имя</th>
+              <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Тип</th>
+              <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Телефон</th>
+              <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Telegram</th>
+              <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Город</th>
+              <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Заметка</th>
+              <th style="padding:10px 12px;text-align:center;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="crm-contacts-body">
+            <tr><td colspan="7" style="padding:32px;text-align:center;color:#64748b">Загрузка…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Deals table -->
+    <div id="crm-pane-deals" style="display:none">
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:#0f172a">
+              <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Контакт</th>
+              <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Описание</th>
+              <th style="padding:10px 12px;text-align:right;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Сумма</th>
+              <th style="padding:10px 12px;text-align:center;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Статус</th>
+              <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Дата</th>
+              <th style="padding:10px 12px;text-align:center;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase">Изменить</th>
+            </tr>
+          </thead>
+          <tbody id="crm-deals-body">
+            <tr><td colspan="6" style="padding:32px;text-align:center;color:#64748b">Загрузка…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Notes panel (slides in) -->
+    <div id="crm-notes-panel" style="display:none;margin-top:16px;background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-weight:700;color:#f1f5f9" id="crm-notes-title">Заметки</div>
+        <button onclick="document.getElementById('crm-notes-panel').style.display='none'" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <div id="crm-notes-list" style="margin-bottom:12px;max-height:200px;overflow-y:auto"></div>
+      <div style="display:flex;gap:8px">
+        <input id="crm-note-input" type="text" placeholder="Написать заметку…" style="flex:1;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px">
+        <button onclick="crmAddNote()" style="padding:8px 16px;border-radius:7px;border:none;cursor:pointer;background:#2563eb;color:#fff;font-size:13px;font-weight:600">Добавить</button>
+      </div>
+    </div>
+
+    <!-- Add Contact Modal -->
+    <div id="crm-modal-contact" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:none;align-items:center;justify-content:center">
+      <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:28px;width:100%;max-width:460px;margin:20px">
+        <div style="font-weight:700;font-size:17px;color:#f1f5f9;margin-bottom:20px">➕ Добавить контакт</div>
+        <div style="display:grid;gap:12px">
+          <div>
+            <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Тип *</label>
+            <select id="cm-type" style="width:100%;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px">
+              <option value="agent">🏘 Агент</option>
+              <option value="mover">🚚 Перевозчик</option>
+              <option value="packer">📦 Упаковщик</option>
+              <option value="cleaner">🧹 Клининг</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Имя *</label>
+            <input id="cm-name" type="text" placeholder="Иван Иванов" style="width:100%;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Телефон</label>
+              <input id="cm-phone" type="text" placeholder="+972 5x-xxx-xxxx" style="width:100%;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+            </div>
+            <div>
+              <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Telegram</label>
+              <input id="cm-telegram" type="text" placeholder="@username" style="width:100%;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+            </div>
+          </div>
+          <div>
+            <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Город</label>
+            <input id="cm-city" type="text" placeholder="Тель-Авив" style="width:100%;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Заметка</label>
+            <input id="cm-notes" type="text" placeholder="Первый контакт, заинтересован в…" style="width:100%;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button onclick="crmSaveContact()" style="flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;background:#10b981;color:#fff;font-weight:700;font-size:14px">Сохранить</button>
+          <button onclick="crmCloseModal('crm-modal-contact')" style="padding:10px 20px;border-radius:8px;border:1px solid #334155;cursor:pointer;background:none;color:#94a3b8;font-size:14px">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Deal Modal -->
+    <div id="crm-modal-deal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center">
+      <div style="background:#1e293b;border:1px solid #334155;border-radius:14px;padding:28px;width:100%;max-width:420px;margin:20px">
+        <div style="font-weight:700;font-size:17px;color:#f1f5f9;margin-bottom:20px">💼 Новая сделка</div>
+        <div style="display:grid;gap:12px">
+          <div>
+            <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Контакт *</label>
+            <select id="dm-contact" style="width:100%;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px"></select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Описание</label>
+            <input id="dm-desc" type="text" placeholder="Аренда 3к квартиры в ТА" style="width:100%;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Сумма (₪)</label>
+              <input id="dm-amount" type="number" placeholder="0" style="width:100%;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;box-sizing:border-box">
+            </div>
+            <div>
+              <label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Статус</label>
+              <select id="dm-status" style="width:100%;padding:8px 12px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px">
+                <option value="new">🆕 Новая</option>
+                <option value="in_progress">⏳ В работе</option>
+                <option value="done">✅ Завершена</option>
+                <option value="cancelled">❌ Отменена</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button onclick="crmSaveDeal()" style="flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;background:#8b5cf6;color:#fff;font-weight:700;font-size:14px">Создать сделку</button>
+          <button onclick="crmCloseModal('crm-modal-deal')" style="padding:10px 20px;border-radius:8px;border:1px solid #334155;cursor:pointer;background:none;color:#94a3b8;font-size:14px">Отмена</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -566,6 +713,12 @@ canvas{max-width:100%}
           <tbody id="tbl-mover-subs"></tbody>
         </table>
         <div id="no-mover-subs" style="display:none;color:#94a3b8;font-size:13px;padding:10px 0">Нет активных подписок перевозчиков</div>
+      </div>
+
+      <!-- Lead Marketplace Stats -->
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-top:16px">
+        <div style="font-weight:600;color:#1e293b;margin-bottom:12px">📋 Маркетплейс лидов (клининг & упаковка)</div>
+        <div id="lead-marketplace-stats"><span style="color:#94a3b8;font-size:13px">Нет данных</span></div>
       </div>
     </div>
   </div>
@@ -1364,61 +1517,17 @@ function _renderInner(){
       </tr>`).join("")
     : '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Нет перевозчиков/упаковщиков с email</td></tr>';
 
-  // ── CRM tab ────────────────────────────────────────────────────────────
+  // ── CRM tab KPI (from analytics) ───────────────────────────────────────
   const CR = D.crm || {};
-  const crmTypes = CR.by_type || [];
+  const crmTypes    = CR.by_type || [];
   const crmStatuses = CR.deals_by_status || [];
-  const activeDeals = (crmStatuses.find(x=>x.status.includes("работе"))?.count||0) + (crmStatuses.find(x=>x.status.includes("Новая"))?.count||0);
-  const doneDeals = crmStatuses.find(x=>x.status.includes("Завершена"))?.count||0;
-
+  const activeDeals = (crmStatuses.find(x=>x.status.includes("работе"))?.count||0)+(crmStatuses.find(x=>x.status.includes("Новая"))?.count||0);
+  const doneDeals   = crmStatuses.find(x=>x.status.includes("Завершена"))?.count||0;
   document.getElementById("kpi-crm").innerHTML =
-    kpi("👤","Контактов",n(CR.total_contacts||0),"активных в CRM",TG)+
-    kpi("🏘","Агентов",n(crmTypes.find(x=>x.type.includes("Агент"))?.count||0),"",GREEN)+
-    kpi("🚚","Перевозчиков",n(crmTypes.find(x=>x.type.includes("Перевоз"))?.count||0),"",GOLD)+
-    kpi("🧹","Клининг/Упаковка",n((crmTypes.find(x=>x.type.includes("Клинин"))?.count||0)+(crmTypes.find(x=>x.type.includes("Упаков"))?.count||0)),"",PURPLE)+
-    kpi("💼","Сделок всего",n(CR.total_deals||0),`${activeDeals} активных`,TG)+
-    kpi("✅","Завершено сделок",n(doneDeals),"",GREEN)+
-    kpi("📝","Заметок",n(CR.total_notes||0),"",GOLD);
-
-  if(crmTypes.some(x=>x.count>0)){
-    makeChart("chart-crm-types","doughnut",crmTypes.map(x=>x.type),[
-      {data:crmTypes.map(x=>x.count),backgroundColor:[TG,GREEN,GOLD,PURPLE],borderWidth:0}
-    ],{cutout:"50%",legend:true});
-  } else {
-    const el=document.getElementById("chart-crm-types");
-    if(el)el.closest(".card-body").innerHTML=`<div style="text-align:center;padding:40px;color:#999;font-size:12px">Контакты появятся здесь после первых записей</div>`;
-  }
-
-  if(crmStatuses.some(x=>x.count>0)){
-    makeChart("chart-crm-deals","bar",crmStatuses.map(x=>x.status),[
-      {data:crmStatuses.map(x=>x.count),backgroundColor:[TG,GOLD,GREEN,RED],borderRadius:6}
-    ],{});
-  } else {
-    const el=document.getElementById("chart-crm-deals");
-    if(el)el.closest(".card-body").innerHTML=`<div style="text-align:center;padding:40px;color:#999;font-size:12px">Сделки появятся здесь</div>`;
-  }
-
-  const recentDeals = CR.recent_deals || [];
-  const CTYPE_ICONS = {"agent":"🏘","mover":"🚚","packer":"📦","cleaner":"🧹"};
-  const STATUS_COLORS = {"new":TG,"in_progress":GOLD,"done":GREEN,"cancelled":RED};
-  document.getElementById("crm-recent-deals").innerHTML = recentDeals.length
-    ? `<table style="width:100%;border-collapse:collapse;font-size:12px">
-        <tr style="color:#999;font-size:10px;border-bottom:1px solid #f0f0ea">
-          <th style="text-align:left;padding:6px 4px">Контакт</th>
-          <th style="text-align:left;padding:6px 4px">Описание</th>
-          <th style="text-align:right;padding:6px 4px">Сумма</th>
-          <th style="text-align:center;padding:6px 4px">Статус</th>
-          <th style="text-align:right;padding:6px 4px">Дата</th>
-        </tr>`+
-      recentDeals.map(d=>`
-        <tr style="border-bottom:1px solid #f8f8f4">
-          <td style="padding:8px 4px">${CTYPE_ICONS[d.contact_type]||"👤"} ${d.contact_name}</td>
-          <td style="padding:8px 4px;color:#666">${d.description||"—"}</td>
-          <td style="padding:8px 4px;text-align:right;font-weight:500">${d.amount?n(d.amount)+' ₪':'—'}</td>
-          <td style="padding:8px 4px;text-align:center"><span style="font-size:10px;padding:2px 7px;border-radius:10px;background:${STATUS_COLORS[d.status]||TG}22;color:${STATUS_COLORS[d.status]||TG}">${d.status==='new'?'Новая':d.status==='in_progress'?'В работе':d.status==='done'?'Завершена':'Отменена'}</span></td>
-          <td style="padding:8px 4px;text-align:right;color:#999">${d.date}</td>
-        </tr>`).join("")+`</table>`
-    : `<div style="text-align:center;padding:32px;color:#999;font-size:12px">Сделки появятся здесь после первых записей в CRM</div>`;
+    kpi("👤","Контактов",    n(CR.total_contacts||0), "активных в CRM", TG)+
+    kpi("💼","Сделок",       n(CR.total_deals||0),    activeDeals+" активных", GOLD)+
+    kpi("✅","Завершено",    n(doneDeals),             "", GREEN)+
+    kpi("📝","Заметок",      n(CR.total_notes||0),    "", PURPLE);
 
   // ── Parsers tab ─────────────────────────────────────────────────────────────
   const fbGroupsAll  = D.listings.fb_sources || [];
@@ -1539,12 +1648,12 @@ function _renderInner(){
   // Cleaning
   const cl = PT.cleaning || {};
   const cleanEl = document.getElementById("price-cleaning");
-  if(cleanEl) cleanEl.innerHTML = `Регистрация бесплатно<br>Открыть контакт клиента: <b style="color:#10b981">${cl.price||50} ₪/лид</b><br><span style="color:#94a3b8;font-size:11px">без абонплаты</span>`;
+  if(cleanEl) cleanEl.innerHTML = `Присутствие в базе: <b style="color:#10b981">${cl.subscription_ils||70} ₪/мес</b><br>Открыть контакт клиента: <b style="color:#10b981">${cl.price||50} ₪/лид</b>`;
 
   // Packers
   const pk = PT.packers || {};
   const packEl = document.getElementById("price-packers");
-  if(packEl) packEl.innerHTML = `Регистрация бесплатно<br>Открыть контакт клиента: <b style="color:#8b5cf6">${pk.price||30} ₪/лид</b><br><span style="color:#94a3b8;font-size:11px">без абонплаты</span>`;
+  if(packEl) packEl.innerHTML = `Присутствие в базе: <b style="color:#8b5cf6">${pk.subscription_ils||70} ₪/мес</b><br>Открыть контакт клиента: <b style="color:#8b5cf6">${pk.price||50} ₪/лид</b>`;
 
   // Agent credits table
   const acList = AC.list || [];
@@ -1587,6 +1696,37 @@ function _renderInner(){
         </td>
       </tr>`).join("");
     }
+  }
+  // Lead marketplace stats
+  const LM = PR.lead_marketplace || {};
+  const lmEl = document.getElementById("lead-marketplace-stats");
+  if (lmEl && LM.total_leads !== undefined) {
+    lmEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px">
+        <div style="background:#f0fdf4;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#16a34a">${n(LM.total_leads||0)}</div>
+          <div style="font-size:11px;color:#64748b">Лидов всего</div>
+        </div>
+        <div style="background:#eff6ff;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#2563eb">${n(LM.cleaning_leads||0)}</div>
+          <div style="font-size:11px;color:#64748b">🧹 Клининг</div>
+        </div>
+        <div style="background:#faf5ff;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#7c3aed">${n(LM.packing_leads||0)}</div>
+          <div style="font-size:11px;color:#64748b">📦 Упаковка</div>
+        </div>
+        <div style="background:#fefce8;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#b45309">${n(LM.revenue_total||0)} ₪</div>
+          <div style="font-size:11px;color:#64748b">Выручка с лидов</div>
+        </div>
+        <div style="background:#f1f5f9;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#475569">${n(LM.total_balance_held||0)} ₪</div>
+          <div style="font-size:11px;color:#64748b">Балансы у провайдеров</div>
+        </div>
+      </div>
+      ${(LM.top_cities||[]).length ? `<div style="font-size:12px;color:#64748b;margin-top:8px">
+        Топ города: ${(LM.top_cities||[]).map(c=>`<b>${c.city}</b> (${c.count})`).join(", ")}
+      </div>` : ""}`;
   }
 } // end _renderInner
 
@@ -2064,6 +2204,187 @@ refreshStaticLabels();
 
 loadData();
 setInterval(loadData,30000);
+
+// ══════════════════════════════════════════════════════════════
+// CRM Full Management
+// ══════════════════════════════════════════════════════════════
+let _crmContacts = [];  // cache for deal modal contact select
+let _crmNotesContactId = null;
+
+const CRM_TYPE_ICONS   = {agent:"🏘",mover:"🚚",packer:"📦",cleaner:"🧹"};
+const CRM_TYPE_LABELS  = {agent:"Агент",mover:"Перевозчик",packer:"Упаковщик",cleaner:"Клининг"};
+const CRM_STATUS_MAP   = {new:"🆕 Новая",in_progress:"⏳ В работе",done:"✅ Завершена",cancelled:"❌ Отменена"};
+const CRM_STATUS_COLORS= {new:"#2563eb",in_progress:"#d97706",done:"#16a34a",cancelled:"#dc2626"};
+
+function crmShowTab(tab) {
+  const isContacts = tab === "contacts";
+  document.getElementById("crm-pane-contacts").style.display = isContacts ? "" : "none";
+  document.getElementById("crm-pane-deals").style.display    = isContacts ? "none" : "";
+  document.getElementById("crm-filter-type").style.display   = isContacts ? "" : "none";
+  document.getElementById("crm-filter-status").style.display = isContacts ? "none" : "";
+  document.getElementById("crm-btn-add-contact").style.display = isContacts ? "" : "none";
+  document.getElementById("crm-btn-add-deal").style.display    = isContacts ? "none" : "";
+  document.getElementById("crm-notes-panel").style.display = "none";
+  const btnC = document.getElementById("crm-tab-contacts");
+  const btnD = document.getElementById("crm-tab-deals");
+  btnC.style.background = isContacts ? "#2563eb" : "#1e293b";
+  btnC.style.color      = isContacts ? "#fff"    : "#94a3b8";
+  btnD.style.background = isContacts ? "#1e293b" : "#8b5cf6";
+  btnD.style.color      = isContacts ? "#94a3b8" : "#fff";
+  if (isContacts) crmLoadContacts(); else crmLoadDeals();
+}
+
+async function crmApi(method, path, body) {
+  const opts = { method, headers: {"Content-Type":"application/json"} };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch("/api/crm" + path, opts);
+  return r.json();
+}
+
+async function crmLoadContacts() {
+  const type = document.getElementById("crm-filter-type").value;
+  const url  = type ? `/contacts?type=${type}` : "/contacts";
+  const data = await crmApi("GET", url);
+  _crmContacts = data.items || [];
+  const tbody = document.getElementById("crm-contacts-body");
+  if (!_crmContacts.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;color:#64748b">Контактов нет — нажмите «+ Контакт»</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = _crmContacts.map(c => `
+    <tr style="border-bottom:1px solid #1e293b">
+      <td style="padding:10px 12px;color:#f1f5f9;font-weight:600">${CRM_TYPE_ICONS[c.contact_type]||"👤"} ${c.name||"—"}</td>
+      <td style="padding:10px 12px"><span style="padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:${CRM_STATUS_COLORS[c.contact_type]||"#1e40af"}22;color:${CRM_STATUS_COLORS[c.contact_type]||"#60a5fa"}">${CRM_TYPE_LABELS[c.contact_type]||c.contact_type}</span></td>
+      <td style="padding:10px 12px;color:#94a3b8">${c.phone||"—"}</td>
+      <td style="padding:10px 12px;color:#60a5fa">${c.telegram ? `<a href="https://t.me/${c.telegram.replace('@','')}" target="_blank" style="color:#60a5fa;text-decoration:none">${c.telegram}</a>` : "—"}</td>
+      <td style="padding:10px 12px;color:#94a3b8">${c.city||"—"}</td>
+      <td style="padding:10px 12px;color:#64748b;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.notes||"—"}</td>
+      <td style="padding:10px 12px;text-align:center;white-space:nowrap">
+        <button onclick="crmShowNotes(${c.id},'${(c.name||'').replace(/'/g,"\\'")}' )" title="Заметки" style="border:none;background:#1e3a5f;color:#60a5fa;border-radius:6px;padding:4px 9px;cursor:pointer;font-size:12px;margin-right:4px">📝</button>
+        <button onclick="crmDeleteContact(${c.id})" title="Удалить" style="border:none;background:#3f1a1a;color:#f87171;border-radius:6px;padding:4px 9px;cursor:pointer;font-size:12px">✕</button>
+      </td>
+    </tr>`).join("");
+}
+
+async function crmLoadDeals() {
+  const status = document.getElementById("crm-filter-status").value;
+  const url    = status ? `/deals?status=${status}` : "/deals";
+  const data   = await crmApi("GET", url);
+  const deals  = data.items || [];
+  const tbody  = document.getElementById("crm-deals-body");
+  if (!deals.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:#64748b">Сделок нет — нажмите «+ Сделка»</td></tr>`;
+    return;
+  }
+  // build contact name lookup
+  const cmap = {};
+  _crmContacts.forEach(c => cmap[String(c.id)] = c);
+  tbody.innerHTML = deals.map(d => {
+    const c = cmap[String(d.contact_id)] || {};
+    const sc = CRM_STATUS_COLORS[d.status] || "#64748b";
+    return `<tr style="border-bottom:1px solid #1e293b">
+      <td style="padding:10px 12px;color:#f1f5f9">${CRM_TYPE_ICONS[c.contact_type]||"👤"} ${c.name||d.contact_id||"—"}</td>
+      <td style="padding:10px 12px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.description||"—"}</td>
+      <td style="padding:10px 12px;text-align:right;font-weight:700;color:#fbbf24">${d.amount ? n(d.amount)+" ₪" : "—"}</td>
+      <td style="padding:10px 12px;text-align:center"><span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;background:${sc}22;color:${sc}">${CRM_STATUS_MAP[d.status]||d.status}</span></td>
+      <td style="padding:10px 12px;color:#64748b;font-size:12px">${(d.date||"").slice(0,10)}</td>
+      <td style="padding:10px 12px;text-align:center">
+        <select onchange="crmChangeStatus(${d.id},this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:12px;cursor:pointer">
+          ${Object.entries(CRM_STATUS_MAP).map(([k,v])=>`<option value="${k}"${d.status===k?" selected":""}>${v}</option>`).join("")}
+        </select>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+async function crmShowNotes(contactId, name) {
+  _crmNotesContactId = contactId;
+  document.getElementById("crm-notes-title").textContent = `📝 Заметки — ${name}`;
+  document.getElementById("crm-notes-panel").style.display = "";
+  document.getElementById("crm-note-input").value = "";
+  const data  = await crmApi("GET", `/contacts/${contactId}/notes`);
+  const notes = data.items || [];
+  document.getElementById("crm-notes-list").innerHTML = notes.length
+    ? notes.map(note => `<div style="padding:8px 12px;background:#0f172a;border-radius:8px;margin-bottom:8px;font-size:13px;color:#cbd5e1">${note.text}</div>`).join("")
+    : `<div style="color:#64748b;font-size:13px;padding:8px">Заметок пока нет</div>`;
+}
+
+async function crmAddNote() {
+  const text = document.getElementById("crm-note-input").value.trim();
+  if (!text || !_crmNotesContactId) return;
+  await crmApi("POST", `/contacts/${_crmNotesContactId}/notes`, {text});
+  document.getElementById("crm-note-input").value = "";
+  crmShowNotes(_crmNotesContactId, document.getElementById("crm-notes-title").textContent.replace("📝 Заметки — ",""));
+}
+
+async function crmDeleteContact(id) {
+  if (!confirm("Удалить контакт?")) return;
+  await crmApi("DELETE", `/contacts/${id}`);
+  crmLoadContacts();
+}
+
+async function crmChangeStatus(dealId, status) {
+  await crmApi("PATCH", `/deals/${dealId}`, {status});
+  crmLoadDeals();
+}
+
+function crmOpenAddContact() {
+  ["cm-name","cm-phone","cm-telegram","cm-city","cm-notes"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("cm-type").value = "agent";
+  const m = document.getElementById("crm-modal-contact");
+  m.style.display = "flex";
+}
+
+async function crmSaveContact() {
+  const name = document.getElementById("cm-name").value.trim();
+  if (!name) { alert("Введите имя"); return; }
+  await crmApi("POST", "/contacts", {
+    contact_type: document.getElementById("cm-type").value,
+    name,
+    phone:    document.getElementById("cm-phone").value.trim(),
+    telegram: document.getElementById("cm-telegram").value.trim(),
+    city:     document.getElementById("cm-city").value.trim(),
+    notes:    document.getElementById("cm-notes").value.trim(),
+  });
+  crmCloseModal("crm-modal-contact");
+  crmLoadContacts();
+  loadData(); // refresh KPI
+}
+
+function crmOpenAddDeal() {
+  // populate contact select
+  const sel = document.getElementById("dm-contact");
+  sel.innerHTML = _crmContacts.map(c=>`<option value="${c.id}">${CRM_TYPE_ICONS[c.contact_type]||"👤"} ${c.name}</option>`).join("") || "<option>Нет контактов</option>";
+  document.getElementById("dm-desc").value = "";
+  document.getElementById("dm-amount").value = "";
+  document.getElementById("dm-status").value = "new";
+  document.getElementById("crm-modal-deal").style.display = "flex";
+}
+
+async function crmSaveDeal() {
+  const cid = document.getElementById("dm-contact").value;
+  if (!cid) { alert("Выберите контакт"); return; }
+  await crmApi("POST", "/deals", {
+    contact_id:  cid,
+    description: document.getElementById("dm-desc").value.trim(),
+    amount:      parseInt(document.getElementById("dm-amount").value) || 0,
+    status:      document.getElementById("dm-status").value,
+  });
+  crmCloseModal("crm-modal-deal");
+  crmLoadDeals();
+  loadData();
+}
+
+function crmCloseModal(id) {
+  document.getElementById(id).style.display = "none";
+}
+
+// Load contacts when CRM tab opens
+const _origShowTab = window.showTab;
+window.showTab = function(tab, btn) {
+  _origShowTab && _origShowTab(tab, btn);
+  if (tab === "crm") { crmShowTab("contacts"); }
+};
 </script>
 </body>
 </html>

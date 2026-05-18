@@ -200,6 +200,14 @@ def _get_pricing_stats(db) -> dict:
             pkg_key = pk[len("mover_pkg_"):]
             revenue_movers += mover_prices.get(pkg_key, 0)
 
+    # ── Lead marketplace stats ────────────────────────────────────────────────
+    try:
+        import database as _db
+        lead_stats = _db.get_lead_marketplace_stats()
+    except Exception:
+        lead_stats = {}
+    revenue_leads = lead_stats.get("revenue_total", 0)
+
     return {
         "agent_credits": {
             "total_credits_available": total_credits,
@@ -212,10 +220,12 @@ def _get_pricing_stats(db) -> dict:
             "active": active_mover_subs,
             "list":   mover_subs_list[:100],
         },
+        "lead_marketplace": lead_stats,
         "revenue": {
             "agent_packages":     revenue_agent,
             "mover_subs":         revenue_movers,
-            "total":              revenue_agent + revenue_movers,
+            "leads":              revenue_leads,
+            "total":              revenue_agent + revenue_movers + revenue_leads,
         },
         "price_table": {
             "agents": [
@@ -230,8 +240,8 @@ def _get_pricing_stats(db) -> dict:
                 {"label": "База (присутствие в базе)", "price": MOVER_MONTHLY_BASE_ILS, "note": "₪/мес"},
                 {"label": "ТОП-место в городе",        "price": MOVER_TOP_WEEKLY_ILS,   "note": "₪/нед"},
             ],
-            "cleaning": {"model": "per_lead",   "price": CLEANING_LEAD_PRICE_ILS},
-            "packers":  {"model": "per_lead",   "price": PACKING_LEAD_PRICE_ILS},
+            "cleaning": {"model": "subscription_and_lead", "price": CLEANING_LEAD_PRICE_ILS, "subscription_ils": 70},
+            "packers":  {"model": "subscription_and_lead", "price": PACKING_LEAD_PRICE_ILS,  "subscription_ils": 70},
         },
     }
 
