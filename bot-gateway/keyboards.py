@@ -32,15 +32,17 @@ def main_menu_keyboard(ctx):
     contact_label = {"ru": "✉️ Написать нам", "en": "✉️ Contact us", "he": "✉️ כתוב לנו", "fr": "✉️ Nous écrire"}.get(lang, "✉️ Написать нам")
     insta_label   = {"ru": "📸 Instagram", "en": "📸 Instagram", "he": "📸 אינסטגרם", "fr": "📸 Instagram"}.get(lang, "📸 Instagram")
     alerts_label = {"ru": "🔔 Уведомления", "en": "🔔 Alerts", "he": "🔔 התראות", "fr": "🔔 Alertes"}.get(lang, "🔔 Уведомления")
+    rent_label = {"ru": "🔑 Аренда", "en": "🔑 Rent", "he": "🔑 שכירות", "fr": "🔑 Location"}.get(lang, "🔑 Аренда")
+    buy_label  = {"ru": "🏦 Купить", "en": "🏦 Buy", "he": "🏦 קנייה",   "fr": "🏦 Acheter"}.get(lang, "🏦 Купить")
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(t("btn_search", ctx), callback_data="search"), InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites")],
+        [InlineKeyboardButton(rent_label, callback_data="search_rent"), InlineKeyboardButton(buy_label, callback_data="search_buy")],
+        [InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites"), InlineKeyboardButton(alerts_label, callback_data="alerts_menu")],
         [InlineKeyboardButton(t("btn_commercial", ctx), callback_data="commercial"), InlineKeyboardButton(svc_label, callback_data="services")],
         [InlineKeyboardButton(t("btn_my_listings", ctx), callback_data="my_listings"), InlineKeyboardButton(t("btn_add_listing", ctx), callback_data="add_listing")],
         [InlineKeyboardButton(t("btn_all_listings", ctx), callback_data="all_listings"), InlineKeyboardButton(t("btn_help", ctx), callback_data="help")],
-        [InlineKeyboardButton(sub_label, callback_data="subscription"), InlineKeyboardButton(alerts_label, callback_data="alerts_menu")],
-        [InlineKeyboardButton(t("btn_my_subscriptions", ctx), callback_data="my_subscriptions"), InlineKeyboardButton(t("btn_cabinet", ctx), callback_data="cabinet")],
-        [InlineKeyboardButton(t("btn_language", ctx), callback_data="choose_lang"), InlineKeyboardButton(contact_label, callback_data="contact_admin")],
-        [InlineKeyboardButton(insta_label, url="https://www.instagram.com/flatfinderil/")],
+        [InlineKeyboardButton(sub_label, callback_data="subscription"), InlineKeyboardButton(t("btn_my_subscriptions", ctx), callback_data="my_subscriptions")],
+        [InlineKeyboardButton(t("btn_cabinet", ctx), callback_data="cabinet"), InlineKeyboardButton(t("btn_language", ctx), callback_data="choose_lang")],
+        [InlineKeyboardButton(contact_label, callback_data="contact_admin"), InlineKeyboardButton(insta_label, url="https://www.instagram.com/flatfinderil/")],
     ])
 
 def back_to_menu_keyboard(ctx):
@@ -312,22 +314,22 @@ def city_multi_keyboard(ctx, selected=None, districts=None):
     return InlineKeyboardMarkup(keyboard)
 
 def subscription_keyboard(ctx):
-    import payplus_payment
+    import morning_payment
     rows = [
         [InlineKeyboardButton(t("btn_sub_week", ctx),         callback_data="sub_week")],
         [InlineKeyboardButton(t("btn_sub_two_weeks", ctx),    callback_data="sub_two_weeks")],
         [InlineKeyboardButton(t("btn_sub_month", ctx),        callback_data="sub_month")],
         [InlineKeyboardButton(t("btn_sub_search_alert", ctx), callback_data="sub_search_alert")],
     ]
-    if payplus_payment.is_enabled():
-        rows.append([InlineKeyboardButton("💳 Оплатить картой", callback_data="sub_card")])
+    if morning_payment.is_enabled():
+        rows.append([InlineKeyboardButton("💳 Оплатить картой / Bit", callback_data="sub_card")])
     rows.append([InlineKeyboardButton("₿ Оплатить криптовалютой", callback_data="sub_crypto")])
     rows.append([InlineKeyboardButton(t("btn_back_menu", ctx),    callback_data="back_to_menu")])
     return InlineKeyboardMarkup(rows)
 
 
 def card_plan_keyboard(ctx):
-    """Plan selection for PayPlus card payment."""
+    """Plan selection for Morning card payment."""
     from config import PLAN_PRICES_ILS
     week_price      = PLAN_PRICES_ILS.get("week", 19.9)
     two_weeks_price = PLAN_PRICES_ILS.get("two_weeks", 29.9)

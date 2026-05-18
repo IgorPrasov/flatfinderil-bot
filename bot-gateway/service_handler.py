@@ -60,14 +60,23 @@ def _back_kb(ctx):
     return InlineKeyboardMarkup([[InlineKeyboardButton(back, callback_data="back_to_menu")]])
 
 
-def _services_menu_kb(ctx):
+def _services_menu_kb(ctx, provider_types: list = None):
     lang = get_lang(ctx)
     rows = []
     for key, names in SERVICE_TYPES.items():
         rows.append([InlineKeyboardButton(_L(names, lang), callback_data=f"svc_type_{key}")])
-    add_label = _L({"ru": "➕ Разместить услугу", "en": "➕ Add service", "he": "➕ הוסף שירות", "fr": "➕ Ajouter service"}, lang)
-    back_label = _L({"ru": "🏠 Главное меню", "en": "🏠 Main menu", "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
+    add_label  = _L({"ru": "➕ Разместить услугу",  "en": "➕ Add service",   "he": "➕ הוסף שירות",  "fr": "➕ Ajouter service"}, lang)
+    back_label = _L({"ru": "🏠 Главное меню",        "en": "🏠 Main menu",    "he": "🏠 תפריט ראשי", "fr": "🏠 Menu principal"}, lang)
     rows.append([InlineKeyboardButton(add_label, callback_data="svc_add")])
+    # Show lead marketplace buttons for registered cleaning/packing providers
+    if provider_types:
+        for ptype in provider_types:
+            if ptype in ("cleaning", "packing"):
+                leads_label = _L({"ru": "📋 Заявки клиентов", "en": "📋 Client leads", "he": "📋 לידים מלקוחות"}, lang)
+                my_leads_label = _L({"ru": "🗂 Мои купленные лиды", "en": "🗂 My purchased leads", "he": "🗂 הלידים שרכשתי"}, lang)
+                rows.append([InlineKeyboardButton(leads_label, callback_data=f"leads_list_{ptype}")])
+                rows.append([InlineKeyboardButton(my_leads_label, callback_data="my_leads")])
+                break
     rows.append([InlineKeyboardButton(back_label, callback_data="back_to_menu")])
     return InlineKeyboardMarkup(rows)
 
@@ -244,7 +253,18 @@ class ServiceHandler:
             "🚚 <b>Services</b>\n\nSelect category:",
             "🚚 <b>שירותים</b>\n\nבחר קטגוריה:"
         )
-        await query.edit_message_text(text, reply_markup=_services_menu_kb(context), parse_mode="HTML")
+        # Detect which service types this user has registered (to show lead marketplace buttons)
+        user_id = update.effective_user.id
+        my_svcs = db.get_services()
+        provider_types = list({s["service_type"] for s in my_svcs if str(s.get("user_id", "")) == str(user_id)})
+        lead_provider_types = [p for p in provider_types if p in ("cleaning", "packing")]
+        if lead_provider_types:
+            balance = db.get_lead_balance(user_id)
+            balance_line = _L({"ru": f"\n💰 <b>Баланс лидов:</b> {balance}₪",
+                                "en": f"\n💰 <b>Lead balance:</b> {balance}₪",
+                                "he": f"\n💰 <b>יתרת לידים:</b> ₪{balance}"}, get_lang(context))
+            text += balance_line
+        await query.edit_message_text(text, reply_markup=_services_menu_kb(context, provider_types), parse_mode="HTML")
         return SVC_MENU
 
     async def handle_type(self, update, context):
@@ -663,8 +683,8 @@ class ServiceHandler:
                 f"לחץ על הכפתור למטה כדי להירשם לחבילה ולהתחיל לקבל לקוחות. 💼"
             )
             # Build mover subscription keyboard
-            import payplus_payment as _pp
-            if _pp.is_enabled():
+            import morning_payment as _mp
+            if _mp.is_enabled():
                 from pricing import MOVER_PACKAGES
                 rows = []
                 for mpkg in MOVER_PACKAGES:

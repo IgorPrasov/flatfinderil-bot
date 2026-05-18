@@ -23,6 +23,10 @@ from alert_handler import (
     get_conversation_handler as get_alert_handler,
     show_alerts_menu, handle_alert_subscribe, handle_alert_delete,
 )
+from lead_handler import (
+    get_conversation_handler as get_lead_handler,
+    handle_buy_lead, handle_balance_topup, show_provider_leads, show_my_leads,
+)
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -166,8 +170,8 @@ async def _handle_mover_subscribe(update, context):
     except Exception:
         lang = "ru"
 
-    import payplus_payment as _pp
-    result = _pp.create_mover_subscription_link(pkg_key, user_id, lang)
+    import morning_payment as _mp
+    result = _mp.create_mover_subscription_link(pkg_key, user_id, lang)
 
     if result and result.get("url"):
         from pricing import get_mover_package
@@ -244,11 +248,17 @@ def main():
     app.add_handler(listing.get_conversation_handler())
     app.add_handler(get_support_handler())
     app.add_handler(get_alert_handler())
+    app.add_handler(get_lead_handler())
     app.add_handler(CommandHandler("reply", admin_reply_cmd))
-    # Alert standalone callbacks (outside the wizard conversation)
+    # Alert standalone callbacks
     app.add_handler(CallbackQueryHandler(show_alerts_menu,      pattern="^alerts_menu$"))
     app.add_handler(CallbackQueryHandler(handle_alert_subscribe, pattern="^alert_subscribe$"))
     app.add_handler(CallbackQueryHandler(handle_alert_delete,   pattern="^alert_del_"))
+    # Lead marketplace callbacks
+    app.add_handler(CallbackQueryHandler(handle_buy_lead,       pattern="^buy_lead_"))
+    app.add_handler(CallbackQueryHandler(handle_balance_topup,  pattern="^balance_topup$"))
+    app.add_handler(CallbackQueryHandler(show_provider_leads,   pattern="^leads_list_"))
+    app.add_handler(CallbackQueryHandler(show_my_leads,         pattern="^my_leads$"))
     app.add_handler(CallbackQueryHandler(handle_menu))
     # Payment handlers in group=-1 so they run BEFORE any ConversationHandler
     # (prevents a mid-conversation state from swallowing the pre_checkout_query)
@@ -278,6 +288,14 @@ def main():
         logger.info("Alert checker started")
     except Exception as _e:
         logger.warning(f"Alert checker not started: {_e}")
+
+    # Start lead trigger checker (every 30 min — sends delayed cleaning offers)
+    try:
+        from lead_checker import start_lead_checker
+        start_lead_checker(app.bot)
+        logger.info("Lead trigger checker started")
+    except Exception as _e:
+        logger.warning(f"Lead checker not started: {_e}")
 
     # Start Facebook parser if cookies are configured (env var OR database)
     if os.environ.get("FB_COOKIES_JSON"):
@@ -366,9 +384,9 @@ def _payment_notify_user(user_id: int, plan_key: str, expiry) -> None:
             json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
             timeout=10,
         )
-        logger.info(f"[PAYPLUS] Confirmation sent to user={user_id}")
+        logger.info(f"[MORNING] Confirmation sent to user={user_id}")
     except Exception as e:
-        logger.error(f"[PAYPLUS] Failed to notify user={user_id}: {e}")
+        logger.error(f"[MORNING] Failed to notify user={user_id}: {e}")
 
 def _notify_agent_credits(user_id: int, pkg: dict) -> None:
     """Notify agent that listing credits were added after payment."""
@@ -412,9 +430,9 @@ def _notify_agent_credits(user_id: int, pkg: dict) -> None:
             json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
             timeout=10,
         )
-        logger.info(f"[PAYPLUS] Agent credits notification sent user={user_id}")
+        logger.info(f"[MORNING] Agent credits notification sent user={user_id}")
     except Exception as e:
-        logger.error(f"[PAYPLUS] Failed to notify agent user={user_id}: {e}")
+        logger.error(f"[MORNING] Failed to notify agent user={user_id}: {e}")
 
 
 def _notify_mover_subscription(user_id: int, pkg: dict, expiry_iso: str) -> None:
@@ -461,9 +479,9 @@ def _notify_mover_subscription(user_id: int, pkg: dict, expiry_iso: str) -> None
             json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
             timeout=10,
         )
-        logger.info(f"[PAYPLUS] Mover subscription notification sent user={user_id}")
+        logger.info(f"[MORNING] Mover subscription notification sent user={user_id}")
     except Exception as e:
-        logger.error(f"[PAYPLUS] Failed to notify mover user={user_id}: {e}")
+        logger.error(f"[MORNING] Failed to notify mover user={user_id}: {e}")
 
 
 async def _notify_alert_activated(user_id: int, expiry_iso: str) -> None:
@@ -507,7 +525,7 @@ async def _notify_alert_activated(user_id: int, expiry_iso: str) -> None:
             timeout=10,
         )
     except Exception as e:
-        logger.error(f"[PAYPLUS] Failed to notify alert user={user_id}: {e}")
+        logger.error(f"[MORNING] Failed to notify alert user={user_id}: {e}")
 
 
 def _request_host(headers) -> str:
@@ -588,6 +606,66 @@ class WebHandler(BaseHTTPRequestHandler):
             from urllib.parse import parse_qs as pqs
             d = pqs(raw.decode())
             return {k: v[0] for k,v in d.items()}
+
+    def _handle_crm_api(self, method, path):
+        """Public CRM CRUD API — /api/crm/contacts[/{id}[/notes]] and /api/crm/deals[/{id}]."""
+        from urllib.parse import parse_qs, urlparse
+        parsed  = urlparse(self.path)
+        qs_p    = parse_qs(parsed.query)
+        parts   = [p for p in path.split("/") if p]
+        sub     = parts[2] if len(parts) > 2 else ""
+        cid     = parts[3] if len(parts) > 3 else ""
+        action  = parts[4] if len(parts) > 4 else ""
+        try:
+            if sub == "contacts":
+                if method == "GET" and not cid:
+                    stype = (qs_p.get("type") or [None])[0]
+                    items = db.get_crm_contacts(contact_type=stype)
+                    return self._send_json({"total": len(items), "items": items})
+                if method == "POST" and not cid:
+                    b = self._read_body()
+                    nid = db.add_crm_contact({
+                        "contact_type": b.get("contact_type", "agent"),
+                        "name":    b.get("name", ""),
+                        "phone":   b.get("phone", ""),
+                        "telegram":b.get("telegram", ""),
+                        "region":  b.get("region", ""),
+                        "city":    b.get("city", ""),
+                        "notes":   b.get("notes", ""),
+                    })
+                    return self._send_json({"ok": True, "id": nid})
+                if method in ("PATCH", "PUT") and cid and not action:
+                    return self._send_json({"ok": db.update_crm_contact(cid, self._read_body())})
+                if method == "DELETE" and cid and not action:
+                    return self._send_json({"ok": db.deactivate_crm_contact(cid)})
+                if method == "GET" and cid and action == "notes":
+                    return self._send_json({"items": db.get_crm_notes(int(cid))})
+                if method == "POST" and cid and action == "notes":
+                    b = self._read_body()
+                    db.add_crm_note(int(cid), b.get("text", ""), 0)
+                    return self._send_json({"ok": True})
+            elif sub == "deals":
+                if method == "GET" and not cid:
+                    status = (qs_p.get("status") or [None])[0]
+                    items  = db.get_crm_deals(status=status)
+                    return self._send_json({"total": len(items), "items": items})
+                if method == "POST" and not cid:
+                    b = self._read_body()
+                    db.add_crm_deal({
+                        "contact_id":  b.get("contact_id", ""),
+                        "description": b.get("description", ""),
+                        "amount":      b.get("amount", 0),
+                        "status":      b.get("status", "new"),
+                    })
+                    return self._send_json({"ok": True})
+                if method in ("PATCH", "PUT") and cid:
+                    b = self._read_body()
+                    return self._send_json({"ok": db.update_crm_deal_status(cid, b.get("status", "new"))})
+            else:
+                return self._send_json(db.get_crm_stats())
+        except Exception as e:
+            return self._send_json({"error": str(e)})
+        self._send_json({"error": "not found"}, 404)
 
     def _handle_backoffice(self, method, path):
         from urllib.parse import parse_qs as pqs
@@ -1510,6 +1588,9 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 data = {"error": str(e)}
             self._send_json(data)
 
+        elif path.startswith("/api/crm"):
+            return self._handle_crm_api("GET", path)
+
         elif path == "/api/daily-digest":
             try:
                 from morning_digest import get_daily_stats, build_digest_text
@@ -1576,6 +1657,8 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if path.startswith("/api/crm"):
+            return self._handle_crm_api("POST", path)
         if path.startswith("/backoffice"):
             return self._handle_backoffice("POST", path)
         if path == "/send-message":
@@ -1587,34 +1670,44 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             except Exception as e:
                 result = {"error": str(e)}
             return self._send_json(result)
-        # ── PayPlus webhook ───────────────────────────────────────────────
-        if path == "/webhook/payplus":
-            return self._handle_payplus_webhook()
+        # ── Morning webhook ───────────────────────────────────────────────
+        if path == "/webhook/morning":
+            return self._handle_morning_webhook()
         self._send_json({"error":"Not found"},404)
 
-    def _handle_payplus_webhook(self):
-        """Verify PayPlus callback and activate subscription on payment."""
+    def _handle_morning_webhook(self):
+        """Verify Morning callback and activate subscription/credits on payment."""
+        import json as _json
         try:
             content_len = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_len)
 
-            import json as _json
             try:
                 callback_data = _json.loads(body)
             except Exception:
                 from urllib.parse import parse_qs
                 callback_data = {k: v[0] for k, v in parse_qs(body.decode("utf-8", errors="replace")).items()}
 
-            logger.info(f"[PAYPLUS] Webhook received: {_json.dumps(callback_data)[:300]}")
+            logger.info(f"[MORNING] Webhook received: {_json.dumps(callback_data)[:300]}")
 
-            import payplus_payment
-            user_id, plan_key = payplus_payment.verify_and_extract(callback_data)
+            import morning_payment
+            user_id, plan_key = morning_payment.verify_and_extract(callback_data)
 
             if user_id and plan_key:
-                logger.info(f"[PAYPLUS] Payment confirmed user={user_id} plan={plan_key}")
+                logger.info(f"[MORNING] Payment confirmed user={user_id} plan={plan_key}")
+
+                # ── Lead balance top-up ──────────────────────────────────────
+                if plan_key.startswith("leads_"):
+                    try:
+                        credits = int(plan_key.split("_")[1])
+                        import database as _db
+                        _db.add_lead_balance(user_id, credits)
+                        logger.info(f"[MORNING] Lead balance +{credits} ₪ user={user_id}")
+                    except Exception as _e:
+                        logger.error(f"[MORNING] Lead topup error: {_e}")
 
                 # ── Agent listing package ────────────────────────────────────
-                if plan_key.startswith("agent_pkg_"):
+                elif plan_key.startswith("agent_pkg_"):
                     pkg_key = plan_key[len("agent_pkg_"):]
                     from pricing import get_agent_package
                     pkg = get_agent_package(pkg_key)
@@ -1622,12 +1715,10 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                         import database as _db
                         _db.add_listing_credits(user_id, pkg["count"],
                                                 duration_days=pkg.get("duration_days", 30))
-                        logger.info(
-                            f"[PAYPLUS] Agent credits +{pkg['count']} user={user_id} pkg={pkg_key}"
-                        )
+                        logger.info(f"[MORNING] Agent credits +{pkg['count']} user={user_id}")
                         _notify_agent_credits(user_id, pkg)
                     else:
-                        logger.error(f"[PAYPLUS] Unknown agent pkg={pkg_key!r}")
+                        logger.error(f"[MORNING] Unknown agent pkg={pkg_key!r}")
 
                 # ── Mover weekly subscription ────────────────────────────────
                 elif plan_key.startswith("mover_pkg_"):
@@ -1639,19 +1730,17 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                         expiry = (datetime.utcnow() + timedelta(weeks=1)).isoformat()
                         import database as _db
                         _db.set_service_subscription(str(user_id), pkg_key, expiry)
-                        logger.info(
-                            f"[PAYPLUS] Mover sub activated user={user_id} pkg={pkg_key} until={expiry}"
-                        )
+                        logger.info(f"[MORNING] Mover sub activated user={user_id} until={expiry}")
                         _notify_mover_subscription(user_id, pkg, expiry)
                     else:
-                        logger.error(f"[PAYPLUS] Unknown mover pkg={pkg_key!r}")
+                        logger.error(f"[MORNING] Unknown mover pkg={pkg_key!r}")
 
                 # ── Alert subscription (39.90₪/month) ───────────────────────
                 elif plan_key == "alerts":
                     import database as _db
                     _db.set_alert_expiry(user_id, days=30)
                     expiry = _db.get_alert_expiry(user_id)
-                    logger.info(f"[PAYPLUS] Alert sub activated user={user_id} until={expiry}")
+                    logger.info(f"[MORNING] Alert sub activated user={user_id} until={expiry}")
                     asyncio.run_coroutine_threadsafe(
                         _notify_alert_activated(user_id, expiry),
                         asyncio.get_event_loop()
@@ -1662,21 +1751,20 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     from subscription import activate_subscription
                     expiry = activate_subscription(user_id, plan_key)
                     if expiry:
-                        logger.info(f"[PAYPLUS] Subscription activated user={user_id} plan={plan_key} until={expiry}")
+                        logger.info(f"[MORNING] Subscription activated user={user_id} plan={plan_key} until={expiry}")
                         _payment_notify_user(user_id, plan_key, expiry)
                     else:
-                        logger.error(f"[PAYPLUS] activate_subscription returned None user={user_id} plan={plan_key}")
+                        logger.error(f"[MORNING] activate_subscription returned None user={user_id} plan={plan_key}")
             else:
-                logger.info("[PAYPLUS] Callback ignored (not a confirmed payment or missing metadata)")
+                logger.info("[MORNING] Webhook ignored (not our document or payment not confirmed)")
 
-            # PayPlus requires HTTP 200 to stop retries
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(b'{"ok":true}')
         except Exception as e:
-            logger.error(f"[PAYPLUS] Webhook handler exception: {e}")
-            self.send_response(200)  # still 200 to avoid PayPlus retry storm
+            logger.error(f"[MORNING] Webhook handler exception: {e}")
+            self.send_response(200)
             self.end_headers()
 
     def _handle_send_message(self):
@@ -1714,6 +1802,8 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
     def do_PATCH(self):
         path = urlparse(self.path).path
+        if path.startswith("/api/crm"):
+            return self._handle_crm_api("PATCH", path)
         if path.startswith("/backoffice/api/"):
             if not _bo_check_session(self.headers):
                 return self._send_json({"error":"Unauthorized"},401)
@@ -1722,6 +1812,8 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
     def do_DELETE(self):
         path = urlparse(self.path).path
+        if path.startswith("/api/crm"):
+            return self._handle_crm_api("DELETE", path)
         if path.startswith("/backoffice/api/"):
             if not _bo_check_session(self.headers):
                 return self._send_json({"error":"Unauthorized"},401)

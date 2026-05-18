@@ -958,11 +958,19 @@ class ListingHandler:
         return ADD_PRICE
 
     async def handle_price(self, update, context):
-        price_text = update.message.text.strip().replace(",", "").replace(" ", "")
+        price_text = update.message.text.strip().replace(",", "").replace(" ", "").replace("₪", "")
         try:
             price = int(price_text)
         except:
             price = 0
+        if price <= 0:
+            err = _step_text(context,
+                "❌ Пожалуйста, введите цену в шекелях (только цифры, например: 4500)",
+                "❌ Please enter the price in shekels (numbers only, e.g.: 4500)",
+                "❌ אנא הכנס מחיר בשקלים (ספרות בלבד, לדוג׳: 4500)"
+            )
+            await update.message.reply_text(err, parse_mode="HTML")
+            return ADD_PRICE
         context.user_data["add_listing"]["price"] = price
         context.user_data["add_state"] = ADD_PARKING
         await update.message.reply_text(_confirmed(context, "Цена", "Price", "מחיר", f"{price:,} ₪"), parse_mode="HTML")
@@ -1422,15 +1430,15 @@ class ListingHandler:
 
         if data.startswith("agent_pkg_"):
             pkg_key = data[len("agent_pkg_"):]
-            import payplus_payment as _pp
+            import morning_payment as _mp
             from pricing import get_agent_package
             pkg = get_agent_package(pkg_key)
             label = pkg["label"].get(lang, pkg["label"]["ru"]) if pkg else pkg_key
             price = pkg["price_ils"] if pkg else "?"
             cancel_btn = {"ru": "❌ Отмена", "en": "❌ Cancel", "he": "❌ ביטול"}
 
-            if _pp.is_enabled():
-                result = _pp.create_agent_package_link(pkg_key, update.effective_user.id, lang)
+            if _mp.is_enabled():
+                result = _mp.create_agent_package_link(pkg_key, update.effective_user.id, lang)
                 if result and result.get("url"):
                     check_btn = {
                         "ru": "✅ Я оплатил — опубликовать",

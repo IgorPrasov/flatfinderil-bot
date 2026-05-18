@@ -20,7 +20,7 @@ from keyboards import (
     card_plan_keyboard,
 )
 import cryptopay
-import payplus_payment
+import morning_payment
 from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
 from subscription import (
@@ -182,6 +182,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if lang in LANGUAGES:
             context.user_data["lang"] = lang
             user = update.effective_user
+            db.set_setting(f"user_lang_{user.id}", lang)  # persist for delayed triggers
             track_user(user.id, lang, first_name=user.first_name, last_name=user.last_name, username=user.username)
             await query.edit_message_text(
                 format_welcome(user.first_name, context),
@@ -358,9 +359,9 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     parse_mode="HTML",
                 )
 
-    # ── PayPlus card payments ─────────────────────────────────────────────
+    # ── Morning card payments ─────────────────────────────────────────────
     elif data == "sub_card":
-        if not payplus_payment.is_enabled():
+        if not morning_payment.is_enabled():
             await query.edit_message_text(
                 "⚠️ Оплата картой временно недоступна. Используйте другой способ.",
                 reply_markup=subscription_keyboard(context),
@@ -370,9 +371,9 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lang = get_lang(context)
             titles = {"ru": "💳 Оплата картой", "en": "💳 Card payment", "he": "💳 תשלום בכרטיס"}
             descs  = {
-                "ru": "Выберите тариф — оплата через защищённую форму PayPlus:",
-                "en": "Choose a plan — pay via secure PayPlus checkout:",
-                "he": "בחרו תוכנית — תשלום דרט PayPlus:",
+                "ru": "Выберите тариф — оплата через Morning (карта / Bit / Apple Pay):",
+                "en": "Choose a plan — pay via Morning (card / Bit / Apple Pay):",
+                "he": "בחרו תוכנית — תשלום דרך Morning (כרטיס / Bit / Apple Pay):",
             }
             await query.edit_message_text(
                 f"<b>{titles.get(lang, titles['ru'])}</b>\n\n{descs.get(lang, descs['ru'])}",
@@ -387,7 +388,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.answer("Создаём ссылку для оплаты...", show_alert=False)
 
-        result = payplus_payment.create_payment_link(plan_key, user_id, lang)
+        result = morning_payment.create_payment_link(plan_key, user_id, lang)
         if result and result.get("url"):
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             from subscription import PLANS
@@ -399,18 +400,18 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             back_labels = {"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}
             msgs = {
                 "ru": (
-                    f"💳 <b>Оплата картой — {plan_name}</b>\n\n"
-                    "Нажмите кнопку ниже — откроется защищённая страница оплаты PayPlus.\n\n"
+                    f"💳 <b>Оплата — {plan_name}</b>\n\n"
+                    "Нажмите кнопку ниже — откроется защищённая страница Morning.\n\n"
                     "✅ После оплаты подписка активируется автоматически."
                 ),
                 "en": (
-                    f"💳 <b>Card payment — {plan_name}</b>\n\n"
-                    "Click below to open the secure PayPlus payment page.\n\n"
+                    f"💳 <b>Payment — {plan_name}</b>\n\n"
+                    "Click below to open the secure Morning payment page.\n\n"
                     "✅ Your subscription will activate automatically after payment."
                 ),
                 "he": (
-                    f"💳 <b>תשלום בכרטיס — {plan_name}</b>\n\n"
-                    "לחצו על הכפתור למטה לדף תשלום מאובטח של PayPlus.\n\n"
+                    f"💳 <b>תשלום — {plan_name}</b>\n\n"
+                    "לחצו על הכפתור למטה לדף תשלום מאובטח של Morning.\n\n"
                     "✅ המנוי יופעל אוטומטית לאחר התשלום."
                 ),
             }
@@ -914,6 +915,43 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             pass
 
+        # ── Trigger packing offer to the tenant too ──────────────────────────
+        if tenant_id > 0:
+            try:
+                from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+                tenant_lang = db.get_setting(f"user_lang_{tenant_id}") or "ru"
+                _city = listing.get("city", "")
+                _pack_msg = {
+                    "ru": (
+                        "🎉 <b>Поздравляем с новой квартирой!</b>\n\n"
+                        "📦 <b>Нужны коробки и упаковка для переезда?</b>\n"
+                        "Нажмите кнопку — лучшие поставщики в вашем городе свяжутся с вами."
+                    ),
+                    "en": (
+                        "🎉 <b>Congrats on your new place!</b>\n\n"
+                        "📦 <b>Need packing boxes for the move?</b>\n"
+                        "Tap below — top suppliers in your city will reach out."
+                    ),
+                    "he": (
+                        "🎉 <b>מזל טוב על הדירה החדשה!</b>\n\n"
+                        "📦 <b>צריך קופסאות לעברה?</b>\n"
+                        "לחץ למטה — הספקים הטובים ביותר בעירך ייצרו קשר."
+                    ),
+                }.get(tenant_lang, "🎉 Congrats!\n\n📦 Need packing boxes?")
+                _pack_lbl = {"ru": "📦 Да, нужны коробки", "en": "📦 Yes, need boxes", "he": "📦 כן, צריך קופסאות"}.get(tenant_lang, "📦 Need boxes?")
+                _skip_lbl = {"ru": "Пропустить", "en": "Skip", "he": "דלג"}.get(tenant_lang, "Skip")
+                from telegram import InlineKeyboardButton as _IKB, InlineKeyboardMarkup as _IKM
+                await context.bot.send_message(
+                    chat_id=tenant_id,
+                    text=_pack_msg,
+                    reply_markup=_IKM([[_IKB(_pack_lbl, callback_data="request_packing")], [_IKB(_skip_lbl, callback_data="back_to_menu")]]),
+                    parse_mode="HTML",
+                )
+                _send_after = (_dt.now(_tz.utc) + _td(days=3)).isoformat()
+                db.add_pending_lead_trigger(tenant_id, "cleaning", _city, _send_after)
+            except Exception:
+                pass
+
     # ── Tenant: "I rented/bought this" button ──────────────────────────────
     elif data.startswith("irented_") and not data.startswith("irented_confirm_"):
         listing_id = int(data.replace("irented_", ""))
@@ -958,6 +996,51 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             except Exception:
                 pass
+
+        # ── Trigger packing offer immediately ─────────────────────────────
+        city = listing.get("city", "")
+        lang = get_lang(context)
+        packing_msg = {
+            "ru": (
+                "🎉 <b>Поздравляем с выбором квартиры!</b>\n\n"
+                "Переезд — это хлопотно, но мы поможем.\n\n"
+                "📦 <b>Вам понадобятся коробки и упаковка?</b>\n"
+                "Нажмите кнопку ниже — лучшие поставщики в вашем городе свяжутся с вами."
+            ),
+            "en": (
+                "🎉 <b>Congrats on your new apartment!</b>\n\n"
+                "Moving is a lot of work — let us help.\n\n"
+                "📦 <b>Need packing boxes and supplies?</b>\n"
+                "Tap the button below — top suppliers in your city will contact you."
+            ),
+            "he": (
+                "🎉 <b>מזל טוב על הדירה החדשה!</b>\n\n"
+                "מעבר דירה זה הרבה עבודה — נשמח לעזור.\n\n"
+                "📦 <b>צריך קופסאות ואריזה?</b>\n"
+                "לחץ על הכפתור — הספקים הטובים ביותר בעירך ייצרו קשר."
+            ),
+        }.get(lang, "🎉 Congrats! Need packing boxes?")
+
+        pack_btn_label = {"ru": "📦 Нужны коробки и упаковка", "en": "📦 Yes, I need packing boxes", "he": "📦 כן, אני צריך קופסאות"}.get(lang, "📦 Need boxes?")
+        skip_label = {"ru": "Пропустить", "en": "Skip", "he": "דלג"}.get(lang, "Skip")
+        pack_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton(pack_btn_label, callback_data="request_packing")],
+            [InlineKeyboardButton(skip_label, callback_data="back_to_menu")],
+        ])
+        try:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=packing_msg,
+                reply_markup=pack_kb,
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+        # ── Schedule cleaning offer in 3 days ─────────────────────────────
+        from datetime import datetime, timedelta, timezone
+        send_after = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
+        db.add_pending_lead_trigger(user.id, "cleaning", city, send_after)
 
     else:
         # ── Orphan-callback fallback ─────────────────────────────────────

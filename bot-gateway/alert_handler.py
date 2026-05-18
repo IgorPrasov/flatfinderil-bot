@@ -136,14 +136,14 @@ async def show_alerts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_alert_subscribe(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Create PayPlus link for alert subscription."""
+    """Create Morning payment link for alert subscription."""
     query = update.callback_query
     await query.answer()
     lang = _lang(context)
     user_id = update.effective_user.id
 
-    import payplus_payment as pp
-    result = pp.create_payment_link("alerts", user_id, lang)
+    import morning_payment as mp
+    result = mp.create_payment_link("alerts", user_id, lang)
 
     if result and result.get("url"):
         label = {"ru": "💳 Оплатить 39.90 ₪/мес", "en": "💳 Pay ₪39.90/mo", "he": "💳 שלם 39.90 ₪/חודש"}.get(lang, "💳 Pay")
