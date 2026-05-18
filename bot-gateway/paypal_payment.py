@@ -263,6 +263,33 @@ def create_mover_subscription_link(package_key: str, user_id: int, lang: str = "
     return {"url": url, "id": order.get("id")}
 
 
+def create_service_subscription_link(package_key: str, svc_type: str, user_id: int, lang: str = "ru") -> dict | None:
+    """Create PayPal order for cleaning/packing monthly presence subscription."""
+    if not is_enabled():
+        return None
+
+    from pricing import get_service_package
+    pkg = get_service_package(package_key)
+    if not pkg:
+        return None
+
+    amount_usd = round(pkg["price_ils"] / 3.7, 2)
+    label      = pkg["label"].get(lang) or pkg["label"]["ru"]
+    item_name  = f"FlatFinderIL — {label}"
+    custom_id  = f"{user_id}|svc_{svc_type}_{package_key}"
+
+    order = _create_order(amount_usd, item_name, custom_id)
+    if not order:
+        return None
+
+    url = _get_approve_url(order)
+    if not url:
+        return None
+
+    logger.info(f"[PAYPAL] Service sub order created svc={svc_type} pkg={package_key} user={user_id}")
+    return {"url": url, "id": order.get("id")}
+
+
 def create_lead_topup_link(amount_ils: float, credits: int, user_id: int, lang: str = "ru") -> dict | None:
     if not is_enabled():
         return None

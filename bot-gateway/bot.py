@@ -484,6 +484,54 @@ def _notify_mover_subscription(user_id: int, pkg: dict, expiry_iso: str) -> None
         logger.error(f"[PAYPAL] Failed to notify mover user={user_id}: {e}")
 
 
+async def _notify_service_subscription(user_id: int, svc_type: str, expiry_iso: str) -> None:
+    """Notify cleaning/packing provider that monthly subscription is active."""
+    try:
+        from config import BOT_TOKEN
+        import requests as _req
+        import database as _db
+
+        try:
+            data = _db._load()
+            lang = data.get("agent_profiles", {}).get(str(user_id), {}).get("lang", "ru") or "ru"
+        except Exception:
+            lang = "ru"
+
+        from datetime import datetime
+        try:
+            expiry_str = datetime.fromisoformat(expiry_iso).strftime("%d.%m.%Y")
+        except Exception:
+            expiry_str = expiry_iso[:10]
+
+        icon = "🧹" if svc_type == "cleaning" else "📦"
+        msgs = {
+            "ru": (
+                f"✅ <b>Оплата прошла!</b>\n\n"
+                f"Подписка <b>Присутствие в базе</b> активна до <b>{expiry_str}</b>.\n\n"
+                f"Ваш сервис {icon} уже отображается пользователям FlatFinderIL!"
+            ),
+            "en": (
+                f"✅ <b>Payment successful!</b>\n\n"
+                f"<b>Listed in database</b> subscription active until <b>{expiry_str}</b>.\n\n"
+                f"Your {icon} service is now visible to FlatFinderIL users!"
+            ),
+            "he": (
+                f"✅ <b>התשלום בוצע!</b>\n\n"
+                f"מנוי <b>נוכחות במאגר</b> פעיל עד <b>{expiry_str}</b>.\n\n"
+                f"השירות שלך {icon} כבר מוצג למשתמשי FlatFinderIL!"
+            ),
+        }
+        text = msgs.get(lang, msgs["ru"])
+        _req.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
+            timeout=10,
+        )
+        logger.info(f"[PAYPAL] Service subscription notification sent user={user_id} svc={svc_type}")
+    except Exception as e:
+        logger.error(f"[PAYPAL] Failed to notify service user={user_id}: {e}")
+
+
 async def _notify_alert_activated(user_id: int, expiry_iso: str) -> None:
     """Notify user that alert subscription is active."""
     try:
@@ -1734,6 +1782,27 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                         _notify_mover_subscription(user_id, pkg, expiry)
                     else:
                         logger.error(f"[PAYPAL] Unknown mover pkg={pkg_key!r}")
+
+                # ── Cleaning / Packing monthly subscription ─────────────────
+                elif plan_key.startswith("svc_"):
+                    # custom_id format: svc_{svc_type}_{package_key}
+                    parts = plan_key[len("svc_"):].split("_", 1)
+                    if len(parts) == 2:
+                        svc_type, pkg_key = parts
+                        from pricing import get_service_package
+                        pkg = get_service_package(pkg_key)
+                        if pkg:
+                            from datetime import datetime, timedelta
+                            expiry = (datetime.utcnow() + timedelta(days=pkg.get("duration_days", 30))).isoformat()
+                            import database as _db
+                            _db.set_service_subscription(str(user_id), f"{svc_type}_{pkg_key}", expiry)
+                            logger.info(f"[PAYPAL] Service sub activated svc={svc_type} user={user_id} until={expiry}")
+                            asyncio.run_coroutine_threadsafe(
+                                _notify_service_subscription(user_id, svc_type, expiry),
+                                asyncio.get_event_loop()
+                            )
+                        else:
+                            logger.error(f"[PAYPAL] Unknown service pkg={pkg_key!r}")
 
                 # ── Alert subscription (39.90₪/month) ───────────────────────
                 elif plan_key == "alerts":

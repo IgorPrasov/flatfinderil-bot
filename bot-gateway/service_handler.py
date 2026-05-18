@@ -707,28 +707,29 @@ class ServiceHandler:
                 f"{icon} <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
                 f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваш сервис размещён на платформе.\n\n"
                 f"{pricing_block}\n\n"
-                f"Пополните баланс лидов через PayPal — и сразу начните получать заявки клиентов. 💼",
+                f"Оформите подписку — и клиенты сразу увидят вас в базе. 💼",
 
                 f"{icon} <b>FlatFinderIL — Service Published!</b>\n\n"
                 f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your service is now live.\n\n"
                 f"{pricing_block}\n\n"
-                f"Top up your lead balance via PayPal and start receiving client requests right away. 💼",
+                f"Subscribe to appear in the directory and start receiving clients. 💼",
 
                 f"{icon} <b>FlatFinderIL — השירות פורסם!</b>\n\n"
                 f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} השירות שלך פעיל בפלטפורמה.\n\n"
                 f"{pricing_block}\n\n"
-                f"טעינו יתרת לידים דרך PayPal — ותתחילו לקבל פניות לקוחות מיד. 💼"
+                f"הירשם למנוי — ולקוחות יראו אותך במאגר מיד. 💼"
             )
             if _mp.is_enabled():
-                from pricing import LEAD_BALANCE_PACKAGES
+                from pricing import SERVICE_PACKAGES
                 rows = []
-                for pkg in LEAD_BALANCE_PACKAGES:
-                    amount = pkg["amount_ils"]
-                    credits = amount + pkg.get("bonus_ils", 0)
-                    result = _mp.create_lead_topup_link(amount, credits, user.id, lang)
+                for spkg in SERVICE_PACKAGES:
+                    result = _mp.create_service_subscription_link(spkg["key"], svc_type, user.id, lang)
                     if result and result.get("url"):
-                        label = _L(pkg["label"], lang)
-                        rows.append([InlineKeyboardButton(label, url=result["url"])])
+                        spkg_label = spkg["label"].get(lang, spkg["label"]["ru"])
+                        rows.append([InlineKeyboardButton(
+                            f"{spkg_label} — {spkg['price_ils']} ₪",
+                            url=result["url"]
+                        )])
                 rows.append([InlineKeyboardButton(
                     {"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}.get(lang, "⏭ Later"),
                     callback_data="back_to_menu"
