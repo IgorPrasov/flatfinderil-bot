@@ -69,6 +69,8 @@ class SearchHandler:
             entry_points=[
                 CommandHandler("search", self.start_search),
                 CallbackQueryHandler(self.start_search, pattern="^search$"),
+                CallbackQueryHandler(self.start_search_rent, pattern="^search_rent$"),
+                CallbackQueryHandler(self.start_search_buy, pattern="^search_buy$"),
             ],
             states={
                 SEARCH_TYPE: [CallbackQueryHandler(self.handle_deal_type, pattern="^deal_")],
@@ -230,6 +232,31 @@ class SearchHandler:
         else:
             await update.message.reply_text(text, reply_markup=deal_type_keyboard(context), parse_mode="HTML")
         return SEARCH_TYPE
+
+    async def _start_search_with_deal(self, update, context, deal_type: str):
+        """Entry point from main menu rent/buy buttons — skips the deal type step."""
+        query = update.callback_query
+        await query.answer()
+        context.user_data["search_filters"] = {"deal_type": deal_type}
+        context.user_data["current_state"] = SEARCH_PROPERTY_TYPE
+        deal_text = t("deal_rent", context) if deal_type == "rent" else t("deal_buy", context)
+        await query.edit_message_text(
+            "✅ " + _confirmed(context, "Тип сделки", "Deal type", "סוג עסקה", deal_text),
+            parse_mode="HTML"
+        )
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=t("step_ptype", context),
+            reply_markup=property_type_keyboard(context),
+            parse_mode="HTML"
+        )
+        return SEARCH_PROPERTY_TYPE
+
+    async def start_search_rent(self, update, context):
+        return await self._start_search_with_deal(update, context, "rent")
+
+    async def start_search_buy(self, update, context):
+        return await self._start_search_with_deal(update, context, "buy")
 
     async def handle_deal_type(self, update, context):
         query = update.callback_query

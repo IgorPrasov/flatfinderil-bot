@@ -767,7 +767,9 @@ def parse_channel_web(channel: str, limit: int = 50) -> int:
             continue
         if not is_listing(text):
             continue
-        city = detect_city(text) or "Израиль"
+        city = detect_city(text)
+        if not city:
+            continue  # skip listings where city cannot be determined
         deal_type = extract_deal_type(text)
         prop_type = extract_property_type(text)
         # Upload photos to R2 (or keep CDN URLs as fallback)
@@ -835,7 +837,9 @@ async def parse_channel_telethon(client, channel: str, limit: int = 50) -> int:
             if not is_listing(text):
                 continue
 
-            city = detect_city(text) or "Израиль"
+            city = detect_city(text)
+            if not city:
+                continue  # skip listings where city cannot be determined
             deal_type = extract_deal_type(text)
             prop_type = extract_property_type(text)
             listing = {

@@ -1046,12 +1046,19 @@ def add_service(svc_data: dict) -> int:
 
 def get_services(svc_type: str = None, region: str = None, city: str = None) -> list:
     data = _load()
+    now_iso = datetime.utcnow().isoformat()
+    svc_subs = data.get("service_subscriptions", {})
     results = []
     for svc in data.get("services", {}).values():
         if not svc.get("active", True):
             continue
         if svc_type and svc.get("service_type") != svc_type:
             continue
+        # Movers must have an active subscription to appear in search results
+        if svc.get("service_type") == "moving":
+            sub = svc_subs.get(str(svc.get("id", "")), {})
+            if not sub or sub.get("expiry", "") < now_iso:
+                continue
         if region and region != "all":
             svc_region = svc.get("region", "all")
             if svc_region != "all" and svc_region != region:
@@ -1062,6 +1069,59 @@ def get_services(svc_type: str = None, region: str = None, city: str = None) -> 
                 continue
         results.append(svc)
     return results
+
+
+def cleanup_expired_leads(hours: int = 72) -> int:
+    """Delete leads older than `hours`. Returns count removed."""
+    from datetime import timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    with _DB_LOCK:
+        data = _load()
+        leads = data.get("client_leads", {})
+        expired = [k for k, v in leads.items() if v.get("created_at", "") < cutoff]
+        for k in expired:
+            del leads[k]
+        if expired:
+            _save(data)
+        return len(expired)
+
+
+def get_provider_unlocked_leads(user_id: int) -> list:
+    """Return all lead records this provider has purchased."""
+    data = _load()
+    unlocked_ids = set(data.get("unlocked_leads", {}).get(str(user_id), []))
+    leads = data.get("client_leads", {})
+    result = [v for k, v in leads.items() if k in unlocked_ids]
+    return sorted(result, key=lambda l: l.get("created_at", ""), reverse=True)
+
+
+def get_lead_marketplace_stats() -> dict:
+    """Aggregated lead marketplace stats for the dashboard."""
+    from pricing import CLEANING_LEAD_PRICE_ILS, PACKING_LEAD_PRICE_ILS
+    data = _load()
+    leads = list(data.get("client_leads", {}).values())
+    total = len(leads)
+    cleaning = [l for l in leads if l.get("type") == "cleaning"]
+    packing  = [l for l in leads if l.get("type") == "packing"]
+    revenue_cleaning = sum(len(l.get("buyers", [])) * CLEANING_LEAD_PRICE_ILS for l in cleaning)
+    revenue_packing  = sum(len(l.get("buyers", [])) * PACKING_LEAD_PRICE_ILS  for l in packing)
+    by_city: Dict[str, int] = {}
+    for l in leads:
+        c = l.get("city", "—")
+        by_city[c] = by_city.get(c, 0) + 1
+    top_cities = sorted(by_city.items(), key=lambda x: x[1], reverse=True)[:5]
+    balances = data.get("lead_balances", {})
+    total_balance_held = sum(int(v) for v in balances.values())
+    return {
+        "total_leads": total,
+        "cleaning_leads": len(cleaning),
+        "packing_leads": len(packing),
+        "revenue_cleaning": revenue_cleaning,
+        "revenue_packing": revenue_packing,
+        "revenue_total": revenue_cleaning + revenue_packing,
+        "top_cities": [{"city": c, "count": n} for c, n in top_cities],
+        "total_balance_held": total_balance_held,
+    }
 
 
 # ── CRM ───────────────────────────────────────────────────────────────────────
@@ -1519,3 +1579,93 @@ def set_setting(key: str, value: str):
         data = _load()
         data[key] = value
         _save(data)
+
+
+# ── Client leads (packing / cleaning marketplace) ────────────────────────────
+
+def save_client_lead(lead: dict) -> str:
+    """Save a new client lead. Returns lead_id."""
+    with _DB_LOCK:
+        data = _load()
+        leads = data.setdefault("client_leads", {})
+        lead_id = str(int(datetime.utcnow().timestamp() * 1000))
+        lead.update({
+            "id": lead_id,
+            "created_at": datetime.utcnow().isoformat(),
+            "status": "open",
+            "buyers": [],
+        })
+        leads[lead_id] = lead
+        _save(data)
+        return lead_id
+
+
+def get_available_leads(svc_type: str, provider_city: str = "") -> list:
+    """Return open leads for a service type, newest first. Leads expire after 72 h."""
+    from datetime import timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=72)).isoformat()
+    data = _load()
+    result = []
+    for lead in data.get("client_leads", {}).values():
+        if lead.get("type") != svc_type:
+            continue
+        if lead.get("created_at", "") < cutoff:
+            continue
+        if provider_city and lead.get("city") and lead["city"] != provider_city:
+            continue
+        result.append(lead)
+    return sorted(result, key=lambda l: l.get("created_at", ""), reverse=True)
+
+
+def get_lead_by_id(lead_id: str) -> Optional[Dict]:
+    data = _load()
+    return data.get("client_leads", {}).get(str(lead_id))
+
+
+def record_lead_purchase(lead_id: str, provider_id: int) -> bool:
+    """Record provider as buyer. Returns True if this is a new purchase."""
+    with _DB_LOCK:
+        data = _load()
+        lead = data.get("client_leads", {}).get(str(lead_id))
+        if not lead:
+            return False
+        buyers = lead.setdefault("buyers", [])
+        if str(provider_id) in [str(b) for b in buyers]:
+            return False
+        buyers.append(provider_id)
+        _save(data)
+        return True
+
+
+def add_pending_lead_trigger(user_id: int, trigger_type: str, city: str, send_after_iso: str):
+    """Schedule a delayed lead trigger (e.g., cleaning offer 3 days later)."""
+    with _DB_LOCK:
+        data = _load()
+        triggers = data.setdefault("pending_lead_triggers", [])
+        for t in triggers:
+            if t["user_id"] == user_id and t["type"] == trigger_type and not t.get("sent"):
+                return
+        triggers.append({
+            "user_id": user_id,
+            "type": trigger_type,
+            "city": city,
+            "send_after": send_after_iso,
+            "sent": False,
+        })
+        _save(data)
+
+
+def pop_due_lead_triggers() -> list:
+    """Return and mark as sent all triggers where send_after <= now."""
+    from datetime import timezone
+    now = datetime.now(timezone.utc).isoformat()
+    with _DB_LOCK:
+        data = _load()
+        due = []
+        for t in data.get("pending_lead_triggers", []):
+            if not t.get("sent") and t.get("send_after", "9999") <= now:
+                t["sent"] = True
+                due.append(dict(t))
+        if due:
+            _save(data)
+        return due
