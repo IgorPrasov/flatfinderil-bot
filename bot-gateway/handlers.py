@@ -335,7 +335,6 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pay_url = invoice.get("pay_url", "")
                 inv_id  = invoice.get("invoice_id", "?")
                 amount  = invoice.get("amount", "?")
-                from subscription import PLANS
                 plan = PLANS.get(plan_key, {})
                 lang = get_lang(context)
                 plan_name = plan.get(f"name_{lang}") or plan.get("name_ru", plan_key)
@@ -391,7 +390,6 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         result = morning_payment.create_payment_link(plan_key, user_id, lang)
         if result and result.get("url"):
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-            from subscription import PLANS
             plan = PLANS.get(plan_key, {})
             plan_name = plan.get(f"name_{lang}") or plan.get("name_ru", plan_key)
             pay_url = result["url"]
