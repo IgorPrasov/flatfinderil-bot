@@ -314,17 +314,24 @@ def city_multi_keyboard(ctx, selected=None, districts=None):
     return InlineKeyboardMarkup(keyboard)
 
 def subscription_keyboard(ctx):
-    import paypal_payment as morning_payment
+    from config import PLAN_PRICES_ILS
+    week_price      = PLAN_PRICES_ILS.get("week", 19.9)
+    two_weeks_price = PLAN_PRICES_ILS.get("two_weeks", 29.9)
+    month_price     = PLAN_PRICES_ILS.get("month", 39.9)
+    lang = get_lang(ctx)
+    labels = {
+        "ru": ("💳 1 неделя — {w:.0f}₪", "💳 2 недели — {t:.0f}₪", "💳 1 месяц — {m:.0f}₪"),
+        "en": ("💳 1 week — {w:.0f}₪",   "💳 2 weeks — {t:.0f}₪",  "💳 1 month — {m:.0f}₪"),
+        "he": ("💳 שבוע 1 — {w:.0f}₪",   "💳 2 שבועות — {t:.0f}₪", "💳 חודש 1 — {m:.0f}₪"),
+    }.get(lang, ("💳 1 неделя — {w:.0f}₪", "💳 2 недели — {t:.0f}₪", "💳 1 месяц — {m:.0f}₪"))
     rows = [
-        [InlineKeyboardButton(t("btn_sub_week", ctx),         callback_data="sub_week")],
-        [InlineKeyboardButton(t("btn_sub_two_weeks", ctx),    callback_data="sub_two_weeks")],
-        [InlineKeyboardButton(t("btn_sub_month", ctx),        callback_data="sub_month")],
-        [InlineKeyboardButton(t("btn_sub_search_alert", ctx), callback_data="sub_search_alert")],
+        [InlineKeyboardButton(labels[0].format(w=week_price),      callback_data="card_plan_week")],
+        [InlineKeyboardButton(labels[1].format(t=two_weeks_price), callback_data="card_plan_two_weeks")],
+        [InlineKeyboardButton(labels[2].format(m=month_price),     callback_data="card_plan_month")],
+        [InlineKeyboardButton(t("btn_sub_search_alert", ctx),      callback_data="sub_search_alert")],
+        [InlineKeyboardButton("₿ Оплатить криптовалютой",          callback_data="sub_crypto")],
+        [InlineKeyboardButton(t("btn_back_menu", ctx),             callback_data="back_to_menu")],
     ]
-    if morning_payment.is_enabled():
-        rows.append([InlineKeyboardButton("💳 Оплатить картой", callback_data="sub_card")])
-    rows.append([InlineKeyboardButton("₿ Оплатить криптовалютой", callback_data="sub_crypto")])
-    rows.append([InlineKeyboardButton(t("btn_back_menu", ctx),    callback_data="back_to_menu")])
     return InlineKeyboardMarkup(rows)
 
 

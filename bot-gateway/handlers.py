@@ -210,15 +210,37 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lang = get_lang(context)
         user_id = update.effective_user.id
         status = get_status_text(user_id, lang)
-        trial_text = t("sub_trial", context) if is_trial_active() else t("sub_choose", context)
-        text = (
-            f"<b>{t('sub_title', context)}</b>\n\n"
-            f"{status}\n\n"
-            f"{trial_text}\n\n"
-            f"{t('btn_sub_week', context)} \n"
-            f"{t('btn_sub_two_weeks', context)} \n"
-            f"{t('btn_sub_month', context)}"
-        )
+        from config import PLAN_PRICES_ILS
+        w = PLAN_PRICES_ILS.get("week", 19.9)
+        tw = PLAN_PRICES_ILS.get("two_weeks", 29.9)
+        m = PLAN_PRICES_ILS.get("month", 39.9)
+        descs = {
+            "ru": (
+                f"<b>{t('sub_title', context)}</b>\n\n"
+                f"{status}\n\n"
+                f"Выберите тариф — оплата через PayPal:\n\n"
+                f"• 1 неделя — <b>{w:.0f}₪</b>\n"
+                f"• 2 недели — <b>{tw:.0f}₪</b>\n"
+                f"• 1 месяц — <b>{m:.0f}₪</b>"
+            ),
+            "en": (
+                f"<b>{t('sub_title', context)}</b>\n\n"
+                f"{status}\n\n"
+                f"Choose a plan — payment via PayPal:\n\n"
+                f"• 1 week — <b>{w:.0f}₪</b>\n"
+                f"• 2 weeks — <b>{tw:.0f}₪</b>\n"
+                f"• 1 month — <b>{m:.0f}₪</b>"
+            ),
+            "he": (
+                f"<b>{t('sub_title', context)}</b>\n\n"
+                f"{status}\n\n"
+                f"בחרו תוכנית — תשלום דרך PayPal:\n\n"
+                f"• שבוע 1 — <b>{w:.0f}₪</b>\n"
+                f"• 2 שבועות — <b>{tw:.0f}₪</b>\n"
+                f"• חודש 1 — <b>{m:.0f}₪</b>"
+            ),
+        }
+        text = descs.get(lang, descs["ru"])
         await query.edit_message_text(
             text,
             reply_markup=subscription_keyboard(context),
@@ -399,17 +421,17 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msgs = {
                 "ru": (
                     f"💳 <b>Оплата — {plan_name}</b>\n\n"
-                    "Нажмите кнопку ниже — откроется защищённая страница Morning.\n\n"
+                    "Нажмите кнопку ниже — откроется страница PayPal.\n\n"
                     "✅ После оплаты подписка активируется автоматически."
                 ),
                 "en": (
                     f"💳 <b>Payment — {plan_name}</b>\n\n"
-                    "Click below to open the secure Morning payment page.\n\n"
+                    "Click below to open the PayPal payment page.\n\n"
                     "✅ Your subscription will activate automatically after payment."
                 ),
                 "he": (
                     f"💳 <b>תשלום — {plan_name}</b>\n\n"
-                    "לחצו על הכפתור למטה לדף תשלום מאובטח של Morning.\n\n"
+                    "לחצו על הכפתור למטה לדף תשלום של PayPal.\n\n"
                     "✅ המנוי יופעל אוטומטית לאחר התשלום."
                 ),
             }
@@ -417,7 +439,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msgs.get(lang, msgs["ru"]),
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton(pay_labels.get(lang, pay_labels["ru"]), url=pay_url)],
-                    [InlineKeyboardButton(back_labels.get(lang, back_labels["ru"]), callback_data="sub_card")],
+                    [InlineKeyboardButton(back_labels.get(lang, back_labels["ru"]), callback_data="subscription")],
                 ]),
                 parse_mode="HTML",
             )
