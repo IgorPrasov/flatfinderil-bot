@@ -594,6 +594,16 @@ class ListingHandler:
 
         if action == "add_agent_manual":
             lang = get_lang(context)
+            user_id = update.effective_user.id
+            has_credits = db.get_listing_credits(user_id) > 0
+            free_ok = not db.has_used_free_listing(user_id)
+
+            if not has_credits and not free_ok:
+                # No credits and no free slot — show package selection before listing
+                context.user_data["add_listing"] = {}
+                await _show_agent_paywall(update, context, lang)
+                return ADD_AWAIT_PAYMENT
+
             label = _L({"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך", "fr": "🏢 Agent / Courtier"}, lang)
             await query.edit_message_text(
                 _confirmed(context, "Тип продавца", "Seller type", "סוג המוכר", label),
@@ -1390,9 +1400,25 @@ class ListingHandler:
         if data == "agent_check_payment":
             user_id = update.effective_user.id
             if db.get_listing_credits(user_id) > 0:
-                db.use_listing_credit(user_id)
-                # Publish the pending listing
                 d = context.user_data.get("add_listing", {})
+
+                if not d.get("deal_type"):
+                    # Payment was upfront — listing not filled yet; proceed to deal type
+                    label = _L({"ru": "🏢 Агент / Риелтор", "en": "🏢 Agent / Realtor", "he": "🏢 סוכן / מתווך"}, lang)
+                    await query.edit_message_text(
+                        _confirmed(context, "Тип продавца", "Seller type", "סוג המוכר", label),
+                        parse_mode="HTML",
+                    )
+                    context.user_data["add_state"] = ADD_DEAL_TYPE
+                    text = _step_text(context, "Шаг 2/16: Тип сделки", "Step 2/16: Deal type", "שלב 2/16: סוג עסקה")
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id, text=text,
+                        reply_markup=_deal_keyboard(context), parse_mode="HTML"
+                    )
+                    return ADD_DEAL_TYPE
+
+                # Listing already filled — publish now
+                db.use_listing_credit(user_id)
                 d["user_id"] = user_id
                 if not d.get("photos"):
                     d["photos"] = ["🏠"]
