@@ -1022,18 +1022,14 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Replace the old message so the stale buttons don't linger.
             try:
                 await query.edit_message_text(
-                    f"{t('orphan_callback', context)}\n\n"
-                    f"{format_welcome(first, context)}",
+                    format_welcome(first, context),
                     reply_markup=main_menu_keyboard(context),
                     parse_mode="HTML",
                 )
             except Exception:
-                # Editing can fail if the message is too old or unchanged;
-                # send a fresh message instead.
                 if query.message:
                     await query.message.reply_text(
-                        f"{t('orphan_callback', context)}\n\n"
-                        f"{format_welcome(first, context)}",
+                        format_welcome(first, context),
                         reply_markup=main_menu_keyboard(context),
                         parse_mode="HTML",
                     )

@@ -4,6 +4,7 @@ from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
     MessageHandler, PreCheckoutQueryHandler, filters,
+    PicklePersistence,
 )
 from config import BOT_TOKEN
 from handlers import (
@@ -205,7 +206,8 @@ def main():
     global _bot_app, _bot_loop
     fix_city_migration()
     _warmup_sessions()
-    app = Application.builder().token(BOT_TOKEN).build()
+    persistence = PicklePersistence(filepath="conversation_states.pkl")
+    app = Application.builder().token(BOT_TOKEN).persistence(persistence).build()
     _bot_app = app
     _bot_loop = asyncio.get_event_loop()
     search = SearchHandler()
