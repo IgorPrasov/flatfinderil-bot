@@ -430,7 +430,7 @@ class ListingHandler:
                     CallbackQueryHandler(self.cancel, pattern="^add_cancel$"),
                 ],
                 ADD_AWAIT_PAYMENT: [
-                    CallbackQueryHandler(self.handle_await_payment, pattern="^(agent_pkg_|agent_crypto|agent_check_payment|add_cancel)"),
+                    CallbackQueryHandler(self.handle_await_payment, pattern="^(agent_pkg_|agent_crypto|agent_check_payment|add_cancel|back_to_menu|agent_crypto_plan_|agent_crypto_pay_)"),
                 ],
             },
             fallbacks=[

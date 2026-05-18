@@ -248,73 +248,9 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif data.startswith("sub_") and not data.startswith("sub_crypto"):
-        plan_key = data.replace("sub_", "")
-        if plan_key == "search_alert":
-            await query.edit_message_text(
-                t("sub_search_alert_desc", context),
-                reply_markup=search_alert_confirm_keyboard(context),
-                parse_mode="HTML",
-            )
-        elif plan_key == "search_alert_confirm":
-            user_id = update.effective_user.id
-            expiry = activate_subscription(user_id, "search_alert")
-            lang = get_lang(context)
-            plan = PLANS["search_alert"]
-            plan_name = plan[f"name_{lang}"] if f"name_{lang}" in plan else plan["name_ru"]
-            expiry_str = expiry.strftime("%d.%m.%Y")
-            await query.edit_message_text(
-                t("sub_activated", context, plan=plan_name, expiry=expiry_str),
-                reply_markup=back_to_menu_keyboard(context),
-                parse_mode="HTML",
-            )
-        elif plan_key in PLANS:
-            lang = get_lang(context)
-            plan = PLANS[plan_key]
-            plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
-            from config import SUB_STARS_DEFAULT
-            stars = plan.get("stars", SUB_STARS_DEFAULT)
-            chat_id = update.effective_chat.id
-            user_id = update.effective_user.id
-            payload = f"{plan_key}:{user_id}"
-            logger.info(f"[PAYMENT] Stars invoice attempt plan={plan_key} stars={stars} chat={chat_id} uid={user_id}")
-
-            descriptions = {
-                "ru": f"Доступ к FlatFinderIL на {plan['days']} дней",
-                "en": f"FlatFinderIL access for {plan['days']} days",
-                "he": f"גישה ל-FlatFinderIL למשך {plan['days']} ימים",
-            }
-            desc = descriptions.get(lang, descriptions["ru"])
-
-            try:
-                import requests as _req
-                from config import BOT_TOKEN
-                resp = _req.post(
-                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendInvoice",
-                    json={
-                        "chat_id": chat_id,
-                        "title": f"FlatFinderIL — {plan_name}",
-                        "description": desc,
-                        "payload": payload,
-                        "provider_token": "",
-                        "currency": "XTR",
-                        "prices": [{"label": plan_name, "amount": stars}],
-                    },
-                    timeout=10,
-                )
-                result = resp.json()
-                logger.info(f"[PAYMENT] Telegram API response: {result}")
-                if not result.get("ok"):
-                    err_desc = result.get("description", "Unknown error")
-                    raise RuntimeError(err_desc)
-                logger.info(f"[PAYMENT] Invoice sent ok chat={chat_id} plan={plan_key}")
-            except Exception as inv_err:
-                logger.error(f"[PAYMENT] sendInvoice FAILED: {inv_err}")
-                # Show actual error in chat for debugging
-                await query.edit_message_text(
-                    f"⚠️ Ошибка оплаты:\n<code>{inv_err}</code>\n\nСообщите в поддержку.",
-                    reply_markup=subscription_keyboard(context),
-                    parse_mode="HTML",
-                )
+        # sub_search_alert and sub_search_alert_confirm are handled by handle_stars_invoice (group=-1)
+        # which runs before handle_menu. We skip them here to avoid double-handling.
+        pass
 
     # ── Crypto payments ──────────────────────────────────────────────────
     elif data == "sub_crypto":
