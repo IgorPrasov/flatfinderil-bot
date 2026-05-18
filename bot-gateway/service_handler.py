@@ -683,7 +683,7 @@ class ServiceHandler:
                 f"לחץ על הכפתור למטה כדי להירשם לחבילה ולהתחיל לקבל לקוחות. 💼"
             )
             # Build mover subscription keyboard
-            import morning_payment as _mp
+            import paypal_payment as _mp
             if _mp.is_enabled():
                 from pricing import MOVER_PACKAGES
                 rows = []

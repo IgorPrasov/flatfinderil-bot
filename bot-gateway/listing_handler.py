@@ -1430,7 +1430,7 @@ class ListingHandler:
 
         if data.startswith("agent_pkg_"):
             pkg_key = data[len("agent_pkg_"):]
-            import morning_payment as _mp
+            import paypal_payment as _mp
             from pricing import get_agent_package
             pkg = get_agent_package(pkg_key)
             label = pkg["label"].get(lang, pkg["label"]["ru"]) if pkg else pkg_key

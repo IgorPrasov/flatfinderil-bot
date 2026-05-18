@@ -170,7 +170,7 @@ async def _handle_mover_subscribe(update, context):
     except Exception:
         lang = "ru"
 
-    import morning_payment as _mp
+    import paypal_payment as _mp
     result = _mp.create_mover_subscription_link(pkg_key, user_id, lang)
 
     if result and result.get("url"):
@@ -384,9 +384,9 @@ def _payment_notify_user(user_id: int, plan_key: str, expiry) -> None:
             json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
             timeout=10,
         )
-        logger.info(f"[MORNING] Confirmation sent to user={user_id}")
+        logger.info(f"[PAYPAL] Confirmation sent to user={user_id}")
     except Exception as e:
-        logger.error(f"[MORNING] Failed to notify user={user_id}: {e}")
+        logger.error(f"[PAYPAL] Failed to notify user={user_id}: {e}")
 
 def _notify_agent_credits(user_id: int, pkg: dict) -> None:
     """Notify agent that listing credits were added after payment."""
@@ -430,9 +430,9 @@ def _notify_agent_credits(user_id: int, pkg: dict) -> None:
             json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
             timeout=10,
         )
-        logger.info(f"[MORNING] Agent credits notification sent user={user_id}")
+        logger.info(f"[PAYPAL] Agent credits notification sent user={user_id}")
     except Exception as e:
-        logger.error(f"[MORNING] Failed to notify agent user={user_id}: {e}")
+        logger.error(f"[PAYPAL] Failed to notify agent user={user_id}: {e}")
 
 
 def _notify_mover_subscription(user_id: int, pkg: dict, expiry_iso: str) -> None:
@@ -479,9 +479,9 @@ def _notify_mover_subscription(user_id: int, pkg: dict, expiry_iso: str) -> None
             json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
             timeout=10,
         )
-        logger.info(f"[MORNING] Mover subscription notification sent user={user_id}")
+        logger.info(f"[PAYPAL] Mover subscription notification sent user={user_id}")
     except Exception as e:
-        logger.error(f"[MORNING] Failed to notify mover user={user_id}: {e}")
+        logger.error(f"[PAYPAL] Failed to notify mover user={user_id}: {e}")
 
 
 async def _notify_alert_activated(user_id: int, expiry_iso: str) -> None:
@@ -525,7 +525,7 @@ async def _notify_alert_activated(user_id: int, expiry_iso: str) -> None:
             timeout=10,
         )
     except Exception as e:
-        logger.error(f"[MORNING] Failed to notify alert user={user_id}: {e}")
+        logger.error(f"[PAYPAL] Failed to notify alert user={user_id}: {e}")
 
 
 def _request_host(headers) -> str:
@@ -1671,11 +1671,11 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 result = {"error": str(e)}
             return self._send_json(result)
         # ── Morning webhook ───────────────────────────────────────────────
-        if path == "/webhook/morning":
-            return self._handle_morning_webhook()
+        if path == "/webhook/paypal":
+            return self._handle_paypal_webhook()
         self._send_json({"error":"Not found"},404)
 
-    def _handle_morning_webhook(self):
+    def _handle_paypal_webhook(self):
         """Verify Morning callback and activate subscription/credits on payment."""
         import json as _json
         try:
@@ -1688,13 +1688,13 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 from urllib.parse import parse_qs
                 callback_data = {k: v[0] for k, v in parse_qs(body.decode("utf-8", errors="replace")).items()}
 
-            logger.info(f"[MORNING] Webhook received: {_json.dumps(callback_data)[:300]}")
+            logger.info(f"[PAYPAL] Webhook received: {_json.dumps(callback_data)[:300]}")
 
-            import morning_payment
+            import paypal_payment as morning_payment
             user_id, plan_key = morning_payment.verify_and_extract(callback_data)
 
             if user_id and plan_key:
-                logger.info(f"[MORNING] Payment confirmed user={user_id} plan={plan_key}")
+                logger.info(f"[PAYPAL] Payment confirmed user={user_id} plan={plan_key}")
 
                 # ── Lead balance top-up ──────────────────────────────────────
                 if plan_key.startswith("leads_"):
@@ -1702,9 +1702,9 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                         credits = int(plan_key.split("_")[1])
                         import database as _db
                         _db.add_lead_balance(user_id, credits)
-                        logger.info(f"[MORNING] Lead balance +{credits} ₪ user={user_id}")
+                        logger.info(f"[PAYPAL] Lead balance +{credits} ₪ user={user_id}")
                     except Exception as _e:
-                        logger.error(f"[MORNING] Lead topup error: {_e}")
+                        logger.error(f"[PAYPAL] Lead topup error: {_e}")
 
                 # ── Agent listing package ────────────────────────────────────
                 elif plan_key.startswith("agent_pkg_"):
@@ -1715,10 +1715,10 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                         import database as _db
                         _db.add_listing_credits(user_id, pkg["count"],
                                                 duration_days=pkg.get("duration_days", 30))
-                        logger.info(f"[MORNING] Agent credits +{pkg['count']} user={user_id}")
+                        logger.info(f"[PAYPAL] Agent credits +{pkg['count']} user={user_id}")
                         _notify_agent_credits(user_id, pkg)
                     else:
-                        logger.error(f"[MORNING] Unknown agent pkg={pkg_key!r}")
+                        logger.error(f"[PAYPAL] Unknown agent pkg={pkg_key!r}")
 
                 # ── Mover weekly subscription ────────────────────────────────
                 elif plan_key.startswith("mover_pkg_"):
@@ -1730,17 +1730,17 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                         expiry = (datetime.utcnow() + timedelta(weeks=1)).isoformat()
                         import database as _db
                         _db.set_service_subscription(str(user_id), pkg_key, expiry)
-                        logger.info(f"[MORNING] Mover sub activated user={user_id} until={expiry}")
+                        logger.info(f"[PAYPAL] Mover sub activated user={user_id} until={expiry}")
                         _notify_mover_subscription(user_id, pkg, expiry)
                     else:
-                        logger.error(f"[MORNING] Unknown mover pkg={pkg_key!r}")
+                        logger.error(f"[PAYPAL] Unknown mover pkg={pkg_key!r}")
 
                 # ── Alert subscription (39.90₪/month) ───────────────────────
                 elif plan_key == "alerts":
                     import database as _db
                     _db.set_alert_expiry(user_id, days=30)
                     expiry = _db.get_alert_expiry(user_id)
-                    logger.info(f"[MORNING] Alert sub activated user={user_id} until={expiry}")
+                    logger.info(f"[PAYPAL] Alert sub activated user={user_id} until={expiry}")
                     asyncio.run_coroutine_threadsafe(
                         _notify_alert_activated(user_id, expiry),
                         asyncio.get_event_loop()
@@ -1751,19 +1751,19 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     from subscription import activate_subscription
                     expiry = activate_subscription(user_id, plan_key)
                     if expiry:
-                        logger.info(f"[MORNING] Subscription activated user={user_id} plan={plan_key} until={expiry}")
+                        logger.info(f"[PAYPAL] Subscription activated user={user_id} plan={plan_key} until={expiry}")
                         _payment_notify_user(user_id, plan_key, expiry)
                     else:
-                        logger.error(f"[MORNING] activate_subscription returned None user={user_id} plan={plan_key}")
+                        logger.error(f"[PAYPAL] activate_subscription returned None user={user_id} plan={plan_key}")
             else:
-                logger.info("[MORNING] Webhook ignored (not our document or payment not confirmed)")
+                logger.info("[PAYPAL] Webhook ignored (not our document or payment not confirmed)")
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(b'{"ok":true}')
         except Exception as e:
-            logger.error(f"[MORNING] Webhook handler exception: {e}")
+            logger.error(f"[PAYPAL] Webhook handler exception: {e}")
             self.send_response(200)
             self.end_headers()
 

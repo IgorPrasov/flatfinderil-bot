@@ -726,7 +726,7 @@ async def handle_buy_lead(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def _show_top_up_prompt(query, context, balance: int, price: int, lang: str):
     """Show Morning top-up options when balance is insufficient."""
-    import morning_payment as mp
+    import paypal_payment as mp
     provider_id = query.from_user.id
     needed = price - balance
     header = _L({

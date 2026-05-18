@@ -20,7 +20,7 @@ from keyboards import (
     card_plan_keyboard,
 )
 import cryptopay
-import morning_payment
+import paypal_payment as morning_payment
 from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
 from subscription import (

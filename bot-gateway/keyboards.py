@@ -314,7 +314,7 @@ def city_multi_keyboard(ctx, selected=None, districts=None):
     return InlineKeyboardMarkup(keyboard)
 
 def subscription_keyboard(ctx):
-    import morning_payment
+    import paypal_payment as morning_payment
     rows = [
         [InlineKeyboardButton(t("btn_sub_week", ctx),         callback_data="sub_week")],
         [InlineKeyboardButton(t("btn_sub_two_weeks", ctx),    callback_data="sub_two_weeks")],

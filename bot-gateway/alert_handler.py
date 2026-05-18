@@ -142,7 +142,7 @@ async def handle_alert_subscribe(update: Update, context: ContextTypes.DEFAULT_T
     lang = _lang(context)
     user_id = update.effective_user.id
 
-    import morning_payment as mp
+    import paypal_payment as mp
     result = mp.create_payment_link("alerts", user_id, lang)
 
     if result and result.get("url"):
