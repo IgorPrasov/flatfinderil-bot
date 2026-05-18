@@ -371,9 +371,9 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lang = get_lang(context)
             titles = {"ru": "💳 Оплата картой", "en": "💳 Card payment", "he": "💳 תשלום בכרטיס"}
             descs  = {
-                "ru": "Выберите тариф — оплата через Morning (карта / Bit / Apple Pay):",
-                "en": "Choose a plan — pay via Morning (card / Bit / Apple Pay):",
-                "he": "בחרו תוכנית — תשלום דרך Morning (כרטיס / Bit / Apple Pay):",
+                "ru": "Выберите тариф — оплата через PayPal:",
+                "en": "Choose a plan — pay via PayPal:",
+                "he": "בחרו תוכנית — תשלום דרך PayPal:",
             }
             await query.edit_message_text(
                 f"<b>{titles.get(lang, titles['ru'])}</b>\n\n{descs.get(lang, descs['ru'])}",

@@ -322,7 +322,7 @@ def subscription_keyboard(ctx):
         [InlineKeyboardButton(t("btn_sub_search_alert", ctx), callback_data="sub_search_alert")],
     ]
     if morning_payment.is_enabled():
-        rows.append([InlineKeyboardButton("💳 Оплатить картой / Bit", callback_data="sub_card")])
+        rows.append([InlineKeyboardButton("💳 Оплатить картой", callback_data="sub_card")])
     rows.append([InlineKeyboardButton("₿ Оплатить криптовалютой", callback_data="sub_crypto")])
     rows.append([InlineKeyboardButton(t("btn_back_menu", ctx),    callback_data="back_to_menu")])
     return InlineKeyboardMarkup(rows)
