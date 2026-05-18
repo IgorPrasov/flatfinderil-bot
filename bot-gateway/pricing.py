@@ -188,12 +188,12 @@ def format_agent_pricing(lang: str = "ru") -> str:
 
 def get_lead_price(svc_type: str) -> int:
     """Return per-lead price in ₪ for lead-balance service types."""
-    return {"cleaning": CLEANING_LEAD_PRICE_ILS, "packers": PACKING_LEAD_PRICE_ILS}.get(svc_type, 0)
+    return {"cleaning": CLEANING_LEAD_PRICE_ILS, "packing": PACKING_LEAD_PRICE_ILS}.get(svc_type, 0)
 
 
 def format_service_pricing(svc_type: str, lang: str = "ru") -> str:
     """Return pricing info block for service provider type."""
-    if svc_type == "movers":
+    if svc_type == "moving":
         if lang == "he":
             return (
                 "💳 <b>תמחור:</b>\n"
@@ -239,7 +239,7 @@ def format_service_pricing(svc_type: str, lang: str = "ru") -> str:
                 "  · Пополняете баланс заранее, платите только за реальные заявки"
             )
 
-    elif svc_type == "packers":
+    elif svc_type == "packing":
         if lang == "he":
             return (
                 "💳 <b>תמחור — מודל יתרת לידים:</b>\n"

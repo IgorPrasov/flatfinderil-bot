@@ -655,8 +655,8 @@ class ServiceHandler:
             import logging as _log
             _log.getLogger(__name__).warning(f"[WELCOME] service email error: {_we}")
         type_label = {
-            "movers":   {"ru":"Перевозчики","en":"Movers","he":"הובלות", "fr": "Déménageurs"},
-            "packers":  {"ru":"Упаковщики","en":"Packers","he":"אריזה", "fr": "Emballeurs"},
+            "moving":   {"ru":"Перевозчики","en":"Movers","he":"הובלות", "fr": "Déménageurs"},
+            "packing":  {"ru":"Упаковщики","en":"Packers","he":"אריזה", "fr": "Emballeurs"},
             "cleaning": {"ru":"Уборка","en":"Cleaning","he":"ניקיון", "fr": "Ménage"},
         }.get(svc_type, {}).get(lang, svc_type)
 
@@ -664,7 +664,9 @@ class ServiceHandler:
         from pricing import format_service_pricing
         pricing_block = format_service_pricing(svc_type, lang)
 
-        if svc_type == "movers":
+        import paypal_payment as _mp
+
+        if svc_type == "moving":
             text = _t(context,
                 f"🚛 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
                 f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваша компания по перевозкам размещена на платформе.\n\n"
@@ -682,8 +684,6 @@ class ServiceHandler:
                 f"{pricing_block}\n\n"
                 f"לחץ על הכפתור למטה כדי להירשם לחבילה ולהתחיל לקבל לקוחות. 💼"
             )
-            # Build mover subscription keyboard
-            import paypal_payment as _mp
             if _mp.is_enabled():
                 from pricing import MOVER_PACKAGES
                 rows = []
@@ -700,42 +700,43 @@ class ServiceHandler:
                 kb = InlineKeyboardMarkup(rows)
             else:
                 kb = _back_kb(context)
-        elif svc_type == "cleaning":
+
+        elif svc_type in ("cleaning", "packing"):
+            icon = "🧹" if svc_type == "cleaning" else "📦"
             text = _t(context,
-                f"🧹 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
-                f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваш клининговый сервис размещён на платформе.\n\n"
+                f"{icon} <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
+                f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваш сервис размещён на платформе.\n\n"
                 f"{pricing_block}\n\n"
-                f"Клиенты уже могут найти вас через раздел 🔧 <b>Услуги</b>. Менеджер свяжется с вами для оформления условий работы. 💼",
+                f"Пополните баланс лидов через PayPal — и сразу начните получать заявки клиентов. 💼",
 
-                f"🧹 <b>FlatFinderIL — Service Published!</b>\n\n"
-                f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your cleaning service is now live.\n\n"
+                f"{icon} <b>FlatFinderIL — Service Published!</b>\n\n"
+                f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your service is now live.\n\n"
                 f"{pricing_block}\n\n"
-                f"Clients can find you through the 🔧 <b>Services</b> section. Our manager will contact you to set up terms. 💼",
+                f"Top up your lead balance via PayPal and start receiving client requests right away. 💼",
 
-                f"🧹 <b>FlatFinderIL — השירות פורסם!</b>\n\n"
-                f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} שירות הניקיון שלך פעיל בפלטפורמה.\n\n"
+                f"{icon} <b>FlatFinderIL — השירות פורסם!</b>\n\n"
+                f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} השירות שלך פעיל בפלטפורמה.\n\n"
                 f"{pricing_block}\n\n"
-                f"לקוחות יכולים למצוא אותך בסעיף 🔧 <b>שירותים</b>. מנהל שלנו יצור איתך קשר לגיבוש תנאי העבודה. 💼"
+                f"טעינו יתרת לידים דרך PayPal — ותתחילו לקבל פניות לקוחות מיד. 💼"
             )
-            kb = _back_kb(context)
-        elif svc_type == "packers":
-            text = _t(context,
-                f"📦 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
-                f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваш сервис упаковки размещён на платформе.\n\n"
-                f"{pricing_block}\n\n"
-                f"Клиенты уже могут найти вас через раздел 🔧 <b>Услуги</b>. Менеджер свяжется с вами для оформления условий. 💼",
+            if _mp.is_enabled():
+                from pricing import LEAD_BALANCE_PACKAGES
+                rows = []
+                for pkg in LEAD_BALANCE_PACKAGES:
+                    amount = pkg["amount_ils"]
+                    credits = amount + pkg.get("bonus_ils", 0)
+                    result = _mp.create_lead_topup_link(amount, credits, user.id, lang)
+                    if result and result.get("url"):
+                        label = _L(pkg["label"], lang)
+                        rows.append([InlineKeyboardButton(label, url=result["url"])])
+                rows.append([InlineKeyboardButton(
+                    {"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}.get(lang, "⏭ Later"),
+                    callback_data="back_to_menu"
+                )])
+                kb = InlineKeyboardMarkup(rows) if rows else _back_kb(context)
+            else:
+                kb = _back_kb(context)
 
-                f"📦 <b>FlatFinderIL — Service Published!</b>\n\n"
-                f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your packing service is now live.\n\n"
-                f"{pricing_block}\n\n"
-                f"Clients can find you through the 🔧 <b>Services</b> section. Our manager will contact you to set up terms. 💼",
-
-                f"📦 <b>FlatFinderIL — השירות פורסם!</b>\n\n"
-                f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} שירות האריזה שלך פעיל בפלטפורמה.\n\n"
-                f"{pricing_block}\n\n"
-                f"לקוחות יכולים למצוא אותך בסעיף 🔧 <b>שירותים</b>. מנהל שלנו יצור איתך קשר לגיבוש תנאי העבודה. 💼"
-            )
-            kb = _back_kb(context)
         else:
             text = _t(context,
                 f"🚚 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
