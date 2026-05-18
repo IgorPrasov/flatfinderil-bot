@@ -499,6 +499,10 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "noop":
         pass
 
+    # ── Mover subscription — handled in group=-1 by _handle_mover_subscribe ──
+    elif data.startswith("mover_subscribe_"):
+        pass  # already handled before handle_menu runs
+
     # ── Subscribe to search ────────────────────────────────────────────────
     elif data == "subscribe_search":
         filters = context.user_data.get("search_filters", {})
