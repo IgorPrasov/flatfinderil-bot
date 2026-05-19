@@ -262,11 +262,13 @@ def handle_get_listings(params: dict) -> dict:
         filters["with_photos"] = params["with_photos"][0] in ("1", "true", "True")
 
     listings = db.search_listings(filters)
-    # Sort: active first, then by date added desc
+    # Sort by date added desc
     listings.sort(key=lambda l: l.get("date_added", ""), reverse=True)
-    # Limit
-    limit = int((params.get("limit") or [100])[0])
-    return {"listings": listings[:limit], "total": len(listings)}
+    total = len(listings)
+    limit  = int((params.get("limit")  or [50])[0])
+    offset = int((params.get("offset") or [0])[0])
+    page_listings = listings[offset:offset + limit]
+    return {"listings": page_listings, "total": total, "limit": limit, "offset": offset}
 
 
 def handle_get_listing(listing_id: int) -> dict:
