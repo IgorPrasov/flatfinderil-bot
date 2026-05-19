@@ -185,6 +185,14 @@ class Handler(BaseHTTPRequestHandler):
                 data = _get_backoffice_daily_stats()
                 _json_response(self, data)
 
+            # ── /api/miniapp/* ────────────────────────────────────────────────
+            elif path.startswith("/api/miniapp/"):
+                from mini_app_api import route as miniapp_route
+                params = parse_qs(parsed.query)
+                headers = dict(self.headers)
+                result, status = miniapp_route("GET", path, params, {}, headers)
+                _json_response(self, result, status)
+
             else:
                 _json_response(self, {"error": "Not found"}, 404)
 
@@ -195,10 +203,26 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path   = parsed.path.rstrip("/")
 
+        content_len = int(self.headers.get("Content-Length", 0))
+        raw_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+        try:
+            body = json.loads(raw_body)
+        except Exception:
+            body = {}
+
         try:
             if path == "/admin/cleanup-spam":
                 result = _cleanup_spam_listings()
                 _json_response(self, result)
+
+            # ── POST /api/miniapp/* ──────────────────────────────────────────
+            elif path.startswith("/api/miniapp/"):
+                from mini_app_api import route as miniapp_route
+                params = parse_qs(urlparse(self.path).query)
+                headers = dict(self.headers)
+                result, status = miniapp_route("POST", path, params, body, headers)
+                _json_response(self, result, status)
+
             else:
                 _json_response(self, {"error": "Not found"}, 404)
         except Exception as e:
@@ -208,7 +232,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Telegram-Init-Data")
         self.end_headers()
 
     def log_message(self, fmt, *args):
