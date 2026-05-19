@@ -1713,6 +1713,25 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 self.end_headers()
                 self.wfile.write(body)
 
+        elif path.startswith("/api/miniapp/"):
+            try:
+                from mini_app_api import route as miniapp_route
+                from urllib.parse import parse_qs as _pqs
+                params  = _pqs(parsed.query)
+                headers = dict(self.headers)
+                result, status = miniapp_route("GET", path, params, {}, headers)
+                body = json_module.dumps(result, ensure_ascii=False, default=str).encode("utf-8")
+            except Exception as e:
+                body   = json_module.dumps({"error": str(e)}).encode("utf-8")
+                status = 500
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Telegram-Init-Data")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+
         else:
             self._send_html(DASHBOARD_FILE)
 
@@ -1731,6 +1750,31 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             except Exception as e:
                 result = {"error": str(e)}
             return self._send_json(result)
+        # ── Mini App API ──────────────────────────────────────────────────
+        if path.startswith("/api/miniapp/"):
+            content_len = int(self.headers.get("Content-Length", 0))
+            raw_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+            try:
+                body_data = json_module.loads(raw_body)
+            except Exception:
+                body_data = {}
+            try:
+                from mini_app_api import route as miniapp_route
+                from urllib.parse import parse_qs as _pqs
+                params  = _pqs(urlparse(self.path).query)
+                headers = dict(self.headers)
+                result, status = miniapp_route("POST", path, params, body_data, headers)
+                body = json_module.dumps(result, ensure_ascii=False, default=str).encode("utf-8")
+            except Exception as e:
+                body   = json_module.dumps({"error": str(e)}).encode("utf-8")
+                status = 500
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         # ── Morning webhook ───────────────────────────────────────────────
         if path == "/webhook/paypal":
             return self._handle_paypal_webhook()
@@ -1906,7 +1950,7 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin","*")
         self.send_header("Access-Control-Allow-Methods","GET,POST,PATCH,DELETE,OPTIONS")
-        self.send_header("Access-Control-Allow-Headers","Content-Type")
+        self.send_header("Access-Control-Allow-Headers","Content-Type, X-Telegram-Init-Data")
         self.end_headers()
 
 def start_web_server():
