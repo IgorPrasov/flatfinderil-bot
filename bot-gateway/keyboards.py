@@ -1,4 +1,4 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from i18n import t, get_lang, get_property_type_name, get_district_name, get_infra_name, LANGUAGES
 from city_translations import get_city_name
 
@@ -25,6 +25,8 @@ def join_keyboard():
 def language_keyboard():
     return InlineKeyboardMarkup([[InlineKeyboardButton(label,callback_data=f"setlang_{code}")] for code,label in LANGUAGES.items()])
 
+MINI_APP_URL = "https://flatfinderil-miniapp.vercel.app"
+
 def main_menu_keyboard(ctx):
     lang = get_lang(ctx)
     sub_label = {"ru": "★ Подписка", "en": "★ Subscribe", "he": "★ מנוי", "fr": "★ Abonnement"}.get(lang, "★ Подписка")
@@ -34,7 +36,9 @@ def main_menu_keyboard(ctx):
     alerts_label = {"ru": "🔔 Уведомления", "en": "🔔 Alerts", "he": "🔔 התראות", "fr": "🔔 Alertes"}.get(lang, "🔔 Уведомления")
     rent_label = {"ru": "🔑 Аренда", "en": "🔑 Rent", "he": "🔑 שכירות", "fr": "🔑 Location"}.get(lang, "🔑 Аренда")
     buy_label  = {"ru": "🏦 Купить", "en": "🏦 Buy", "he": "🏦 קנייה",   "fr": "🏦 Acheter"}.get(lang, "🏦 Купить")
+    app_label  = {"ru": "🚀 Открыть приложение", "en": "🚀 Open App", "he": "🚀 פתח אפליקציה", "fr": "🚀 Ouvrir l'app"}.get(lang, "🚀 Открыть приложение")
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton(app_label, web_app=WebAppInfo(url=MINI_APP_URL))],
         [InlineKeyboardButton(rent_label, callback_data="search_rent"), InlineKeyboardButton(buy_label, callback_data="search_buy")],
         [InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites"), InlineKeyboardButton(alerts_label, callback_data="alerts_menu")],
         [InlineKeyboardButton(t("btn_commercial", ctx), callback_data="commercial"), InlineKeyboardButton(svc_label, callback_data="services")],
