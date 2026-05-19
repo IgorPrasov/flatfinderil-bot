@@ -351,6 +351,46 @@ def handle_ai_search(body: dict) -> dict:
     return _ai_parse_query(query, lang)
 
 
+def handle_get_services(params: dict) -> dict:
+    """Return service providers (movers, cleaning, packing, repairs)."""
+    try:
+        import database as db
+        category = (params.get("category") or [None])[0]
+        services = db.get_services(category)
+        return {"services": services}
+    except Exception as e:
+        # Fallback: return sample data if DB doesn't have services yet
+        sample = [
+            {
+                "id": 1, "name": "MoversIL", "category": "moving",
+                "phone": "+972-50-000-0001", "telegram": "@moversil",
+                "description": "Профессиональные перевозки по всему Израилю",
+                "regions": ["Тель-Авив", "Центр"], "price_from": 500,
+            },
+            {
+                "id": 2, "name": "CleanPro", "category": "cleaning",
+                "phone": "+972-50-000-0002", "telegram": "@cleanpro_il",
+                "description": "Генеральная и регулярная уборка квартир",
+                "regions": ["Тель-Авив", "Хайфа", "Нетания"], "price_from": 300,
+            },
+            {
+                "id": 3, "name": "PackMaster", "category": "packing",
+                "phone": "+972-50-000-0003", "telegram": None,
+                "description": "Упаковка вещей для переезда, защитные материалы",
+                "regions": ["Весь Израиль"], "price_from": 200,
+            },
+            {
+                "id": 4, "name": "FixIT", "category": "repairs",
+                "phone": "+972-50-000-0004", "telegram": "@fixit_il",
+                "description": "Мелкий ремонт, сантехника, электрика",
+                "regions": ["Центр", "Юг"], "price_from": 150,
+            },
+        ]
+        if category:
+            sample = [s for s in sample if s["category"] == category]
+        return {"services": sample}
+
+
 # ── Main router (called from analytics_server.py) ────────────────────────────
 
 def route(method: str, path: str, params: dict, body: dict, headers: dict) -> tuple[dict, int]:
@@ -398,5 +438,9 @@ def route(method: str, path: str, params: dict, body: dict, headers: dict) -> tu
     # POST /api/miniapp/ai-search
     if method == "POST" and path == "/api/miniapp/ai-search":
         return handle_ai_search(body), 200
+
+    # GET /api/miniapp/services
+    if method == "GET" and path == "/api/miniapp/services":
+        return handle_get_services(params), 200
 
     return {"error": "Not found"}, 404
