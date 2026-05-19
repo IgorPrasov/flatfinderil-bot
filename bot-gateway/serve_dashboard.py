@@ -166,12 +166,18 @@ class Handler(BaseHTTPRequestHandler):
             query = ("?" + parsed.query) if parsed.query else ""
             target = f"http://127.0.0.1:{ANALYTICS_PORT}{parsed.path}{query}"
             try:
-                with urllib.request.urlopen(target, timeout=15) as resp:
+                req = urllib.request.Request(target)
+                # Forward Telegram initData header for mini-app auth
+                init_data = self.headers.get("X-Telegram-Init-Data", "")
+                if init_data:
+                    req.add_header("X-Telegram-Init-Data", init_data)
+                with urllib.request.urlopen(req, timeout=15) as resp:
                     body = resp.read()
                     ctype = resp.headers.get("Content-Type", "application/json")
                 self.send_response(200)
                 self.send_header("Content-Type", ctype)
                 self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Telegram-Init-Data")
                 self.send_header("Content-Length", len(body))
                 self.end_headers()
                 self.wfile.write(body)
@@ -242,6 +248,47 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_response(500)
                 self.end_headers()
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Telegram-Init-Data")
+        self.end_headers()
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/miniapp/"):
+            content_len = int(self.headers.get("Content-Length", 0))
+            raw_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
+            query = ("?" + parsed.query) if parsed.query else ""
+            target = f"http://127.0.0.1:{ANALYTICS_PORT}{parsed.path}{query}"
+            try:
+                req = urllib.request.Request(target, data=raw_body, method="POST")
+                req.add_header("Content-Type", "application/json")
+                init_data = self.headers.get("X-Telegram-Init-Data", "")
+                if init_data:
+                    req.add_header("X-Telegram-Init-Data", init_data)
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    body = resp.read()
+                    ctype = resp.headers.get("Content-Type", "application/json")
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as e:
+                body = f'{{"error":"{e}"}}'.encode()
+                self.send_response(502)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+        else:
+            self.send_response(404)
+            self.end_headers()
+
     def log_message(self, *args): pass
 
 if __name__ == "__main__":
