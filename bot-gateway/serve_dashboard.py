@@ -1,6 +1,8 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse
-import os, urllib.request, urllib.error, json, time, threading, ssl
+from urllib.parse import urlparse, parse_qs
+import os, urllib.request, urllib.error, json, time, threading, ssl, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # SSL context без верификации — для Railway (наш собственный сервер)
 _SSL_CTX = ssl.create_default_context()
@@ -161,13 +163,32 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        # ── /api/miniapp/* — обрабатываем напрямую (без прокси) ──────────────
+        if parsed.path.startswith("/api/miniapp/"):
+            try:
+                from mini_app_api import route as miniapp_route
+                params  = parse_qs(parsed.query)
+                headers = dict(self.headers)
+                result, status = miniapp_route("GET", parsed.path, params, {}, headers)
+                body = json.dumps(result, ensure_ascii=False).encode("utf-8")
+            except Exception as e:
+                body   = json.dumps({"error": str(e)}).encode("utf-8")
+                status = 500
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Telegram-Init-Data")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         # ── Proxy all /api/* and /rss.xml to analytics server ─────────────────
         if parsed.path.startswith("/api/") or parsed.path in ("/rss.xml",):
             query = ("?" + parsed.query) if parsed.query else ""
             target = f"http://127.0.0.1:{ANALYTICS_PORT}{parsed.path}{query}"
             try:
                 req = urllib.request.Request(target)
-                # Forward Telegram initData header for mini-app auth
                 init_data = self.headers.get("X-Telegram-Init-Data", "")
                 if init_data:
                     req.add_header("X-Telegram-Init-Data", init_data)
@@ -177,7 +198,6 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", ctype)
                 self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Telegram-Init-Data")
                 self.send_header("Content-Length", len(body))
                 self.end_headers()
                 self.wfile.write(body)
@@ -260,31 +280,25 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/miniapp/"):
             content_len = int(self.headers.get("Content-Length", 0))
             raw_body = self.rfile.read(content_len) if content_len > 0 else b"{}"
-            query = ("?" + parsed.query) if parsed.query else ""
-            target = f"http://127.0.0.1:{ANALYTICS_PORT}{parsed.path}{query}"
             try:
-                req = urllib.request.Request(target, data=raw_body, method="POST")
-                req.add_header("Content-Type", "application/json")
-                init_data = self.headers.get("X-Telegram-Init-Data", "")
-                if init_data:
-                    req.add_header("X-Telegram-Init-Data", init_data)
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    body = resp.read()
-                    ctype = resp.headers.get("Content-Type", "application/json")
-                self.send_response(200)
-                self.send_header("Content-Type", ctype)
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Content-Length", len(body))
-                self.end_headers()
-                self.wfile.write(body)
+                body_data = json.loads(raw_body)
+            except Exception:
+                body_data = {}
+            try:
+                from mini_app_api import route as miniapp_route
+                params  = parse_qs(parsed.query)
+                headers = dict(self.headers)
+                result, status = miniapp_route("POST", parsed.path, params, body_data, headers)
+                body = json.dumps(result, ensure_ascii=False).encode("utf-8")
             except Exception as e:
-                body = f'{{"error":"{e}"}}'.encode()
-                self.send_response(502)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Content-Length", len(body))
-                self.end_headers()
-                self.wfile.write(body)
+                body   = json.dumps({"error": str(e)}).encode("utf-8")
+                status = 500
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
         else:
             self.send_response(404)
             self.end_headers()
