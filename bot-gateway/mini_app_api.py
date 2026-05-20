@@ -107,36 +107,108 @@ def _ai_parse_query(query: str, lang: str = "ru") -> dict:
             filters["price_min"] = int(price_min.group(1))
 
     # Cities
-    CITY_MAP = {
-        "тель-авив": "Тель-Авив", "тель авив": "Тель-Авив", "та": "Тель-Авив", "tel aviv": "Тель-Авив",
-        "нетания": "Нетания", "netanya": "Нетания", "натания": "Нетания",
-        "хайфа": "Хайфа", "haifa": "Хайфа",
-        "беэр-шева": "Беэр-Шева", "беэр шева": "Беэр-Шева", "beer sheva": "Беэр-Шева",
-        "ашдод": "Ашдод", "ashdod": "Ашдод",
-        "реховот": "Реховот", "петах-тиква": "Петах-Тиква",
-        "ришон": "Ришон-ле-Цион", "раанана": "Раанана",
-        "хадера": "Хадера", "холон": "Холон",
-    }
+    # Cities — longer patterns first, word-boundary checks for short aliases
+    CITY_MAP = [
+        (r"тель\s*-?\s*авив|tel\s*aviv",           "Тель-Авив"),
+        (r"нетани[яе]|нетань|натани[яе]|netanya",   "Нетания"),
+        (r"хайф[ае]|haifa",                          "Хайфа"),
+        (r"беэр[\s-]шев[ае]|beer\s*sheva",           "Беэр-Шева"),
+        (r"ашдод|ashdod",                             "Ашдод"),
+        (r"ашкелон|ashkelon",                         "Ашкелон"),
+        (r"реховот|rehovot",                          "Реховот"),
+        (r"петах[\s-]тикв[ае]|petah\s*tikva",        "Петах-Тиква"),
+        (r"ришон|rishon",                             "Ришон-ле-Цион"),
+        (r"раанан[ае]|raanana",                       "Раанана"),
+        (r"хадер[ае]|hadera",                         "Хадера"),
+        (r"холон|holon",                              "Холон"),
+        (r"бат[\s-]ям|bat\s*yam",                    "Бат-Ям"),
+        (r"модиин|modiin",                            "Модиин"),
+        (r"иерусалим|jerusalem|ерусалим",             "Иерусалим"),
+        (r"герцли[яе]|herzliya",                      "Герцлия"),
+        (r"нагари[яе]|nahariya",                      "Нагария"),
+        (r"акко?\b|acre\b",                           "Акко"),
+        (r"эйлат|eilat",                              "Эйлат"),
+    ]
     found_cities = []
-    for key, city in CITY_MAP.items():
-        if key in q and city not in found_cities:
+    for pattern, city in CITY_MAP:
+        if re.search(pattern, q) and city not in found_cities:
             found_cities.append(city)
     if found_cities:
         filters["cities"] = found_cities
 
-    # Property type
-    if any(w in q for w in ["студия", "studio"]):
+    # Property type — use word boundaries to avoid "рядом" matching "дом"
+    if any(w in q for w in ["студия", "studio", "студии"]):
         filters["property_types"] = ["studio"]
-    elif any(w in q for w in ["дом", "house", "коттедж", "villa"]):
+    elif any(w in q for w in ["вилла", "villa", "коттедж"]):
+        filters["property_types"] = ["villa"]
+    elif re.search(r'\bдом\b|\bhouse\b|\bдомик\b', q):
         filters["property_types"] = ["house"]
-    elif any(w in q for w in ["комнату", "комната", "room"]):
+    elif any(w in q for w in ["пентхаус", "penthouse"]):
+        filters["property_types"] = ["penthouse"]
+    elif any(w in q for w in ["дуплекс", "duplex"]):
+        filters["property_types"] = ["duplex"]
+    elif re.search(r'\bкомнату\b|\broom\b', q):  # "снять комнату", not "3 комнаты"
         filters["property_types"] = ["room"]
+
+    # Deal type inference from price if not set
+    # (buy prices typically 500k+, rent 1k-20k)
+    if "deal_type" not in filters and filters.get("price_max"):
+        if filters["price_max"] < 50000:
+            filters["deal_type"] = "rent"
+    if "deal_type" not in filters and filters.get("price_min"):
+        if filters["price_min"] > 50000:
+            filters["deal_type"] = "buy"
+
+    # Infrastructure — keyword → DB tag mapping
+    INFRA_KEYWORDS = {
+        # beach
+        "пляж": "beach", "море": "beach", "у моря": "beach", "рядом с морем": "beach",
+        "рядом с пляжем": "beach", "beach": "beach", "sea": "beach", "חוף": "beach",
+        # park
+        "парк": "park", "park": "park", "פארק": "park",
+        # school — use stem to catch all Russian cases (школе, школой, школу…)
+        "школ": "school", "school": "school", "בית ספר": "school",
+        # kindergarten
+        "детск": "kindergarten", "детсад": "kindergarten", "садик": "kindergarten",
+        "kindergarten": "kindergarten", "גן ילדים": "kindergarten",
+        # gym
+        "спортзал": "gym", "тренажер": "gym", "gym": "gym", "חדר כושר": "gym",
+        "фитнес": "gym",
+        # mall
+        "торговый центр": "mall", " тц ": "mall", "молл": "mall", "mall": "mall",
+        "קניון": "mall",
+        # transport — stem catches транспорте, транспорта, метро, автобусе…
+        "транспорт": "transport", "метро": "transport", "автобус": "transport",
+        "остановк": "transport", "transport": "transport", "תחבורה": "transport",
+        # hospital — stem catches больнице, больницы…
+        "больниц": "hospital", "hospital": "hospital", "בית חולים": "hospital",
+        # restaurant — stem catches рестораны, ресторане…
+        "ресторан": "restaurant", "restaurant": "restaurant", "מסעדה": "restaurant",
+        # synagogue — stem catches синагоге, синагоги…
+        "синагог": "synagogue", "synagogue": "synagogue", "בית כנסת": "synagogue",
+    }
+    found_infra: list = []
+    for keyword, tag in INFRA_KEYWORDS.items():
+        if keyword in q and tag not in found_infra:
+            found_infra.append(tag)
+    if found_infra:
+        filters["infrastructure"] = found_infra
+
+    # Pool
+    if any(w in q for w in ["бассейн", "pool", "בריכה"]):
+        filters["pool"] = True
 
     # With photos
     if any(w in q for w in ["с фото", "with photo", "with photos"]):
         filters["with_photos"] = True
 
     # Build human-readable explanation
+    INFRA_LABELS = {
+        "beach": "пляж", "park": "парк", "school": "школа",
+        "kindergarten": "детсад", "gym": "спортзал", "mall": "ТЦ",
+        "transport": "транспорт", "hospital": "больница",
+        "restaurant": "рестораны", "synagogue": "синагога",
+    }
     parts = []
     if filters.get("deal_type") == "rent":
         parts.append("аренда")
@@ -154,6 +226,10 @@ def _ai_parse_query(query: str, lang: str = "ru") -> dict:
         parts.append(f"до ₪{filters['price_max']:,}")
     if filters.get("price_min"):
         parts.append(f"от ₪{filters['price_min']:,}")
+    if filters.get("infrastructure"):
+        parts.append(", ".join(INFRA_LABELS.get(t, t) for t in filters["infrastructure"]))
+    if filters.get("pool"):
+        parts.append("бассейн")
 
     explanation = "Фильтры: " + ", ".join(parts) if parts else "Показываю все объявления"
     return {"filters": filters, "explanation": explanation}
