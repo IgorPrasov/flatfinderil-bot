@@ -260,6 +260,10 @@ def handle_get_listings(params: dict) -> dict:
         filters["price_max"] = int(params["price_max"][0])
     if params.get("with_photos"):
         filters["with_photos"] = params["with_photos"][0] in ("1", "true", "True")
+    if params.get("pool"):
+        filters["pool"] = params["pool"][0] in ("1", "true", "True")
+    if params.get("infrastructure"):
+        filters["infrastructure"] = params["infrastructure"]
 
     listings = db.search_listings(filters)
     # Sort by date added desc
