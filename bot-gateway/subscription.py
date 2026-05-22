@@ -1,4 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+def _now():
+    """Current UTC time, always offset-aware (compatible with TIMESTAMPTZ from PG)."""
+    return datetime.now(tz=timezone.utc)
 import database as db
 from config import PLAN_PRICES_ILS, PLAN_DAYS, PLAN_STARS
 
@@ -66,13 +70,13 @@ def has_access(user_id: int) -> bool:
     # Бонусные дни из БД
     try:
         bonus_exp = db.get_bonus_expiry(user_id)
-        if bonus_exp and datetime.now() < bonus_exp:
+        if bonus_exp and _now() < bonus_exp:
             return True
     except Exception:
         pass
     # Оплаченная подписка
     expiry = _get_expiry_from_db(user_id, "main")
-    if expiry and datetime.now() < expiry:
+    if expiry and _now() < expiry:
         return True
     return False
 
@@ -84,7 +88,7 @@ def has_search_alert(user_id: int) -> bool:
     if has_access(user_id):
         return True
     expiry = _get_expiry_from_db(user_id, "search_alert")
-    return expiry is not None and datetime.now() < expiry
+    return expiry is not None and _now() < expiry
 
 
 def get_expiry(user_id: int, plan_type: str = "main") -> datetime | None:
@@ -102,7 +106,7 @@ def activate_subscription(user_id: int, plan_key: str) -> datetime:
 
     # Продлить если уже есть активная
     current = _get_expiry_from_db(user_id, plan_type)
-    base = max(datetime.now(), current) if current and current > datetime.now() else datetime.now()
+    base = max(_now(), current) if current and current > _now() else _now()
     expiry = base + timedelta(days=plan["days"])
 
     _save_expiry_to_db(user_id, expiry, plan_type)
@@ -111,7 +115,7 @@ def activate_subscription(user_id: int, plan_key: str) -> datetime:
 
 def days_left_trial() -> int:
     """Сколько дней осталось в тестовом периоде."""
-    delta = TRIAL_END_DATE - datetime.now()
+    delta = TRIAL_END_DATE - _now()
     return max(0, delta.days)
 
 
@@ -189,7 +193,7 @@ def get_status_text(user_id: int, lang: str) -> str:
     alert_expiry = get_expiry(user_id, "search_alert")
     lines = []
 
-    if main_expiry and datetime.now() < main_expiry:
+    if main_expiry and _now() < main_expiry:
         exp_str = main_expiry.strftime("%d.%m.%Y")
         if lang == "ru":   lines.append(f"✅ Подписка активна до {exp_str}")
         elif lang == "en": lines.append(f"✅ Subscription active until {exp_str}")
@@ -199,7 +203,7 @@ def get_status_text(user_id: int, lang: str) -> str:
         elif lang == "en": lines.append("❌ No active subscription")
         else:              lines.append("❌ אין מנוי פעיל")
 
-    if alert_expiry and datetime.now() < alert_expiry:
+    if alert_expiry and _now() < alert_expiry:
         exp_str = alert_expiry.strftime("%d.%m.%Y")
         if lang == "ru":   lines.append(f"🔔 Подписка на поиск до {exp_str}")
         elif lang == "en": lines.append(f"🔔 Search alerts until {exp_str}")

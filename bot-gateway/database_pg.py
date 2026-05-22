@@ -1054,9 +1054,10 @@ def get_bonus_days(user_id: int) -> int:
 
 def get_bonus_expiry(user_id: int):
     """Return expiry datetime if user has bonus days, else None."""
+    from datetime import timezone as _tz
     days = get_bonus_days(user_id)
     if days > 0:
-        return datetime.now() + timedelta(days=days)
+        return datetime.now(tz=_tz.utc) + timedelta(days=days)
     return None
 
 
