@@ -2351,10 +2351,14 @@ def get_all_bot_users(limit: int = 500, offset: int = 0) -> list:
             cur.execute("""
                 SELECT bu.user_id, bu.username, bu.first_name, bu.last_name,
                        bu.lang, bu.first_seen, bu.last_seen,
-                       COUNT(ul.listing_id) AS listings_count
+                       COUNT(ul.listing_id) AS total_listings,
+                       COUNT(ul.listing_id) FILTER (WHERE l.active) AS active_listings,
+                       ap.email, ap.owner_name, ap.owner_phone
                 FROM bot_users bu
                 LEFT JOIN user_listings ul ON ul.user_id = bu.user_id
-                GROUP BY bu.user_id
+                LEFT JOIN listings l ON l.id = ul.listing_id
+                LEFT JOIN agent_profiles ap ON ap.user_id = bu.user_id
+                GROUP BY bu.user_id, ap.email, ap.owner_name, ap.owner_phone
                 ORDER BY bu.last_seen DESC
                 LIMIT %s OFFSET %s
             """, (limit, offset))
@@ -2368,7 +2372,11 @@ def get_all_bot_users(limit: int = 500, offset: int = 0) -> list:
             "lang": r["lang"],
             "first_seen": r["first_seen"].isoformat() if r["first_seen"] else None,
             "last_seen": r["last_seen"].isoformat() if r["last_seen"] else None,
-            "listings_count": int(r["listings_count"] or 0),
+            "total_listings": int(r["total_listings"] or 0),
+            "active_listings": int(r["active_listings"] or 0),
+            "email": r["email"],
+            "owner_name": r["owner_name"],
+            "owner_phone": r["owner_phone"],
         }
         for r in rows
     ]
