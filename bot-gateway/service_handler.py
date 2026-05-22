@@ -17,13 +17,27 @@ def _L(d, lang):
     SVC_MENU, SVC_REGION, SVC_CITY, SVC_RESULTS,
     ADD_SVC_TYPE, ADD_SVC_REGION, ADD_SVC_CITY, ADD_SVC_PRICE, ADD_SVC_DESC, ADD_SVC_NAME, ADD_SVC_PHONE, ADD_SVC_EMAIL, ADD_SVC_CONFIRM,
     ADD_SVC_AWAIT_PAYMENT,
-) = range(10, 24)
+    SVC_REPAIR_TYPE,
+    ADD_SVC_REPAIR_TYPE,
+) = range(10, 26)
 
 SERVICE_TYPES = {
-    "moving":   {"ru": "🚚 Перевозки",   "en": "🚚 Moving",   "he": "🚚 הובלות", "fr": "🚚 Déménagement"},
-    "packing":  {"ru": "📦 Упаковка",    "en": "📦 Packing",  "he": "📦 אריזה", "fr": "📦 Emballage"},
-    "cleaning": {"ru": "🧹 Клининг",     "en": "🧹 Cleaning", "he": "🧹 ניקיון", "fr": "🧹 Ménage"},
+    "moving":   {"ru": "🚚 Перевозки",   "en": "🚚 Moving",   "he": "🚚 הובלות",  "fr": "🚚 Déménagement"},
+    "packing":  {"ru": "📦 Упаковка",    "en": "📦 Packing",  "he": "📦 אריזה",   "fr": "📦 Emballage"},
+    "cleaning": {"ru": "🧹 Клининг",     "en": "🧹 Cleaning", "he": "🧹 ניקיון",  "fr": "🧹 Ménage"},
+    "repair":   {"ru": "🔨 Ремонт",      "en": "🔨 Repairs",  "he": "🔨 שיפוצים", "fr": "🔨 Rénovation"},
 }
+
+# Sub-types for the "repair" category
+REPAIR_SUBTYPES = {
+    "repair_painting":  {"ru": "🎨 Покраска",    "en": "🎨 Painting",    "he": "🎨 צביעה",           "fr": "🎨 Peinture"},
+    "repair_plumbing":  {"ru": "🔧 Сантехника",  "en": "🔧 Plumbing",    "he": "🔧 אינסטלציה",      "fr": "🔧 Plomberie"},
+    "repair_electric":  {"ru": "⚡ Электрика",   "en": "⚡ Electrical",  "he": "⚡ חשמל",            "fr": "⚡ Électricité"},
+    "repair_ac":        {"ru": "❄️ Кондиционер", "en": "❄️ AC / Heating","he": "❄️ מיזוג אוויר",    "fr": "❄️ Clim / Chauffage"},
+}
+
+# All service types including repair sub-types (for card formatting)
+ALL_SERVICE_TYPES = {**SERVICE_TYPES, **REPAIR_SUBTYPES}
 
 REGIONS = {
     "north":  {"ru": "🌿 Север",  "en": "🌿 North",  "he": "🌿 צפון", "fr": "🌿 Nord"},
@@ -131,6 +145,16 @@ def _city_kb(ctx, region, prefix):
     return InlineKeyboardMarkup(rows)
 
 
+def _repair_kb(ctx, prefix: str):
+    """Sub-type keyboard for the repair category. prefix = 'svc_reptype_' or 'addrep_type_'."""
+    lang = get_lang(ctx)
+    rows = [[InlineKeyboardButton(_L(names, lang), callback_data=f"{prefix}{key}")]
+            for key, names in REPAIR_SUBTYPES.items()]
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
+    rows.append([InlineKeyboardButton(back_label, callback_data="svc_back")])
+    return InlineKeyboardMarkup(rows)
+
+
 def _back_step_kb(ctx):
     lang = get_lang(ctx)
     back = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
@@ -148,7 +172,7 @@ def _confirm_kb(ctx):
 
 
 def _format_service_card(s, lang):
-    stype = SERVICE_TYPES.get(s.get("service_type", ""), {}).get(lang, s.get("service_type", ""))
+    stype = ALL_SERVICE_TYPES.get(s.get("service_type", ""), {}).get(lang, s.get("service_type", ""))
     region_key = s.get("region", "")
     region = REGIONS.get(region_key, {}).get(lang, region_key) if region_key not in ("all", "") else {
         "ru": "Вся страна", "en": "All country", "he": "כל הארץ"
@@ -280,6 +304,14 @@ class ServiceHandler:
                     CallbackQueryHandler(self.start_add,                pattern="^svcpay_back$"),
                     CallbackQueryHandler(self.back_to_menu_cb,          pattern="^back_to_menu$"),
                 ],
+                SVC_REPAIR_TYPE: [
+                    CallbackQueryHandler(self.handle_repair_browse_type, pattern="^svc_reptype_"),
+                    CallbackQueryHandler(self.back_to_menu_cb,           pattern="^svc_back$"),
+                ],
+                ADD_SVC_REPAIR_TYPE: [
+                    CallbackQueryHandler(self.handle_repair_add_type, pattern="^addrep_type_"),
+                    CallbackQueryHandler(self.back_to_menu_cb,         pattern="^svc_back$"),
+                ],
             },
             fallbacks=[
                 CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),
@@ -316,9 +348,37 @@ class ServiceHandler:
         query = update.callback_query
         await query.answer()
         svc_type = query.data.replace("svc_type_", "")
-        context.user_data["svc"]["type"] = svc_type
         lang = get_lang(context)
+
+        if svc_type == "repair":
+            # Drill down into repair sub-types
+            type_label = _L(SERVICE_TYPES["repair"], lang)
+            text = f"🔨 <b>{type_label}</b>\n\n" + _t(
+                context,
+                "Выберите вид ремонтных работ:",
+                "Select type of repair work:",
+                "בחר סוג עבודות שיפוץ:"
+            )
+            await query.edit_message_text(text, reply_markup=_repair_kb(context, "svc_reptype_"), parse_mode="HTML")
+            return SVC_REPAIR_TYPE
+
+        context.user_data["svc"]["type"] = svc_type
         type_label = _L(SERVICE_TYPES[svc_type], lang)
+        await query.edit_message_text(
+            f"✅ <b>{type_label}</b>\n\n" + _t(context, "Выберите район:", "Select region:", "בחר אזור:"),
+            reply_markup=_region_kb(context, "svc_region"),
+            parse_mode="HTML"
+        )
+        return SVC_REGION
+
+    async def handle_repair_browse_type(self, update, context):
+        """User picked a repair sub-type while browsing — proceed to region."""
+        query = update.callback_query
+        await query.answer()
+        sub_type = query.data.replace("svc_reptype_", "")
+        context.user_data["svc"]["type"] = sub_type
+        lang = get_lang(context)
+        type_label = _L(REPAIR_SUBTYPES.get(sub_type, {}), lang)
         await query.edit_message_text(
             f"✅ <b>{type_label}</b>\n\n" + _t(context, "Выберите район:", "Select region:", "בחר אזור:"),
             reply_markup=_region_kb(context, "svc_region"),
@@ -441,7 +501,7 @@ class ServiceHandler:
 
         user = update.effective_user
         username = f"@{user.username}" if user.username else user.first_name or str(user.id)
-        stype = SERVICE_TYPES.get(s.get("service_type", ""), {}).get(lang, s.get("service_type", ""))
+        stype = ALL_SERVICE_TYPES.get(s.get("service_type", ""), {}).get(lang, s.get("service_type", ""))
         owner_tg_id = s.get("user_id")
         owner_phone = s.get("phone", "")
         owner_email = s.get("contact", "") or db.get_service_email(owner_tg_id) if owner_tg_id else ""
@@ -532,9 +592,20 @@ class ServiceHandler:
         lang = get_lang(context)
         context.user_data["svcpay_type"] = svc_type  # remember for after payment
 
+        # If "repair" (parent type) — ask user to pick the specific sub-type first
+        if svc_type == "repair":
+            type_label = _L(SERVICE_TYPES["repair"], lang)
+            text = _L({
+                "ru": f"🔨 <b>{type_label}</b>\n\nУточните вид ремонтных работ:",
+                "en": f"🔨 <b>{type_label}</b>\n\nSelect type of repair work:",
+                "he": f"🔨 <b>{type_label}</b>\n\nבחר סוג עבודות שיפוץ:",
+            }, lang)
+            await query.edit_message_text(text, reply_markup=_repair_kb(context, "svcpay_type_"), parse_mode="HTML")
+            return ADD_SVC_AWAIT_PAYMENT
+
         from pricing import format_service_pricing, SERVICE_PACKAGES, MOVER_PACKAGES
         pricing_block = format_service_pricing(svc_type, lang)
-        type_label = _L(SERVICE_TYPES.get(svc_type, {}), lang)
+        type_label = _L(ALL_SERVICE_TYPES.get(svc_type, {}), lang)
 
         header = _L({
             "ru": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\nВыберите пакет и оплатите. После оплаты нажмите «✅ Я оплатил — продолжить».",
@@ -588,9 +659,20 @@ class ServiceHandler:
         context.user_data["svcpay_type"] = svc_type
 
         if _has_active_svc_subscription(user_id):
-            # Payment confirmed — open the form with the pre-selected type
             context.user_data["add_svc"] = {"service_type": svc_type}
-            type_label = _L(SERVICE_TYPES.get(svc_type, {}), lang)
+
+            # For repair: ask sub-type before opening region form
+            if svc_type in ("repair", *REPAIR_SUBTYPES.keys()):
+                type_label = _L(SERVICE_TYPES["repair"], lang)
+                ok_msg = _L({
+                    "ru": f"✅ Оплата подтверждена!\n\n🔨 <b>{type_label}</b>\n\nУточните вид ремонтных работ:",
+                    "en": f"✅ Payment confirmed!\n\n🔨 <b>{type_label}</b>\n\nSelect type of repair work:",
+                    "he": f"✅ התשלום אושר!\n\n🔨 <b>{type_label}</b>\n\nבחר סוג עבודות שיפוץ:",
+                }, lang)
+                await query.edit_message_text(ok_msg, reply_markup=_repair_kb(context, "addrep_type_"), parse_mode="HTML")
+                return ADD_SVC_REPAIR_TYPE
+
+            type_label = _L(ALL_SERVICE_TYPES.get(svc_type, {}), lang)
             ok_msg = _L({
                 "ru": f"✅ Оплата подтверждена!\n\n<b>{type_label}</b>\n\nВыберите район работы:",
                 "en": f"✅ Payment confirmed!\n\n<b>{type_label}</b>\n\nSelect work region:",
@@ -614,11 +696,41 @@ class ServiceHandler:
         query = update.callback_query
         await query.answer()
         svc_type = query.data.replace("addsvc_type_", "")
-        context.user_data["add_svc"]["service_type"] = svc_type
         lang = get_lang(context)
+
+        if svc_type == "repair":
+            # Drill down into repair sub-types before continuing
+            context.user_data["add_svc"]["service_type"] = "repair"  # temp, overwritten by sub-type
+            type_label = _L(SERVICE_TYPES["repair"], lang)
+            text = f"🔨 <b>{type_label}</b>\n\n" + _t(
+                context,
+                "Уточните вид ремонтных работ:",
+                "Select type of repair work:",
+                "בחר סוג עבודות שיפוץ:"
+            )
+            await query.edit_message_text(text, reply_markup=_repair_kb(context, "addrep_type_"), parse_mode="HTML")
+            return ADD_SVC_REPAIR_TYPE
+
+        context.user_data["add_svc"]["service_type"] = svc_type
         label = _L(SERVICE_TYPES[svc_type], lang)
-        await query.edit_message_text(f"✅ {label}\n\n" + _t(context, "Выберите район работы:", "Select work region:", "בחר אזור עבודה:"),
-                                      reply_markup=_add_region_kb(context), parse_mode="HTML")
+        await query.edit_message_text(
+            f"✅ {label}\n\n" + _t(context, "Выберите район работы:", "Select work region:", "בחר אזור עבודה:"),
+            reply_markup=_add_region_kb(context), parse_mode="HTML"
+        )
+        return ADD_SVC_REGION
+
+    async def handle_repair_add_type(self, update, context):
+        """User picked a repair sub-type while adding a service."""
+        query = update.callback_query
+        await query.answer()
+        sub_type = query.data.replace("addrep_type_", "")
+        context.user_data["add_svc"]["service_type"] = sub_type
+        lang = get_lang(context)
+        type_label = _L(REPAIR_SUBTYPES.get(sub_type, {}), lang)
+        await query.edit_message_text(
+            f"✅ {type_label}\n\n" + _t(context, "Выберите район работы:", "Select work region:", "בחר אזור עבודה:"),
+            reply_markup=_add_region_kb(context), parse_mode="HTML"
+        )
         return ADD_SVC_REGION
 
     async def add_handle_region(self, update, context):

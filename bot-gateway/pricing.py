@@ -250,4 +250,24 @@ def format_service_pricing(svc_type: str, lang: str = "ru") -> str:
                 f"  · Открытие контакта клиента — <b>{lead_price} ₪/лид</b>"
             )
 
+    elif svc_type in ("repair", "repair_painting", "repair_plumbing", "repair_electric", "repair_ac"):
+        if lang == "he":
+            return (
+                "💳 <b>תמחור:</b>\n"
+                f"  · נוכחות במאגר — <b>{SERVICE_MONTHLY_BASE_ILS} ₪/חודש</b>\n"
+                "  · לקוחות מוצאים אתכם דרך הקטגוריה 🔨 שיפוצים"
+            )
+        elif lang == "en":
+            return (
+                "💳 <b>Pricing:</b>\n"
+                f"  · Listed in database — <b>{SERVICE_MONTHLY_BASE_ILS} ₪/month</b>\n"
+                "  · Clients find you via the 🔨 Repairs category"
+            )
+        else:
+            return (
+                "💳 <b>Тарифы:</b>\n"
+                f"  · Присутствие в базе — <b>{SERVICE_MONTHLY_BASE_ILS} ₪/мес</b>\n"
+                "  · Клиенты находят вас через раздел 🔨 Ремонт"
+            )
+
     return ""
