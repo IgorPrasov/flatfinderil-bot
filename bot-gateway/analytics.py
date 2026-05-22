@@ -255,15 +255,31 @@ def _run_timed(fn, timeout_secs=12, default=None):
     try:
         return _ex.submit(fn).result(timeout=timeout_secs)
     except (_TE, Exception):
-        return default if default is not None else fn.__defaults__[0] if fn.__defaults__ else None
+        return default
     finally:
         _ex.shutdown(wait=False)
 
 
 def get_analytics(date_from: str = None, date_to: str = None):
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as _TE, as_completed
     data = _load_stats()
     import database as db
-    listings_all = _run_timed(lambda: db.get_all_listings(limit=10000), timeout_secs=15, default=[])
+
+    # ── Parallel I/O: run heavy DB/file tasks concurrently ───────────────────
+    # This keeps total time ≈ max(individual times) instead of sum.
+    _parallel = ThreadPoolExecutor(max_workers=5)
+    _f_listings  = _parallel.submit(lambda: db.get_all_listings(limit=10000))
+    _f_db_data   = _parallel.submit(db._load)
+    _f_crm       = _parallel.submit(db.get_crm_stats)
+    _f_svcs      = _parallel.submit(lambda: db.get_all_services() if hasattr(db, 'get_all_services') else [])
+    _f_svc_subs  = _parallel.submit(lambda: db.get_all_service_subscriptions() if hasattr(db, 'get_all_service_subscriptions') else {})
+    _parallel.shutdown(wait=False)
+
+    def _get(fut, default, timeout=15):
+        try: return fut.result(timeout=timeout)
+        except Exception: return default
+
+    listings_all = _get(_f_listings, [], timeout=15)
     today = datetime.now().strftime("%Y-%m-%d")
     week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
 
@@ -461,10 +477,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
         sub_plans.get("month", 0) * 39.90, 2
     )
     # ── New feature stats from DB ─────────────────────────────────────────
-    try:
-        db_data = db._load()
-    except Exception:
-        db_data = {}
+    db_data = _get(_f_db_data, {}, timeout=12)
 
     # Views & view requests
     total_views = sum(l.get("views", 0) for l in listings)
@@ -524,7 +537,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
     new_members_week = sum(1 for m in members.values() if m.get("joined", "") >= week_ago)
 
     # ── CRM ──────────────────────────────────────────────────────────────────
-    crm_stats = _run_timed(db.get_crm_stats, timeout_secs=10, default={})
+    crm_stats = _get(_f_crm, {}, timeout=10)
     crm_by_type = crm_stats.get("by_type", {})
     crm_deals_by_status = crm_stats.get("deals_by_status", {})
     crm_recent = crm_stats.get("recent_deals", [])
@@ -553,28 +566,20 @@ def get_analytics(date_from: str = None, date_to: str = None):
     }
     REGION_NAMES = {"north": "🌿 Север", "center": "🏙 Центр", "south": "☀️ Юг", "all": "🌍 Вся страна"}
 
-    _svc_err_parts = []
-    def _get_svc_with_err():
-        try: return db.get_all_services()
-        except Exception as e: return ("ERR", str(e))
-    def _get_svc_subs_with_err():
-        try: return db.get_all_service_subscriptions()
-        except Exception as e: return ("ERR", str(e))
-
-    _r1 = _run_timed(_get_svc_with_err, timeout_secs=8, default=("ERR", "timeout"))
-    if isinstance(_r1, tuple) and _r1[0] == "ERR":
-        _svc_err_parts.append(f"services: {_r1[1]}")
+    _svc_err = None
+    _r1 = _get(_f_svcs, None, timeout=8)
+    if _r1 is None:
+        _svc_err = "services: timeout/error"
         services_all = list(db_data.get("services", {}).values())
     else:
-        services_all = _r1 or []
+        services_all = _r1
 
-    _r2 = _run_timed(_get_svc_subs_with_err, timeout_secs=8, default=("ERR", "timeout"))
-    if isinstance(_r2, tuple) and _r2[0] == "ERR":
-        _svc_err_parts.append(f"svc_subs: {_r2[1]}")
+    _r2 = _get(_f_svc_subs, None, timeout=8)
+    if _r2 is None:
+        _svc_err = (_svc_err + " | " if _svc_err else "") + "svc_subs: timeout/error"
         _svc_subs_all = {}
     else:
-        _svc_subs_all = _r2 or {}
-    _svc_err = " | ".join(_svc_err_parts) if _svc_err_parts else None
+        _svc_subs_all = _r2
 
     svc_active = [s for s in services_all if s.get("active", True)]
     svc_by_type = Counter(SVC_TYPE_NAMES.get(s.get("service_type",""), s.get("service_type","")) for s in svc_active)
