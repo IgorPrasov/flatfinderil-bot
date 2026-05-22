@@ -115,9 +115,11 @@ def track_subscription(user_id: int, plan: str, payment_type: str = "card",
     log.append(entry)
     _save_stats(data)
 
-def _get_pricing_stats(db, raw: dict = None) -> dict:
+def _get_pricing_stats(db, raw: dict = None, stats_data: dict = None, lead_stats: dict = None) -> dict:
     """Collect monetisation stats from database for the dashboard.
-    Pass pre-loaded raw dict to avoid a second db._load() call."""
+    Pass pre-loaded raw dict to avoid a second db._load() call.
+    Pass stats_data (from _load_stats()) to avoid a duplicate stats.json read.
+    Pass lead_stats (from get_lead_marketplace_stats()) to avoid a sequential DB call."""
     from datetime import datetime as _dt
     if raw is None:
         try:
@@ -185,13 +187,18 @@ def _get_pricing_stats(db, raw: dict = None) -> dict:
 
     revenue_agent  = 0
     revenue_movers = 0
-    payments_log   = raw.get("payments_log", []) if hasattr(raw, "get") else []
-    # Also check analytics stats payments log
-    try:
-        stats = _load_stats()
-        payments_log = stats.get("payments_log", [])
-    except Exception:
-        pass
+    # Use pre-loaded stats_data if provided (avoids duplicate _load_stats() call)
+    payments_log = []
+    if stats_data is not None:
+        payments_log = stats_data.get("payments_log", [])
+    else:
+        # Fallback: try raw db data first, then load stats.json
+        payments_log = raw.get("payments_log", []) if hasattr(raw, "get") else []
+        try:
+            _s = _load_stats()
+            payments_log = _s.get("payments_log", [])
+        except Exception:
+            pass
 
     for p in payments_log:
         pk = p.get("plan") or p.get("plan_key","")
@@ -202,12 +209,13 @@ def _get_pricing_stats(db, raw: dict = None) -> dict:
             pkg_key = pk[len("mover_pkg_"):]
             revenue_movers += mover_prices.get(pkg_key, 0)
 
-    # ── Lead marketplace stats ────────────────────────────────────────────────
-    try:
-        import database as _db
-        lead_stats = _db.get_lead_marketplace_stats()
-    except Exception:
-        lead_stats = {}
+    # ── Lead marketplace stats (use pre-fetched if available) ────────────────
+    if lead_stats is None:
+        try:
+            import database as _db
+            lead_stats = _db.get_lead_marketplace_stats()
+        except Exception:
+            lead_stats = {}
     revenue_leads = lead_stats.get("revenue_total", 0)
 
     return {
@@ -265,14 +273,23 @@ def get_analytics(date_from: str = None, date_to: str = None):
     data = _load_stats()
     import database as db
 
-    # ── Parallel I/O: run heavy DB/file tasks concurrently ───────────────────
+    # ── Parallel I/O: run ALL heavy DB/file tasks concurrently ──────────────
     # This keeps total time ≈ max(individual times) instead of sum.
-    _parallel = ThreadPoolExecutor(max_workers=5)
+    # IMPORTANT: include every DB/file call here so nothing runs sequentially after.
+    _parallel = ThreadPoolExecutor(max_workers=7)
     _f_listings  = _parallel.submit(lambda: db.get_all_listings(limit=10000))
     _f_db_data   = _parallel.submit(db._load)
     _f_crm       = _parallel.submit(db.get_crm_stats)
     _f_svcs      = _parallel.submit(lambda: db.get_all_services() if hasattr(db, 'get_all_services') else [])
     _f_svc_subs  = _parallel.submit(lambda: db.get_all_service_subscriptions() if hasattr(db, 'get_all_service_subscriptions') else {})
+    _f_lead_stats = _parallel.submit(lambda: db.get_lead_marketplace_stats() if hasattr(db, 'get_lead_marketplace_stats') else {})
+    def _get_owners():
+        try:
+            import owners_db as _odb
+            return _odb.get_all_owners()
+        except Exception:
+            return []
+    _f_owners    = _parallel.submit(_get_owners)
     _parallel.shutdown(wait=False)
 
     def _get(fut, default, timeout=15):
@@ -776,14 +793,16 @@ def get_analytics(date_from: str = None, date_to: str = None):
         "unknown": len(listings) - len(agent_listings) - len(private_listings),
     }
 
-    # ── Owners / contacts from channels ──────────────────────────────────────
+    # ── Owners / contacts from channels (pre-fetched in parallel) ────────────
+    owners_list = _get(_f_owners, [], timeout=8)
     try:
         import owners_db as _owners_db
-        owners_list = _owners_db.get_all_owners()
         owners_stats = _owners_db.get_stats()
     except Exception:
-        owners_list = []
         owners_stats = {"total": 0, "with_phone": 0, "with_username": 0, "with_name": 0}
+
+    # ── Lead marketplace stats (pre-fetched in parallel) ──────────────────────
+    _lead_stats = _get(_f_lead_stats, {}, timeout=8)
 
     return {
         "period": {"from": _df, "to": _dt, "days": (datetime.strptime(_dt,"%Y-%m-%d")-datetime.strptime(_df,"%Y-%m-%d")).days+1},
@@ -945,6 +964,6 @@ def get_analytics(date_from: str = None, date_to: str = None):
             key=lambda x: x.get("date","") + x.get("time",""),
             reverse=True
         )[:200],
-        "pricing": _get_pricing_stats(db, raw=db_data),
+        "pricing": _get_pricing_stats(db, raw=db_data, stats_data=data, lead_stats=_lead_stats),
         "_svc_debug": _svc_err,
     }
