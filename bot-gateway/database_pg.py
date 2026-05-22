@@ -2432,3 +2432,21 @@ def get_sources_stats() -> dict:
         "total_telegram": sum(e["count"] for e in telegram),
         "total_facebook": sum(e["count"] for e in facebook),
     }
+
+
+def _load() -> dict:
+    """
+    Backward-compatibility shim: read listings_db.json from volume.
+    Used by legacy code (analytics, backoffice) that hasn't been migrated to PG queries.
+    New code should use proper PG functions instead.
+    """
+    import json as _json
+    data_dir = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
+    json_path = os.path.join(data_dir, "listings_db.json")
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, encoding="utf-8") as f:
+                return _json.load(f)
+        except Exception:
+            pass
+    return {"listings": {}, "favorites": {}, "user_listings": {}, "next_id": 1}

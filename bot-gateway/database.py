@@ -60,6 +60,7 @@ if _USE_PG:
         get_bot_users_count,
         get_all_bot_users,
         get_sources_stats,
+        _load,
         _init_db,
         _text_fingerprint,
     )
