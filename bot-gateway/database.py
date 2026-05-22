@@ -59,6 +59,7 @@ if _USE_PG:
         upsert_bot_user,
         get_bot_users_count,
         get_all_bot_users,
+        get_sources_stats,
         _init_db,
         _text_fingerprint,
     )

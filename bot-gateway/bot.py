@@ -1002,6 +1002,28 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     b=self._read_body()
                     return self._send_json({"ok":db.update_crm_deal_status(cid,b.get("status","new"))})
 
+        # sources — GET /backoffice/api/sources  (parsing sources from PG)
+        if resource == "sources" and method == "GET":
+            if hasattr(db, "get_sources_stats"):
+                return self._send_json(db.get_sources_stats())
+            return self._send_json({"telegram": [], "facebook": [], "other": []})
+
+        # analytics users — GET /backoffice/api/analytics-users  (from stats.json)
+        if resource == "analytics-users" and method == "GET":
+            try:
+                from analytics import _load_stats
+                stats = _load_stats()
+                users = stats.get("users", {})
+                return self._send_json({
+                    "total": len(users),
+                    "items": [
+                        {"user_id": uid, **udata}
+                        for uid, udata in list(users.items())[:500]
+                    ]
+                })
+            except Exception as e:
+                return self._send_json({"error": str(e), "total": 0, "items": []})
+
         # email subscribers
         if resource == "email-subscribers":
             if method=="GET":

@@ -447,7 +447,10 @@ def get_analytics(date_from: str = None, date_to: str = None):
         sub_plans.get("month", 0) * 39.90, 2
     )
     # ── New feature stats from DB ─────────────────────────────────────────
-    db_data = db._load()
+    try:
+        db_data = db._load()
+    except Exception:
+        db_data = {}
 
     # Views & view requests
     total_views = sum(l.get("views", 0) for l in listings)

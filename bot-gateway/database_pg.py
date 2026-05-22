@@ -2380,3 +2380,55 @@ def get_all_bot_users(limit: int = 500, offset: int = 0) -> list:
         }
         for r in rows
     ]
+
+
+def get_sources_stats() -> dict:
+    """Return stats on parsing sources (Telegram channels, Facebook groups)."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("""
+                SELECT source_url,
+                       COUNT(*) AS cnt,
+                       MAX(date_added) AS last_seen
+                FROM listings
+                WHERE source_url IS NOT NULL AND source_url != ''
+                GROUP BY source_url
+                ORDER BY cnt DESC
+            """)
+            rows = cur.fetchall()
+
+    telegram, facebook, other = [], [], []
+    for r in rows:
+        url = r["source_url"] or ""
+        entry = {"url": url, "count": r["cnt"],
+                 "last_seen": r["last_seen"].isoformat() if r["last_seen"] else None}
+        # extract channel/group name
+        if "t.me/" in url:
+            parts = url.replace("https://","").replace("http://","").split("/")
+            entry["name"] = "@" + parts[1] if len(parts) > 1 else url
+            telegram.append(entry)
+        elif "facebook.com/" in url or "fb.com/" in url:
+            parts = url.replace("https://","").replace("http://","").split("/")
+            entry["name"] = parts[2] if len(parts) > 2 else url
+            facebook.append(entry)
+        else:
+            entry["name"] = url[:50]
+            other.append(entry)
+
+    # Aggregate by channel (strip post ID)
+    def _agg(items):
+        agg = {}
+        for item in items:
+            name = item["name"]
+            if name not in agg:
+                agg[name] = {"name": name, "count": 0, "last_seen": item["last_seen"]}
+            agg[name]["count"] += item["count"]
+        return sorted(agg.values(), key=lambda x: x["count"], reverse=True)
+
+    return {
+        "telegram": _agg(telegram),
+        "facebook": _agg(facebook),
+        "other":    _agg(other),
+        "total_telegram": sum(e["count"] for e in telegram),
+        "total_facebook": sum(e["count"] for e in facebook),
+    }
