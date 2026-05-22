@@ -545,52 +545,62 @@ class SearchHandler:
         return SEARCH_CONFIRM
 
     async def do_search(self, update, context):
+        import logging as _log
+        _logger = _log.getLogger(__name__)
         query = update.callback_query
         await query.answer("🔍...")
-        f = context.user_data.get("search_filters", {})
-        track_search(update.effective_user.id, f)
-        user_id = update.effective_user.id
-        paid = is_trial_active() or has_access(user_id)
-        db_limit = 100 if paid else FREE_SEARCH_LIMIT + 1
+        lang = get_lang(context)
+        err_msg = {"ru": "⚠️ Ошибка поиска. Попробуйте ещё раз.", "en": "⚠️ Search error. Please try again.", "he": "⚠️ שגיאת חיפוש. נסה שוב."}.get(lang, "⚠️ Search error. Try again.")
+
         try:
+            f = context.user_data.get("search_filters", {})
+            track_search(update.effective_user.id, f)
+            user_id = update.effective_user.id
+            paid = is_trial_active() or has_access(user_id)
+            db_limit = 100 if paid else FREE_SEARCH_LIMIT + 1
+
             results = db.search_listings(f, limit=db_limit)
-        except Exception as _e:
-            import logging as _log
-            _log.getLogger(__name__).error(f"[SEARCH] search_listings error: {_e!r}", exc_info=True)
-            lang = get_lang(context)
-            err_msg = {"ru": "⚠️ Ошибка поиска. Попробуйте ещё раз.", "en": "⚠️ Search error. Please try again.", "he": "⚠️ שגיאת חיפוש. נסה שוב."}.get(lang, "⚠️ Search error. Try again.")
-            await query.edit_message_text(err_msg, reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
-            return SEARCH_CONFIRM
-        if not results:
-            await query.edit_message_text(t("no_results", context), reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
-            return SEARCH_CONFIRM
 
-        # --- Sort by proximity if infrastructure filter is active ---
-        infra_filter = f.get("infrastructure") or []
-        if infra_filter:
-            results = _sort_by_proximity(results, infra_filter)
+            if not results:
+                await query.edit_message_text(t("no_results", context), reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
+                return SEARCH_CONFIRM
 
-        # --- Paywall: limit to FREE_SEARCH_LIMIT after trial ---
-        total_found = len(results)
-        if not paid and total_found > FREE_SEARCH_LIMIT:
-            results = results[:FREE_SEARCH_LIMIT]
+            # Sort by proximity if infrastructure filter is active
+            infra_filter = f.get("infrastructure") or []
+            if infra_filter:
+                results = _sort_by_proximity(results, infra_filter)
+
+            # Paywall: limit to FREE_SEARCH_LIMIT after trial
+            total_found = len(results)
+            if not paid and total_found > FREE_SEARCH_LIMIT:
+                results = results[:FREE_SEARCH_LIMIT]
+                context.user_data["results"] = results
+                await query.edit_message_text(t("found_n", context, n=total_found), parse_mode="HTML")
+                await display_listing(query, context, results[0], 0, len(results))
+                paywall_text = t("paywall_search", context, total=total_found)
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=paywall_text,
+                    reply_markup=paywall_keyboard(context),
+                    parse_mode="HTML",
+                )
+                return ConversationHandler.END
+
             context.user_data["results"] = results
             await query.edit_message_text(t("found_n", context, n=total_found), parse_mode="HTML")
             await display_listing(query, context, results[0], 0, len(results))
-            lang = get_lang(context)
-            paywall_text = t("paywall_search", context, total=total_found)
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=paywall_text,
-                reply_markup=paywall_keyboard(context),
-                parse_mode="HTML",
-            )
             return ConversationHandler.END
 
-        context.user_data["results"] = results
-        await query.edit_message_text(t("found_n", context, n=total_found), parse_mode="HTML")
-        await display_listing(query, context, results[0], 0, len(results))
-        return ConversationHandler.END
+        except Exception as _e:
+            _logger.error(f"[SEARCH] do_search error: {_e!r}", exc_info=True)
+            try:
+                await query.edit_message_text(err_msg, reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
+            except Exception:
+                try:
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text=err_msg)
+                except Exception:
+                    pass
+            return SEARCH_CONFIRM
 
     async def reset_search(self, update, context):
         query = update.callback_query
