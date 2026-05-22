@@ -593,11 +593,12 @@ class SearchHandler:
 
         except Exception as _e:
             _logger.error(f"[SEARCH] do_search error: {_e!r}", exc_info=True)
+            debug_msg = f"⚠️ Ошибка: <code>{type(_e).__name__}: {str(_e)[:200]}</code>"
             try:
-                await query.edit_message_text(err_msg, reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
+                await query.edit_message_text(debug_msg, reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
             except Exception:
                 try:
-                    await context.bot.send_message(chat_id=update.effective_chat.id, text=err_msg)
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text=debug_msg, parse_mode="HTML")
                 except Exception:
                     pass
             return SEARCH_CONFIRM
