@@ -70,6 +70,7 @@ class SearchHandler:
                 CommandHandler("search", self.start_search),
                 CallbackQueryHandler(self.start_search, pattern="^search$"),
                 CallbackQueryHandler(self.start_search_rent, pattern="^search_rent$"),
+                CallbackQueryHandler(self.start_search_sublet, pattern="^search_sublet$"),
                 CallbackQueryHandler(self.start_search_buy, pattern="^search_buy$"),
             ],
             states={
@@ -254,6 +255,9 @@ class SearchHandler:
 
     async def start_search_rent(self, update, context):
         return await self._start_search_with_deal(update, context, "rent")
+
+    async def start_search_sublet(self, update, context):
+        return await self._start_search_with_deal(update, context, "sublet")
 
     async def start_search_buy(self, update, context):
         return await self._start_search_with_deal(update, context, "buy")

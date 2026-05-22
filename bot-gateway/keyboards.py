@@ -32,10 +32,11 @@ def main_menu_keyboard(ctx):
     contact_label = {"ru": "✉️ Написать нам", "en": "✉️ Contact us", "he": "✉️ כתוב לנו", "fr": "✉️ Nous écrire"}.get(lang, "✉️ Написать нам")
     insta_label   = {"ru": "📸 Instagram", "en": "📸 Instagram", "he": "📸 אינסטגרם", "fr": "📸 Instagram"}.get(lang, "📸 Instagram")
     alerts_label = {"ru": "🔔 Уведомления", "en": "🔔 Alerts", "he": "🔔 התראות", "fr": "🔔 Alertes"}.get(lang, "🔔 Уведомления")
-    rent_label = {"ru": "🔑 Аренда", "en": "🔑 Rent", "he": "🔑 שכירות", "fr": "🔑 Location"}.get(lang, "🔑 Аренда")
-    buy_label  = {"ru": "🏦 Купить", "en": "🏦 Buy", "he": "🏦 קנייה",   "fr": "🏦 Acheter"}.get(lang, "🏦 Купить")
+    rent_label   = {"ru": "🔑 Аренда", "en": "🔑 Rent",   "he": "🔑 שכירות",  "fr": "🔑 Location"}.get(lang, "🔑 Аренда")
+    sublet_label = {"ru": "🔄 Сублет", "en": "🔄 Sublet", "he": "🔄 סאבלט",   "fr": "🔄 Sous-loc"}.get(lang, "🔄 Сублет")
+    buy_label    = {"ru": "🏦 Купить", "en": "🏦 Buy",    "he": "🏦 קנייה",   "fr": "🏦 Acheter"}.get(lang, "🏦 Купить")
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(rent_label, callback_data="search_rent"), InlineKeyboardButton(buy_label, callback_data="search_buy")],
+        [InlineKeyboardButton(rent_label, callback_data="search_rent"), InlineKeyboardButton(sublet_label, callback_data="search_sublet"), InlineKeyboardButton(buy_label, callback_data="search_buy")],
         [InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites"), InlineKeyboardButton(alerts_label, callback_data="alerts_menu")],
         [InlineKeyboardButton(t("btn_commercial", ctx), callback_data="commercial"), InlineKeyboardButton(svc_label, callback_data="services")],
         [InlineKeyboardButton(t("btn_my_listings", ctx), callback_data="my_listings"), InlineKeyboardButton(t("btn_add_listing", ctx), callback_data="add_listing")],
