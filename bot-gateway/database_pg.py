@@ -49,7 +49,7 @@ def _get_pool() -> pool.ThreadedConnectionPool:
                     )
                 _pool = pool.ThreadedConnectionPool(
                     minconn=1,
-                    maxconn=10,
+                    maxconn=20,
                     dsn=DATABASE_URL,
                     cursor_factory=RealDictCursor,
                 )
