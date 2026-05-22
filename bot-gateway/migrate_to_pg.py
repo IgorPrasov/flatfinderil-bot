@@ -20,7 +20,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import database_pg as db
 from psycopg2.extras import Json
 
-JSON_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "listings_db.json")
+# Check DATA_DIR (Railway volume) first, then fall back to script directory
+_DATA_DIR = os.environ.get("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
+JSON_FILE = os.path.join(_DATA_DIR, "listings_db.json")
+if not os.path.exists(JSON_FILE):
+    # fallback to bundled file next to script
+    JSON_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "listings_db.json")
 
 # ─── helpers ────────────────────────────────────────────────────────────────
 
