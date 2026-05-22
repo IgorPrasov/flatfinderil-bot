@@ -397,6 +397,57 @@ def _analytics_warmup_loop():
 
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _filter_analytics_by_date(data: dict, date_from: str, date_to: str) -> dict:
+    """Apply date filtering to cached all-time analytics without recomputing."""
+    from datetime import datetime, timedelta
+    from collections import Counter
+    try:
+        from_dt = datetime.strptime(date_from, "%Y-%m-%d")
+        to_dt   = datetime.strptime(date_to,   "%Y-%m-%d")
+        days    = (to_dt - from_dt).days + 1
+    except ValueError:
+        return data
+
+    def in_p(s):
+        return date_from <= (s or "")[:10] <= date_to
+
+    ul = data.get("users_list", [])
+    sl = data.get("searches_log", [])
+
+    # Precompute counters for O(1) day lookups
+    new_by_day    = Counter(u.get("first_seen", "")     for u in ul)
+    active_by_day = Counter(u.get("last_seen",  "")     for u in ul)
+    search_by_day = Counter((s.get("time") or "")[:10]  for s in sl)
+
+    d = dict(data)
+    d["period"]   = {"from": date_from, "to": date_to, "days": days}
+    d["users"]    = dict(data.get("users", {}))
+    d["listings"] = dict(data.get("listings", {}))
+
+    d["users"]["new_period"]    = sum(v for k, v in new_by_day.items()    if in_p(k))
+    d["users"]["active_period"] = sum(v for k, v in active_by_day.items() if in_p(k))
+    d["total_searches_period"]  = sum(v for k, v in search_by_day.items() if in_p(k))
+
+    ua = data.get("listings", {}).get("user_added", [])
+    d["listings"]["added_period"] = sum(1 for l in ua if in_p(l.get("date_added", "")))
+
+    days_ru = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
+    cap = min(days, 90)
+    activity = []
+    for i in range(cap - 1, -1, -1):
+        day_dt  = to_dt - timedelta(days=i)
+        day_str = day_dt.strftime("%Y-%m-%d")
+        activity.append({
+            "day":      days_ru[day_dt.weekday()],
+            "date":     day_str,
+            "searches": search_by_day.get(day_str, 0),
+            "users":    active_by_day.get(day_str, 0),
+            "new":      new_by_day.get(day_str, 0),
+        })
+    d["activity_week"] = activity
+    return d
+
+
 def _start_fb_parser():
     def _fb_loop():
         try:
@@ -1812,6 +1863,19 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     name="analytics-refresh"
                 ).start()
                 # data still holds the stale-but-valid cached result — serve it
+
+            # Apply lightweight date filtering to cached all-time data
+            if data and not data.get("loading") and (date_from or date_to):
+                try:
+                    from datetime import datetime as _dt
+                    _today = _dt.now().strftime("%Y-%m-%d")
+                    data = _filter_analytics_by_date(
+                        data,
+                        date_from or "2026-03-01",
+                        date_to   or _today,
+                    )
+                except Exception as _fe:
+                    logger.warning(f"Date filter error (returning unfiltered): {_fe}")
 
             try:
                 body = json_module.dumps(data, ensure_ascii=False, default=str).encode()
