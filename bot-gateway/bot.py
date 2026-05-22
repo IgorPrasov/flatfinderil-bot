@@ -849,13 +849,15 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 _cur.execute("SELECT COUNT(*) FROM bot_users"); total_u = _cur.fetchone()[0]
                 _cur.execute("SELECT COUNT(*) FROM search_subscriptions"); total_subs = _cur.fetchone()[0]
                 _cur.execute("SELECT COUNT(*) FROM paid_subscriptions"); total_paid = _cur.fetchone()[0]
+                _cur.execute("SELECT COUNT(*) FROM services"); total_svcs = _cur.fetchone()[0]
+                _cur.execute("SELECT COUNT(*) FROM services WHERE active=true"); active_svcs = _cur.fetchone()[0]
                 _c.close()
                 emails = len(db.get_all_agent_emails()) if hasattr(db,'get_all_agent_emails') else 0
                 return self._send_json({
                     "total_listings": total_l,
                     "active_listings": active_l,
-                    "total_services": 0,
-                    "active_services": 0,
+                    "total_services": total_svcs,
+                    "active_services": active_svcs,
                     "total_users": total_u,
                     "total_subscriptions": total_subs,
                     "total_paid": total_paid,
@@ -967,8 +969,11 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
         # services
         if resource == "services":
             if method == "GET" and not rid:
-                data = db._load()
-                svcs = list(data.get("services",{}).values())
+                try:
+                    svcs = db.get_all_services()
+                except Exception:
+                    data = db._load()
+                    svcs = list(data.get("services",{}).values())
                 stype = qp("type"); active_qs = qp("active")
                 if stype: svcs = [s for s in svcs if s.get("service_type")==stype]
                 if active_qs=="true":  svcs=[s for s in svcs if s.get("active",True)]
@@ -976,8 +981,12 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 svcs.sort(key=lambda x:x.get("date_added",""),reverse=True)
                 return self._send_json({"total":len(svcs),"items":svcs})
             if method == "GET" and rid:
-                data = db._load()
-                svc = data.get("services",{}).get(rid)
+                try:
+                    all_svcs = db.get_all_services()
+                    svc = next((s for s in all_svcs if str(s.get("id","")) == str(rid)), None)
+                except Exception:
+                    data = db._load()
+                    svc = data.get("services",{}).get(rid)
                 if not svc: return self._send_json({"error":"Not found"},404)
                 return self._send_json(svc)
             if method == "PATCH" and rid and action == "toggle":
