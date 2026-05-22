@@ -921,18 +921,47 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             if method == "GET" and rid:
                 profile = {}
                 listings = []
-                if hasattr(db, 'get_all_bot_users'):
-                    import psycopg2 as _pg2, os as _os2
-                    _db_url2 = _os2.environ.get("DATABASE_URL")
-                    if _db_url2:
-                        _c2 = _pg2.connect(_db_url2)
-                        _cur2 = _c2.cursor()
-                        _cur2.execute("SELECT * FROM bot_users WHERE user_id=%s", (int(rid),))
-                        row = _cur2.fetchone()
-                        profile = dict(row) if row else {}
-                        _cur2.execute("SELECT l.* FROM listings l JOIN user_listings ul ON ul.listing_id=l.id WHERE ul.user_id=%s", (int(rid),))
-                        listings = [dict(r) for r in _cur2.fetchall()]
-                        _c2.close()
+                import os as _os2
+                _db_url2 = _os2.environ.get("DATABASE_URL")
+                if _db_url2:
+                    import psycopg2 as _pg2
+                    from psycopg2.extras import RealDictCursor as _RDC
+                    _c2 = _pg2.connect(_db_url2, cursor_factory=_RDC)
+                    _cur2 = _c2.cursor()
+                    # Merge bot_users + agent_profiles
+                    _cur2.execute("""
+                        SELECT bu.*, ap.email, ap.owner_name, ap.owner_phone,
+                               ap.lang AS agent_lang, ps.plan_type, ps.expiry_iso
+                        FROM bot_users bu
+                        LEFT JOIN agent_profiles ap ON ap.user_id = bu.user_id
+                        LEFT JOIN paid_subscriptions ps ON ps.user_id = bu.user_id
+                        WHERE bu.user_id = %s
+                    """, (int(rid),))
+                    row = _cur2.fetchone()
+                    if row:
+                        profile = dict(row)
+                        profile["lang"] = profile.get("agent_lang") or profile.get("lang") or "ru"
+                        if profile.get("expiry_iso"):
+                            profile["expiry_iso"] = profile["expiry_iso"].isoformat()
+                        if profile.get("first_seen"):
+                            profile["first_seen"] = profile["first_seen"].isoformat()
+                        if profile.get("last_seen"):
+                            profile["last_seen"] = profile["last_seen"].isoformat()
+                    _cur2.execute("""
+                        SELECT l.* FROM listings l
+                        JOIN user_listings ul ON ul.listing_id = l.id
+                        WHERE ul.user_id = %s ORDER BY l.id DESC
+                    """, (int(rid),))
+                    listings = [dict(r) for r in _cur2.fetchall()]
+                    for l in listings:
+                        if l.get("date_added") and hasattr(l["date_added"], "isoformat"):
+                            l["date_added"] = l["date_added"].isoformat()
+                    _c2.close()
+                else:
+                    data = db._load()
+                    profile = data.get("agent_profiles", {}).get(rid, {})
+                    lid_list = data.get("user_listings", {}).get(rid, [])
+                    listings = [data["listings"][str(l)] for l in lid_list if str(l) in data["listings"]]
                 return self._send_json({"user_id": rid, "profile": profile, "listings": listings})
 
         # services
