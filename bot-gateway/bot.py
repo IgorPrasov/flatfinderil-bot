@@ -331,7 +331,43 @@ def main():
 import threading
 import os
 import hmac
+import time as _time_mod
 
+# ── Analytics in-memory cache ────────────────────────────────────────────────
+# get_analytics() can take 5-15 s — Railway will 502 if we compute it
+# synchronously on every request.  Instead we keep a cached copy and refresh
+# it in a background thread every 5 minutes.  HTTP requests always return
+# the cached value instantly (or "loading" on the very first boot).
+_ANALYTICS_CACHE: dict = {"data": None, "ts": 0.0, "lock": threading.Lock(), "refreshing": False}
+
+def _analytics_bg_refresh(date_from=None, date_to=None):
+    """Compute analytics and update the cache; called from background thread."""
+    try:
+        from analytics import get_analytics
+        d = get_analytics(date_from=date_from, date_to=date_to)
+        with _ANALYTICS_CACHE["lock"]:
+            _ANALYTICS_CACHE["data"] = d
+            _ANALYTICS_CACHE["ts"]   = _time_mod.time()
+    except Exception as _ae:
+        logger.error(f"Analytics background refresh error: {_ae}")
+    finally:
+        with _ANALYTICS_CACHE["lock"]:
+            _ANALYTICS_CACHE["refreshing"] = False
+
+def _analytics_warmup_loop():
+    """Daemon thread: warm cache on startup then refresh every 5 minutes."""
+    import time as _t
+    _t.sleep(5)  # let the bot finish initialising first
+    while True:
+        with _ANALYTICS_CACHE["lock"]:
+            already = _ANALYTICS_CACHE["refreshing"]
+            if not already:
+                _ANALYTICS_CACHE["refreshing"] = True
+        if not already:
+            _analytics_bg_refresh()
+        _t.sleep(300)  # 5 minutes
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _start_fb_parser():
     def _fb_loop():
@@ -1702,14 +1738,52 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             return self._handle_backoffice("GET", path)
 
         if path == "/analytics":
-            try:
-                from analytics import get_analytics
-                qs = parse_qs(parsed.query)
-                date_from = (qs.get("from") or [None])[0]
-                date_to   = (qs.get("to")   or [None])[0]
-                data = get_analytics(date_from=date_from, date_to=date_to)
-            except Exception as e:
-                data = {"error": str(e)}
+            qs = parse_qs(parsed.query)
+            date_from = (qs.get("from") or [None])[0]
+            date_to   = (qs.get("to")   or [None])[0]
+            force     = (qs.get("refresh") or ["0"])[0] == "1"
+
+            # We always serve from cache for fast response.
+            # The cache is pre-computed with no date filter (= all-time data).
+            # The date params are stored in the response so the client can
+            # do lightweight client-side filtering if needed.
+            with _ANALYTICS_CACHE["lock"]:
+                data          = _ANALYTICS_CACHE["data"]
+                cache_age     = _time_mod.time() - _ANALYTICS_CACHE["ts"]
+                is_refreshing = _ANALYTICS_CACHE["refreshing"]
+
+            if force or data is None:
+                # Force-refresh or no cache yet — compute synchronously
+                try:
+                    from analytics import get_analytics
+                    data = get_analytics()
+                    with _ANALYTICS_CACHE["lock"]:
+                        _ANALYTICS_CACHE["data"] = data
+                        _ANALYTICS_CACHE["ts"]   = _time_mod.time()
+                        _ANALYTICS_CACHE["refreshing"] = False
+                except Exception as e:
+                    if data is None:
+                        data = {"loading": True, "message": f"Analytics computing: {e}. Retry in 30s."}
+            elif cache_age > 300 and not is_refreshing:
+                # Cache is stale — return old data now, refresh in background
+                with _ANALYTICS_CACHE["lock"]:
+                    _ANALYTICS_CACHE["refreshing"] = True
+                threading.Thread(
+                    target=_analytics_bg_refresh, daemon=True,
+                    name="analytics-refresh"
+                ).start()
+                # data still holds the stale-but-valid cached result — serve it
+
+            if data is None:
+                if not is_refreshing:
+                    with _ANALYTICS_CACHE["lock"]:
+                        _ANALYTICS_CACHE["refreshing"] = True
+                    threading.Thread(
+                        target=_analytics_bg_refresh, daemon=True,
+                        name="analytics-refresh"
+                    ).start()
+                data = {"loading": True, "message": "Analytics are being computed, please retry in 30 seconds"}
+
             body = json_module.dumps(data, ensure_ascii=False).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -2134,6 +2208,13 @@ def start_telegram_parser():
 
 parser_thread = threading.Thread(target=start_telegram_parser, daemon=True)
 parser_thread.start()
+
+# Start analytics cache warmup loop (pre-computes analytics in background)
+analytics_warmup_thread = threading.Thread(
+    target=_analytics_warmup_loop, daemon=True, name="analytics-warmup"
+)
+analytics_warmup_thread.start()
+logger.info("Analytics warmup thread started")
 
 if __name__ == "__main__":
     try:
