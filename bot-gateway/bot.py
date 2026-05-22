@@ -1165,8 +1165,16 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
         # db-export — GET /backoffice/api/db-export  (download full listings_db.json)
         if resource == "db-export" and method == "GET":
-            import database as _db, json as _json
-            data = _db._load()
+            import os as _os, json as _json
+            # With PG backend, read directly from volume JSON file
+            _data_dir = _os.environ.get("DATA_DIR", _os.path.dirname(_os.path.abspath(__file__)))
+            _json_path = _os.path.join(_data_dir, "listings_db.json")
+            if _os.path.exists(_json_path):
+                with open(_json_path, encoding="utf-8") as _f:
+                    data = _json.load(_f)
+            else:
+                import database as _db
+                data = _db._load()
             body = _json.dumps(data, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
