@@ -438,10 +438,10 @@ def increment_view_requests(listing_id: int):
 # Search
 # ---------------------------------------------------------------------------
 
-def search_listings(filters: Dict) -> List[Dict]:
+def search_listings(filters: Dict, limit: int = 200) -> List[Dict]:
     """
     Build a dynamic SQL WHERE clause from the filters dict and return
-    matching active listings.
+    matching active listings. limit caps rows returned from the DB.
     """
     clauses: List[str] = ["active = TRUE"]
     params: List = []
@@ -521,7 +521,8 @@ def search_listings(filters: Dict) -> List[Dict]:
         clauses.append("jsonb_array_length(photos) > 0")
 
     where = " AND ".join(clauses)
-    sql = f"SELECT * FROM listings WHERE {where} ORDER BY id DESC"
+    sql = f"SELECT * FROM listings WHERE {where} ORDER BY id DESC LIMIT %s"
+    params.append(limit)
 
     with _conn() as c:
         with c.cursor() as cur:

@@ -549,12 +549,11 @@ class SearchHandler:
         await query.answer("🔍...")
         f = context.user_data.get("search_filters", {})
         track_search(update.effective_user.id, f)
+        user_id = update.effective_user.id
+        paid = is_trial_active() or has_access(user_id)
+        db_limit = 100 if paid else FREE_SEARCH_LIMIT + 1
         try:
-            if f.get("cities"):
-                # Run a single query for all cities instead of one per city
-                results = db.search_listings(f)
-            else:
-                results = db.search_listings(f)
+            results = db.search_listings(f, limit=db_limit)
         except Exception as _e:
             import logging as _log
             _log.getLogger(__name__).error(f"[SEARCH] search_listings error: {_e!r}", exc_info=True)
@@ -573,8 +572,7 @@ class SearchHandler:
 
         # --- Paywall: limit to FREE_SEARCH_LIMIT after trial ---
         total_found = len(results)
-        user_id = update.effective_user.id
-        if not is_trial_active() and not has_access(user_id) and total_found > FREE_SEARCH_LIMIT:
+        if not paid and total_found > FREE_SEARCH_LIMIT:
             results = results[:FREE_SEARCH_LIMIT]
             context.user_data["results"] = results
             await query.edit_message_text(t("found_n", context, n=total_found), parse_mode="HTML")
