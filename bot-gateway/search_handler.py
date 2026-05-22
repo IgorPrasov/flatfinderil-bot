@@ -549,19 +549,19 @@ class SearchHandler:
         await query.answer("🔍...")
         f = context.user_data.get("search_filters", {})
         track_search(update.effective_user.id, f)
-        if f.get("cities"):
-            results_all = []
-            seen = set()
-            for city in f["cities"]:
-                f_copy = dict(f)
-                f_copy["city"] = city
-                for r in db.search_listings(f_copy):
-                    if r["id"] not in seen:
-                        seen.add(r["id"])
-                        results_all.append(r)
-            results = results_all
-        else:
-            results = db.search_listings(f)
+        try:
+            if f.get("cities"):
+                # Run a single query for all cities instead of one per city
+                results = db.search_listings(f)
+            else:
+                results = db.search_listings(f)
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger(__name__).error(f"[SEARCH] search_listings error: {_e!r}", exc_info=True)
+            lang = get_lang(context)
+            err_msg = {"ru": "⚠️ Ошибка поиска. Попробуйте ещё раз.", "en": "⚠️ Search error. Please try again.", "he": "⚠️ שגיאת חיפוש. נסה שוב."}.get(lang, "⚠️ Search error. Try again.")
+            await query.edit_message_text(err_msg, reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
+            return SEARCH_CONFIRM
         if not results:
             await query.edit_message_text(t("no_results", context), reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
             return SEARCH_CONFIRM
