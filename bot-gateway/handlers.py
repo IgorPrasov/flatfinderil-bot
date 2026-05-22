@@ -93,6 +93,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     args = context.args or []
 
+    # Save user to DB on every /start
+    try:
+        lang = context.user_data.get("lang", "ru")
+        if hasattr(db, "upsert_bot_user"):
+            db.upsert_bot_user(
+                user_id=user.id,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                lang=lang,
+            )
+    except Exception:
+        pass
+
     # Handle referral link: /start ref_USERID
     if args and args[0].startswith("ref_"):
         try:

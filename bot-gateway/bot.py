@@ -839,19 +839,43 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
         # stats
         if resource == "stats":
-            data = db._load()
-            listings = list(data["listings"].values())
-            services = list(data.get("services",{}).values())
-            return self._send_json({
-                "total_listings":  len(listings),
-                "active_listings": sum(1 for l in listings if l.get("active")),
-                "total_services":  len(services),
-                "active_services": sum(1 for s in services if s.get("active",True)),
-                "total_users":     len(data.get("user_listings",{})),
-                "total_crm_contacts": len(data.get("crm_contacts",{})),
-                "total_crm_deals": len(data.get("crm_deals",{})),
-                "email_subscribers": len(db.get_all_agent_emails()) + len(db.get_all_service_emails() if hasattr(db,'get_all_service_emails') else []),
-            })
+            import psycopg2 as _pg, os as _os
+            _db_url = _os.environ.get("DATABASE_URL")
+            if _db_url:
+                _c = _pg.connect(_db_url)
+                _cur = _c.cursor()
+                _cur.execute("SELECT COUNT(*) FROM listings"); total_l = _cur.fetchone()[0]
+                _cur.execute("SELECT COUNT(*) FROM listings WHERE active=true"); active_l = _cur.fetchone()[0]
+                _cur.execute("SELECT COUNT(*) FROM bot_users"); total_u = _cur.fetchone()[0]
+                _cur.execute("SELECT COUNT(*) FROM search_subscriptions"); total_subs = _cur.fetchone()[0]
+                _cur.execute("SELECT COUNT(*) FROM paid_subscriptions"); total_paid = _cur.fetchone()[0]
+                _c.close()
+                emails = len(db.get_all_agent_emails()) if hasattr(db,'get_all_agent_emails') else 0
+                return self._send_json({
+                    "total_listings": total_l,
+                    "active_listings": active_l,
+                    "total_services": 0,
+                    "active_services": 0,
+                    "total_users": total_u,
+                    "total_subscriptions": total_subs,
+                    "total_paid": total_paid,
+                    "total_crm_contacts": 0,
+                    "total_crm_deals": 0,
+                    "email_subscribers": emails,
+                })
+            else:
+                data = db._load()
+                listings = list(data["listings"].values())
+                return self._send_json({
+                    "total_listings":  len(listings),
+                    "active_listings": sum(1 for l in listings if l.get("active")),
+                    "total_services":  0,
+                    "active_services": 0,
+                    "total_users":     len(data.get("user_listings",{})),
+                    "total_crm_contacts": 0,
+                    "total_crm_deals": 0,
+                    "email_subscribers": 0,
+                })
 
         # listings
         if resource == "listings":
@@ -887,14 +911,29 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
         # users
         if resource == "users":
             if method == "GET" and not rid:
-                users = db.get_all_users_admin()
-                return self._send_json({"total":len(users),"items":users})
+                if hasattr(db, 'get_all_bot_users'):
+                    users = db.get_all_bot_users(limit=int(qp("per_page",200)), offset=(int(qp("page",1))-1)*int(qp("per_page",200)))
+                    total = db.get_bot_users_count() if hasattr(db,'get_bot_users_count') else len(users)
+                else:
+                    users = db.get_all_users_admin()
+                    total = len(users)
+                return self._send_json({"total": total, "items": users})
             if method == "GET" and rid:
-                data = db._load()
-                profile = data.get("agent_profiles",{}).get(rid,{})
-                lid_list = data.get("user_listings",{}).get(rid,[])
-                listings = [data["listings"][str(l)] for l in lid_list if str(l) in data["listings"]]
-                return self._send_json({"user_id":rid,"profile":profile,"listings":listings})
+                profile = {}
+                listings = []
+                if hasattr(db, 'get_all_bot_users'):
+                    import psycopg2 as _pg2, os as _os2
+                    _db_url2 = _os2.environ.get("DATABASE_URL")
+                    if _db_url2:
+                        _c2 = _pg2.connect(_db_url2)
+                        _cur2 = _c2.cursor()
+                        _cur2.execute("SELECT * FROM bot_users WHERE user_id=%s", (int(rid),))
+                        row = _cur2.fetchone()
+                        profile = dict(row) if row else {}
+                        _cur2.execute("SELECT l.* FROM listings l JOIN user_listings ul ON ul.listing_id=l.id WHERE ul.user_id=%s", (int(rid),))
+                        listings = [dict(r) for r in _cur2.fetchall()]
+                        _c2.close()
+                return self._send_json({"user_id": rid, "profile": profile, "listings": listings})
 
         # services
         if resource == "services":

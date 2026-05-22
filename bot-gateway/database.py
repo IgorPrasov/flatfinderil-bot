@@ -56,6 +56,9 @@ if _USE_PG:
         use_listing_credit,
         has_used_free_listing,
         mark_free_listing_used,
+        upsert_bot_user,
+        get_bot_users_count,
+        get_all_bot_users,
         _init_db,
         _text_fingerprint,
     )

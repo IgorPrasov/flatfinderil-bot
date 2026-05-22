@@ -264,3 +264,14 @@ CREATE TABLE IF NOT EXISTS service_profiles (
     email   TEXT,
     extra   JSONB DEFAULT '{}'
 );
+
+CREATE TABLE IF NOT EXISTS bot_users (
+    user_id    BIGINT PRIMARY KEY,
+    username   TEXT,
+    first_name TEXT,
+    last_name  TEXT,
+    lang       VARCHAR(10) DEFAULT 'ru',
+    first_seen TIMESTAMPTZ DEFAULT NOW(),
+    last_seen  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_bot_users_last_seen ON bot_users(last_seen);

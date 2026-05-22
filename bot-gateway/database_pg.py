@@ -2316,3 +2316,59 @@ def get_phone_stats(phone: str) -> dict:
         return {"phone": phone, "is_agent": False, "is_blacklisted": False,
                 "posts_last_30d": 0, "total_reports": 0,
                 "blacklist_info": None, "agent_info": None}
+
+
+# ── bot_users ──────────────────────────────────────────────────────────────────
+
+def upsert_bot_user(user_id: int, username: str = None, first_name: str = None,
+                    last_name: str = None, lang: str = "ru") -> None:
+    """Insert or update a bot user record (called on every /start)."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("""
+                INSERT INTO bot_users(user_id, username, first_name, last_name, lang, first_seen, last_seen)
+                VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+                ON CONFLICT(user_id) DO UPDATE SET
+                    username   = COALESCE(EXCLUDED.username,   bot_users.username),
+                    first_name = COALESCE(EXCLUDED.first_name, bot_users.first_name),
+                    last_name  = COALESCE(EXCLUDED.last_name,  bot_users.last_name),
+                    lang       = EXCLUDED.lang,
+                    last_seen  = NOW()
+            """, (user_id, username, first_name, last_name, lang))
+        c.commit()
+
+
+def get_bot_users_count() -> int:
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM bot_users")
+            return cur.fetchone()["count"]
+
+
+def get_all_bot_users(limit: int = 500, offset: int = 0) -> list:
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("""
+                SELECT bu.user_id, bu.username, bu.first_name, bu.last_name,
+                       bu.lang, bu.first_seen, bu.last_seen,
+                       COUNT(ul.listing_id) AS listings_count
+                FROM bot_users bu
+                LEFT JOIN user_listings ul ON ul.user_id = bu.user_id
+                GROUP BY bu.user_id
+                ORDER BY bu.last_seen DESC
+                LIMIT %s OFFSET %s
+            """, (limit, offset))
+            rows = cur.fetchall()
+    return [
+        {
+            "user_id": str(r["user_id"]),
+            "username": r["username"],
+            "first_name": r["first_name"],
+            "last_name": r["last_name"],
+            "lang": r["lang"],
+            "first_seen": r["first_seen"].isoformat() if r["first_seen"] else None,
+            "last_seen": r["last_seen"].isoformat() if r["last_seen"] else None,
+            "listings_count": int(r["listings_count"] or 0),
+        }
+        for r in rows
+    ]
