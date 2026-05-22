@@ -1163,6 +1163,21 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 logger.error(f"[FB-POST] {e}")
                 return self._send_json({"error": str(e)}, 500)
 
+        # debug — GET /backoffice/api/debug  (temp: show env paths)
+        if resource == "debug" and method == "GET":
+            import os as _os, json as _json
+            data_dir = _os.environ.get("DATA_DIR", _os.path.dirname(_os.path.abspath(__file__)))
+            json_path = _os.path.join(data_dir, "listings_db.json")
+            return self._send_json({
+                "DATA_DIR": data_dir,
+                "json_path": json_path,
+                "json_exists": _os.path.exists(json_path),
+                "json_size_kb": round(_os.path.getsize(json_path) / 1024) if _os.path.exists(json_path) else 0,
+                "DATABASE_URL_set": bool(_os.environ.get("DATABASE_URL")),
+                "cwd": _os.getcwd(),
+                "ls_data": _os.listdir(data_dir) if _os.path.exists(data_dir) else [],
+            })
+
         # db-export — GET /backoffice/api/db-export  (download full listings_db.json)
         if resource == "db-export" and method == "GET":
             import database as _db, json as _json
