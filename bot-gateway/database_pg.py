@@ -1369,6 +1369,57 @@ def add_service(svc_data: dict) -> int:
             return cur.fetchone()["id"]
 
 
+def get_all_services() -> list:
+    """Return ALL services (active and inactive) for admin/analytics use."""
+    order = (
+        "CASE WHEN extra->>'promo_expiry' IS NOT NULL "
+        "     AND (extra->>'promo_expiry')::timestamp > NOW() "
+        "THEN 0 ELSE 1 END, id"
+    )
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(f"SELECT * FROM services ORDER BY {order}")
+            rows = cur.fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        extra = d.pop("extra", None) or {}
+        d.update(extra)
+        result.append(d)
+    return result
+
+
+def get_all_service_subscriptions() -> dict:
+    """Return all service subscriptions as {service_id_str: {plan_key, expiry}}."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("SELECT service_id, plan_key, expiry FROM service_subscriptions")
+            rows = cur.fetchall()
+    result = {}
+    for r in rows:
+        result[str(r["service_id"])] = {
+            "plan_key": r["plan_key"],
+            "expiry": r["expiry"].isoformat() if r["expiry"] else "",
+        }
+    return result
+
+
+def activate_service_promo(user_id: int, expiry_iso: str) -> int:
+    """Set promo_expiry on all active services belonging to user_id. Returns rows updated."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE services
+                   SET extra = extra || %s
+                 WHERE user_id = %s::text
+                   AND active = TRUE
+                """,
+                (Json({"promo_expiry": expiry_iso}), str(user_id)),
+            )
+            return cur.rowcount
+
+
 def get_services(svc_type: str = None, region: str = None, city: str = None) -> list:
     clauses = ["s.active = TRUE"]
     params: List = []
@@ -1382,9 +1433,15 @@ def get_services(svc_type: str = None, region: str = None, city: str = None) -> 
         clauses.append("(s.city IS NULL OR s.city = %s)")
         params.append(city)
     where = " AND ".join(clauses)
+    # Promoted providers (active promo_expiry) come first
+    order = (
+        "CASE WHEN s.extra->>'promo_expiry' IS NOT NULL "
+        "     AND (s.extra->>'promo_expiry')::timestamp > NOW() "
+        "THEN 0 ELSE 1 END, s.id"
+    )
     with _conn() as c:
         with c.cursor() as cur:
-            cur.execute(f"SELECT * FROM services s WHERE {where} ORDER BY s.id", params)
+            cur.execute(f"SELECT * FROM services s WHERE {where} ORDER BY {order}", params)
             rows = cur.fetchall()
     now_iso = datetime.utcnow().isoformat()
     result = []

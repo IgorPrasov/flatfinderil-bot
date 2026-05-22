@@ -338,7 +338,11 @@
         <option value="moving">🚚 Перевозки</option>
         <option value="packing">📦 Упаковка</option>
         <option value="cleaning">🧹 Клининг</option>
-        <option value="renovation">🔨 Ремонт</option>
+        <option value="repair">🔨 Ремонт</option>
+        <option value="repair_painting">🎨 Покраска</option>
+        <option value="repair_plumbing">🔧 Сантехника</option>
+        <option value="repair_electric">⚡ Электрика</option>
+        <option value="repair_ac">❄️ Кондиционер</option>
         <option value="legal">⚖️ Юридич.</option>
       </select>
       <select id="fs-active" onchange="loadServices()">
@@ -352,10 +356,10 @@
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>ID</th><th>Тип</th><th>Город</th><th>Регион</th>
+          <th>ID</th><th>Тип</th><th>План</th><th>Город</th><th>Регион</th>
           <th>Цена</th><th>Телефон</th><th>Email</th><th>Статус</th><th>Действия</th>
         </tr></thead>
-        <tbody id="tbl-services"><tr><td colspan="9" class="loading">Загрузка...</td></tr></tbody>
+        <tbody id="tbl-services"><tr><td colspan="10" class="loading">Загрузка...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -751,7 +755,11 @@
         <option value="moving">🚚 Перевозки</option>
         <option value="packing">📦 Упаковка</option>
         <option value="cleaning">🧹 Клининг</option>
-        <option value="renovation">🔨 Ремонт</option>
+        <option value="repair">🔨 Ремонт (общий)</option>
+        <option value="repair_painting">🎨 Ремонт — Покраска</option>
+        <option value="repair_plumbing">🔧 Ремонт — Сантехника</option>
+        <option value="repair_electric">⚡ Ремонт — Электрика</option>
+        <option value="repair_ac">❄️ Ремонт — Кондиционер</option>
         <option value="legal">⚖️ Юридические услуги</option>
       </select></div>
     <div class="field"><label>Имя / Компания</label><input id="ms-name" placeholder="Имя или название компании"></div>
@@ -889,7 +897,13 @@ function debounce(fn, ms) {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const DEAL_LABELS = {rent:'Аренда',buy:'Продажа',sublet:'Сублет',commercial:'Коммерческая'};
-const SVC_LABELS  = {moving:'🚚 Перевозки',packing:'📦 Упаковка',cleaning:'🧹 Клининг',renovation:'🔨 Ремонт',legal:'⚖️ Юрист'};
+const SVC_LABELS  = {
+  moving:'🚚 Перевозки', packing:'📦 Упаковка', cleaning:'🧹 Клининг',
+  repair:'🔨 Ремонт', renovation:'🔨 Ремонт',  // both keys for backward compat
+  repair_painting:'🎨 Покраска', repair_plumbing:'🔧 Сантехника',
+  repair_electric:'⚡ Электрика', repair_ac:'❄️ Кондиционер',
+  legal:'⚖️ Юрист',
+};
 const STATUS_LABELS = {new:'🆕 Новая',in_progress:'⏳ В работе',done:'✅ Завершена',cancelled:'❌ Отменена'};
 const SELLER_LABELS = {agent:'🏢 Агент',private:'👤 Частное'};
 const LANG_LABELS = {ru:'🇷🇺 RU',en:'🇬🇧 EN',he:'🇮🇱 HE'};
@@ -1053,13 +1067,21 @@ async function loadServices() {
     `<div class="kpi"><div class="kpi-val" style="color:var(--blue)">${d.total}</div><div class="kpi-label">поставщиков</div></div>
      <div class="kpi"><div class="kpi-val" style="color:var(--green)">${d.items.filter(s=>s.email).length}</div><div class="kpi-label">с email</div></div>`;
   const tbody = document.getElementById('tbl-services');
-  if (!d.items.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">Поставщиков нет</td></tr>'; return; }
+  if (!d.items.length) { tbody.innerHTML = '<tr><td colspan="10" class="empty">Поставщиков нет</td></tr>'; return; }
+  const SVC_PLAN_BADGE = {
+    profi:   badge('🏆 Профи','blue'),
+    partner: badge('🤝 Партнер','green'),
+  };
   tbody.innerHTML = d.items.map(s => {
     const statusBadge = s.active!==false ? badge('Активно','green') : badge('Скрыто','red');
     const phone = s.owner_phone || s.phone || '';
+    const planRaw = (s.plan_key||'').split('_').pop();
+    const planBadge = SVC_PLAN_BADGE[planRaw] || (s.plan_key ? badge(s.plan_key,'purple') : '—');
+    const promoIcon = s.promo_active ? '⭐ ' : '';
     return `<tr class="clickable" data-service-id="${s.id}">
       <td><small>${s.id||'—'}</small></td>
-      <td>${SVC_LABELS[s.service_type]||s.service_type||'—'}</td>
+      <td>${promoIcon}${SVC_LABELS[s.service_type]||s.service_type||'—'}</td>
+      <td>${planBadge}</td>
       <td>${esc(s.city||'—')}</td>
       <td>${esc(s.region||'—')}</td>
       <td>${(s.price||0).toLocaleString()} ₪</td>
@@ -1213,7 +1235,10 @@ async function loadEmails() {
   const tbody = document.getElementById('tbl-emails');
   if (!d.items.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">Подписчиков нет — добавьте email через бот</td></tr>'; return; }
   const TYPE_BADGES = {agent:badge('🏢 Агент','blue'),moving:badge('🚚 Перевозки','gold'),
-    packing:badge('📦 Упаковка','purple'),cleaning:badge('🧹 Клининг','green')};
+    packing:badge('📦 Упаковка','purple'),cleaning:badge('🧹 Клининг','green'),
+    repair:badge('🔨 Ремонт','purple'),repair_painting:badge('🎨 Покраска','purple'),
+    repair_plumbing:badge('🔧 Сантехника','purple'),repair_electric:badge('⚡ Электрика','purple'),
+    repair_ac:badge('❄️ Кондиционер','purple')};
   tbody.innerHTML = d.items.map(s => `<tr>
     <td><small>${s.user_id}</small></td>
     <td><a href="mailto:${s.email}">${s.email}</a></td>

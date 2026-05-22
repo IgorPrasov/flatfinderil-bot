@@ -16,10 +16,11 @@ Movers / הובלות
   • Base: 70 ₪/month — entry in city database
   • TOP placement per city: +100 ₪/city/week
 
-Cleaning / ניקיון  |  Packing / אריזה
---------------------------------------
-  • Presence in database: 70 ₪/month
-  • Unlock client lead contact: 50 ₪/lead
+Services (Moving / Cleaning / Packing / Repair)
+------------------------------------------------
+  Plan Профи  — 150 ₪/month subscription + 50 ₪/lead unlock
+  Plan Партнер — 10% commission per order (free base) +
+                 optional Продвижение 500 ₪/month (TOP placement in provider's cities)
 """
 
 from typing import Optional
@@ -111,26 +112,68 @@ MOVER_PACKAGES = [
     },
 ]
 
-# ── Cleaning & Packing ────────────────────────────────────────────────────────
-# Model: monthly subscription (presence) + per-lead unlock fee
+# ── Services (Moving / Cleaning / Packing / Repair) ──────────────────────────
+# Two plans + optional TOP promotion add-on
 
-SERVICE_MONTHLY_BASE_ILS = 70   # ₪/month — to appear in the directory
-CLEANING_LEAD_PRICE_ILS  = 50   # ₪ per lead unlock
-PACKING_LEAD_PRICE_ILS   = 50   # ₪ per lead unlock
+SVC_PROFI_MONTHLY_ILS = 150   # ₪/month — Профи subscription
+SVC_PROFI_LEAD_ILS    = 50    # ₪ per lead unlock (Профи plan)
+SVC_PROMO_MONTHLY_ILS = 500   # ₪/month — TOP promotion add-on (any plan)
 
-# Subscription package shared by cleaning and packing
+# Keep old names as aliases so existing code that imports them doesn't break
+SERVICE_MONTHLY_BASE_ILS = SVC_PROFI_MONTHLY_ILS
+CLEANING_LEAD_PRICE_ILS  = SVC_PROFI_LEAD_ILS
+PACKING_LEAD_PRICE_ILS   = SVC_PROFI_LEAD_ILS
+
+# Provider subscription packages
 SERVICE_PACKAGES = [
     {
-        "key":          "service_base",
-        "price_ils":    SERVICE_MONTHLY_BASE_ILS,
+        "key":          "profi",
+        "price_ils":    SVC_PROFI_MONTHLY_ILS,
         "duration_days": 30,
         "label": {
-            "ru": "📋 Присутствие в базе — 1 месяц",
-            "en": "📋 Listed in database — 1 month",
-            "he": "📋 רישום במאגר — חודש 1",
+            "ru": "🏆 Абонемент Профи",
+            "en": "🏆 Profi Plan",
+            "he": "🏆 מנוי פרו",
+        },
+        "desc": {
+            "ru": f"Появляетесь в базе · {SVC_PROFI_MONTHLY_ILS} ₪/мес\n  Открытие контакта клиента — {SVC_PROFI_LEAD_ILS} ₪/лид",
+            "en": f"Listed in directory · {SVC_PROFI_MONTHLY_ILS} ₪/month\n  Unlock client contact — {SVC_PROFI_LEAD_ILS} ₪/lead",
+            "he": f"מופיעים במאגר · {SVC_PROFI_MONTHLY_ILS} ₪/חודש\n  פתיחת פרטי לקוח — {SVC_PROFI_LEAD_ILS} ₪/ליד",
+        },
+    },
+    {
+        "key":          "partner",
+        "price_ils":    0,    # commission-based — no upfront fee
+        "duration_days": 365,
+        "label": {
+            "ru": "🤝 Абонемент Партнер",
+            "en": "🤝 Partner Plan",
+            "he": "🤝 מנוי שותף",
+        },
+        "desc": {
+            "ru": "Комиссия 10% с каждого заказа\n  Продвижение (ТОП) — опционально",
+            "en": "10% commission per order\n  Promotion (TOP) — optional",
+            "he": "עמלה 10% מכל הזמנה\n  קידום (TOP) — אופציונלי",
         },
     },
 ]
+
+# Optional TOP-placement add-on (available to any plan)
+SVC_PROMO_PACKAGE = {
+    "key":          "promo",
+    "price_ils":    SVC_PROMO_MONTHLY_ILS,
+    "duration_days": 30,
+    "label": {
+        "ru": "⭐ Продвижение — ТОП в ваших городах",
+        "en": "⭐ Promotion — TOP in your cities",
+        "he": "⭐ קידום — TOP בעריך",
+    },
+    "desc": {
+        "ru": f"Первым в выдаче по городам вашего профиля · {SVC_PROMO_MONTHLY_ILS} ₪/мес",
+        "en": f"First in results for your profile cities · {SVC_PROMO_MONTHLY_ILS} ₪/month",
+        "he": f"ראשון בתוצאות בערי הפרופיל שלך · {SVC_PROMO_MONTHLY_ILS} ₪/חודש",
+    },
+}
 
 # ── Lead balance top-up packages (for cleaning & packing) ────────────────────
 
@@ -167,7 +210,9 @@ def get_mover_package(key: str) -> Optional[dict]:
 
 
 def get_service_package(key: str) -> Optional[dict]:
-    """Return cleaning/packing service package by key, or None."""
+    """Return service package by key (searches SERVICE_PACKAGES + SVC_PROMO_PACKAGE), or None."""
+    if SVC_PROMO_PACKAGE["key"] == key:
+        return SVC_PROMO_PACKAGE
     return next((p for p in SERVICE_PACKAGES if p["key"] == key), None)
 
 
@@ -205,7 +250,8 @@ def get_lead_price(svc_type: str) -> int:
 
 
 def format_service_pricing(svc_type: str, lang: str = "ru") -> str:
-    """Return pricing info block for service provider type."""
+    """Return pricing info block for service provider type (both plans)."""
+    # Movers keep their own separate pricing model
     if svc_type == "moving":
         if lang == "he":
             return (
@@ -229,45 +275,38 @@ def format_service_pricing(svc_type: str, lang: str = "ru") -> str:
                 "  · Можно только базу, ТОП — по желанию"
             )
 
-    elif svc_type in ("cleaning", "packing"):
-        lead_price = CLEANING_LEAD_PRICE_ILS  # same for both
-        if lang == "he":
-            return (
-                "💳 <b>תמחור:</b>\n"
-                f"  · נוכחות במאגר — <b>{SERVICE_MONTHLY_BASE_ILS} ₪/חודש</b>\n"
-                f"  · פתיחת פרטי לקוח — <b>{lead_price} ₪/ליד</b>"
-            )
-        elif lang == "en":
-            return (
-                "💳 <b>Pricing:</b>\n"
-                f"  · Listed in database — <b>{SERVICE_MONTHLY_BASE_ILS} ₪/month</b>\n"
-                f"  · Unlock client contact — <b>{lead_price} ₪/lead</b>"
-            )
-        else:
-            return (
-                "💳 <b>Тарифы:</b>\n"
-                f"  · Присутствие в базе — <b>{SERVICE_MONTHLY_BASE_ILS} ₪/мес</b>\n"
-                f"  · Открытие контакта клиента — <b>{lead_price} ₪/лид</b>"
-            )
+    # All other service types use the 2-plan model
+    profi = next(p for p in SERVICE_PACKAGES if p["key"] == "profi")
+    partner = next(p for p in SERVICE_PACKAGES if p["key"] == "partner")
+    promo = SVC_PROMO_PACKAGE
 
-    elif svc_type in ("repair", "repair_painting", "repair_plumbing", "repair_electric", "repair_ac"):
-        if lang == "he":
-            return (
-                "💳 <b>תמחור:</b>\n"
-                f"  · נוכחות במאגר — <b>{SERVICE_MONTHLY_BASE_ILS} ₪/חודש</b>\n"
-                "  · לקוחות מוצאים אתכם דרך הקטגוריה 🔨 שיפוצים"
-            )
-        elif lang == "en":
-            return (
-                "💳 <b>Pricing:</b>\n"
-                f"  · Listed in database — <b>{SERVICE_MONTHLY_BASE_ILS} ₪/month</b>\n"
-                "  · Clients find you via the 🔨 Repairs category"
-            )
-        else:
-            return (
-                "💳 <b>Тарифы:</b>\n"
-                f"  · Присутствие в базе — <b>{SERVICE_MONTHLY_BASE_ILS} ₪/мес</b>\n"
-                "  · Клиенты находят вас через раздел 🔨 Ремонт"
-            )
-
-    return ""
+    if lang == "he":
+        return (
+            "💳 <b>תוכניות:</b>\n\n"
+            f"<b>{profi['label']['he']}</b>\n"
+            f"  {profi['desc']['he']}\n\n"
+            f"<b>{partner['label']['he']}</b>\n"
+            f"  {partner['desc']['he']}\n\n"
+            f"<b>{promo['label']['he']}</b> (תוספת לכל תוכנית)\n"
+            f"  {promo['desc']['he']}"
+        )
+    elif lang == "en":
+        return (
+            "💳 <b>Plans:</b>\n\n"
+            f"<b>{profi['label']['en']}</b>\n"
+            f"  {profi['desc']['en']}\n\n"
+            f"<b>{partner['label']['en']}</b>\n"
+            f"  {partner['desc']['en']}\n\n"
+            f"<b>{promo['label']['en']}</b> (add-on for any plan)\n"
+            f"  {promo['desc']['en']}"
+        )
+    else:
+        return (
+            "💳 <b>Тарифные планы:</b>\n\n"
+            f"<b>{profi['label']['ru']}</b>\n"
+            f"  {profi['desc']['ru']}\n\n"
+            f"<b>{partner['label']['ru']}</b>\n"
+            f"  {partner['desc']['ru']}\n\n"
+            f"<b>{promo['label']['ru']}</b> (опция к любому плану)\n"
+            f"  {promo['desc']['ru']}"
+        )

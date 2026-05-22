@@ -1938,7 +1938,7 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     else:
                         logger.error(f"[PAYPAL] Unknown mover pkg={pkg_key!r}")
 
-                # ── Cleaning / Packing monthly subscription ─────────────────
+                # ── Service subscription / promo ─────────────────────────────
                 elif plan_key.startswith("svc_"):
                     # custom_id format: svc_{svc_type}_{package_key}
                     parts = plan_key[len("svc_"):].split("_", 1)
@@ -1950,12 +1950,18 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                             from datetime import datetime, timedelta
                             expiry = (datetime.utcnow() + timedelta(days=pkg.get("duration_days", 30))).isoformat()
                             import database as _db
-                            _db.set_service_subscription(str(user_id), f"{svc_type}_{pkg_key}", expiry)
-                            logger.info(f"[PAYPAL] Service sub activated svc={svc_type} user={user_id} until={expiry}")
-                            asyncio.run_coroutine_threadsafe(
-                                _notify_service_subscription(user_id, svc_type, expiry),
-                                asyncio.get_event_loop()
-                            )
+                            if pkg_key == "promo":
+                                # TOP promotion: update promo_expiry on the user's services
+                                _db.activate_service_promo(user_id, expiry)
+                                logger.info(f"[PAYPAL] Service promo activated user={user_id} until={expiry}")
+                            else:
+                                # Regular subscription (profi, partner, etc.)
+                                _db.set_service_subscription(str(user_id), f"{svc_type}_{pkg_key}", expiry)
+                                logger.info(f"[PAYPAL] Service sub activated svc={svc_type} pkg={pkg_key} user={user_id} until={expiry}")
+                                asyncio.run_coroutine_threadsafe(
+                                    _notify_service_subscription(user_id, svc_type, expiry),
+                                    asyncio.get_event_loop()
+                                )
                         else:
                             logger.error(f"[PAYPAL] Unknown service pkg={pkg_key!r}")
 

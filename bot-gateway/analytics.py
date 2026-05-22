@@ -526,31 +526,68 @@ def get_analytics(date_from: str = None, date_to: str = None):
     comm_by_deal = Counter(l.get("deal_type","") for l in comm_listings)
     comm_by_city = Counter(l.get("city","") for l in comm_listings)
 
-    # ── Services ────────────────────────────────────────────────────────
-    SVC_TYPE_NAMES = {"moving": "🚚 Перевозки", "packing": "📦 Упаковка", "cleaning": "🧹 Клининг"}
+    # ── Services — read directly from PostgreSQL ─────────────────────────
+    SVC_TYPE_NAMES = {
+        "moving":          "🚚 Перевозки",
+        "packing":         "📦 Упаковка",
+        "cleaning":        "🧹 Клининг",
+        "repair":          "🔨 Ремонт",
+        "repair_painting": "🔨 Ремонт (Покраска)",
+        "repair_plumbing": "🔨 Ремонт (Сантехника)",
+        "repair_electric": "🔨 Ремонт (Электрика)",
+        "repair_ac":       "🔨 Ремонт (Кондиционер)",
+    }
     REGION_NAMES = {"north": "🌿 Север", "center": "🏙 Центр", "south": "☀️ Юг", "all": "🌍 Вся страна"}
-    services_all = list(db_data.get("services", {}).values())
+
+    try:
+        services_all = db.get_all_services()
+    except Exception:
+        services_all = list(db_data.get("services", {}).values())
+
+    try:
+        _svc_subs_all = db.get_all_service_subscriptions()   # {str(user_id): {plan_key, expiry}}
+    except Exception:
+        _svc_subs_all = {}
+
     svc_active = [s for s in services_all if s.get("active", True)]
     svc_by_type = Counter(SVC_TYPE_NAMES.get(s.get("service_type",""), s.get("service_type","")) for s in svc_active)
     svc_by_region = Counter(REGION_NAMES.get(s.get("region",""), s.get("region","")) for s in svc_active)
     svc_recent = sorted(svc_active, key=lambda x: x.get("date_added",""), reverse=True)[:5]
 
-    SVC_TYPE_LABELS = {"moving": "🚚 Перевозчик", "packing": "📦 Упаковщик", "cleaning": "🧹 Клининг"}
+    SVC_TYPE_LABELS = {
+        "moving":          "🚚 Перевозчик",
+        "packing":         "📦 Упаковщик",
+        "cleaning":        "🧹 Клининг",
+        "repair":          "🔨 Ремонт",
+        "repair_painting": "🎨 Покраска",
+        "repair_plumbing": "🔧 Сантехника",
+        "repair_electric": "⚡ Электрика",
+        "repair_ac":       "❄️ Кондиционер",
+    }
+
+    now_iso_svc = datetime.utcnow().isoformat()
     svc_providers_all = sorted(
         [
             {
-                "svc_id":    s.get("id", ""),
-                "user_id":   str(s.get("user_id", "")),
-                "name":      s.get("owner_name") or s.get("contact") or "—",
-                "type":      SVC_TYPE_LABELS.get(s.get("service_type",""), s.get("service_type","")),
-                "region":    REGION_NAMES.get(s.get("region",""), s.get("region","")),
-                "city":      s.get("city") or "—",
-                "phone":     s.get("phone") or s.get("owner_phone") or "—",
-                "price":     s.get("price") or 0,
-                "views":     s.get("views") or 0,
-                "desc":      (s.get("description") or "")[:80],
-                "date":      s.get("date_added",""),
-                "active":    s.get("active", True),
+                "svc_id":       s.get("id", ""),
+                "user_id":      str(s.get("user_id", "")),
+                "name":         s.get("owner_name") or s.get("contact") or "—",
+                "type":         SVC_TYPE_LABELS.get(s.get("service_type",""), s.get("service_type","")),
+                "region":       REGION_NAMES.get(s.get("region",""), s.get("region","")),
+                "city":         s.get("city") or "—",
+                "phone":        s.get("phone") or s.get("owner_phone") or "—",
+                "price":        s.get("price") or 0,
+                "views":        s.get("views") or 0,
+                "desc":         (s.get("description") or "")[:80],
+                "date":         s.get("date_added",""),
+                "active":       s.get("active", True),
+                "plan_key":     (_svc_subs_all.get(str(s.get("user_id",""))) or {}).get("plan_key",""),
+                "plan":         (lambda pk: pk.split("_")[-1] if pk else "")(
+                                    (_svc_subs_all.get(str(s.get("user_id",""))) or {}).get("plan_key","")),
+                "promo_active": bool(
+                                    s.get("promo_expiry","") and
+                                    s.get("promo_expiry","") > now_iso_svc
+                                ),
             }
             for s in services_all
         ],
@@ -817,7 +854,9 @@ def get_analytics(date_from: str = None, date_to: str = None):
                     "region": REGION_NAMES.get(s.get("region",""), s.get("region","")),
                     "price": s.get("price", 0),
                     "date": s.get("date_added",""),
-                    "icon": {"moving":"🚚","packing":"📦","cleaning":"🧹"}.get(s.get("service_type",""),"🔧"),
+                    "icon": {"moving":"🚚","packing":"📦","cleaning":"🧹",
+                             "repair":"🔨","repair_painting":"🎨","repair_plumbing":"🔧",
+                             "repair_electric":"⚡","repair_ac":"❄️"}.get(s.get("service_type",""),"🔧"),
                 }
                 for s in svc_recent
             ],

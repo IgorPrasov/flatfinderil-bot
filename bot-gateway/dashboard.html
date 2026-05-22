@@ -352,7 +352,8 @@ canvas{max-width:100%}
           <thead><tr style="color:#aaa;border-bottom:1px solid #eee">
             <th style="padding:6px 8px;text-align:left">Имя</th>
             <th style="padding:6px 8px;text-align:left">Тип</th>
-            <th style="padding:6px 8px;text-align:left">Район</th>
+            <th style="padding:6px 8px;text-align:left">План</th>
+            <th style="padding:6px 8px;text-align:left">Район / Город</th>
             <th style="padding:6px 8px;text-align:left">Телефон</th>
             <th style="padding:6px 8px;text-align:right">Цена</th>
             <th style="padding:6px 8px;text-align:right">Просм.</th>
@@ -668,15 +669,10 @@ canvas{max-width:100%}
             <div style="font-weight:700;font-size:13px;color:#0ea5e9;margin-bottom:8px">🚛 Перевозчики</div>
             <table style="width:100%;font-size:12px;border-collapse:collapse" id="price-movers"></table>
           </div>
-          <!-- Cleaning -->
+          <!-- Cleaning / Packing / Repair — shared 2-plan model -->
           <div style="background:#f0fdf4;border-radius:10px;padding:14px">
-            <div style="font-weight:700;font-size:13px;color:#10b981;margin-bottom:8px">🧹 Клининг</div>
+            <div style="font-weight:700;font-size:13px;color:#10b981;margin-bottom:8px">🧹 Клининг · 📦 Упаковка · 🔨 Ремонт</div>
             <div style="font-size:12px;color:#1e293b" id="price-cleaning"></div>
-          </div>
-          <!-- Packers -->
-          <div style="background:#faf5ff;border-radius:10px;padding:14px">
-            <div style="font-weight:700;font-size:13px;color:#8b5cf6;margin-bottom:8px">📦 Упаковка</div>
-            <div style="font-size:12px;color:#1e293b" id="price-packers"></div>
           </div>
         </div>
       </div>
@@ -857,7 +853,7 @@ const DEMO={
   ],
   services:{
     total:0,
-    by_type:[{type:"🚚 Перевозки",count:0},{type:"📦 Упаковка",count:0},{type:"🧹 Клининг",count:0}],
+    by_type:[{type:"🚚 Перевозки",count:0},{type:"📦 Упаковка",count:0},{type:"🧹 Клининг",count:0},{type:"🔨 Ремонт",count:0}],
     by_region:[{region:"🌿 Север",count:0},{region:"🏙 Центр",count:0},{region:"☀️ Юг",count:0}],
     recent:[],
   },
@@ -866,7 +862,7 @@ const DEMO={
     total_contacts:0,
     by_type:[
       {type:"🏘 Агент",count:0},{type:"🚚 Перевозчик",count:0},
-      {type:"📦 Упаковщик",count:0},{type:"🧹 Клининг",count:0}
+      {type:"📦 Упаковщик",count:0},{type:"🧹 Клининг",count:0},{type:"🔨 Ремонт",count:0}
     ],
     total_deals:0,
     deals_by_status:[
@@ -1320,14 +1316,18 @@ function _renderInner(){
   // ── Services tab ──────────────────────────────────────────────────────
   const SV = D.services || {};
   const allProviders = D.service_providers_all || [];
-  const movCnt  = allProviders.filter(p=>p.type.includes("Перевоз")).length;
-  const packCnt = allProviders.filter(p=>p.type.includes("Упаков")).length;
-  const cleanCnt= allProviders.filter(p=>p.type.includes("Клинин")).length;
+  const movCnt    = allProviders.filter(p=>p.type.includes("Перевоз")).length;
+  const packCnt   = allProviders.filter(p=>p.type.includes("Упаков")).length;
+  const cleanCnt  = allProviders.filter(p=>p.type.includes("Клинин")).length;
+  const repairCnt = allProviders.filter(p=>p.type.includes("Ремонт")||p.type.includes("Покрас")||p.type.includes("Сантех")||p.type.includes("Электрик")||p.type.includes("Кондиц")).length;
+  const promoCnt  = allProviders.filter(p=>p.promo_active).length;
   document.getElementById("kpi-services").innerHTML =
     kpi("🚚","Всего поставщиков",n(allProviders.length),"в базе",TG)+
     kpi("🚛","Перевозки",movCnt,"",GREEN)+
     kpi("📦","Упаковка",packCnt,"",GOLD)+
-    kpi("🧹","Клининг",cleanCnt,"",PURPLE);
+    kpi("🧹","Клининг",cleanCnt,"",PURPLE)+
+    kpi("🔨","Ремонт",repairCnt,"",TG)+
+    kpi("⭐","С продвижением",promoCnt,"",GOLD);
 
   const svcTypes = (SV.by_type||[]);
   if(svcTypes.some(x=>x.count>0)){
@@ -1361,17 +1361,25 @@ function _renderInner(){
 
   // Service providers table — real data from DB
   const providers = D.service_providers_all || [];
+  const PLAN_BADGE = {
+    profi:   `<span style="background:#dbeafe;color:#1d4ed8;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600">🏆 Профи</span>`,
+    partner: `<span style="background:#dcfce7;color:#15803d;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:600">🤝 Партнер</span>`,
+  };
   document.getElementById("providers-body").innerHTML = providers.length
-    ? providers.map((p,i)=>`
-      <tr style="border-bottom:1px solid #f0f0ea;${i%2?'background:#fafafa':''}">
-        <td style="padding:6px 8px;font-weight:500">${p.name}<br><span style="font-size:10px;color:#aaa;font-weight:400">${p.desc||""}</span></td>
-        <td style="padding:6px 8px">${p.type}</td>
-        <td style="padding:6px 8px;color:#666">${p.region}${p.city&&p.city!=="—"?" · "+p.city:""}</td>
-        <td style="padding:6px 8px;font-family:monospace;color:#2AABEE">${p.phone}</td>
-        <td style="padding:6px 8px;text-align:right;font-weight:500;color:#4CAF8A">${p.price?n(p.price)+' ₪':'Договорная'}</td>
-        <td style="padding:6px 8px;text-align:right;color:#999">${p.views||0}</td>
-      </tr>`).join("")
-    : `<tr><td colspan="6" style="padding:16px;text-align:center;color:#999;font-size:12px">Поставщики услуг появятся здесь после первых публикаций</td></tr>`;
+    ? providers.map((p,i)=>{
+        const planBadge = PLAN_BADGE[p.plan] || `<span style="color:#aaa;font-size:10px">${p.plan||"—"}</span>`;
+        const promoBadge = p.promo_active ? `<span style="font-size:10px">⭐</span>` : "";
+        return `<tr style="border-bottom:1px solid #f0f0ea;${i%2?'background:#fafafa':''}">
+          <td style="padding:6px 8px;font-weight:500">${p.name}${promoBadge}<br><span style="font-size:10px;color:#aaa;font-weight:400">${p.desc||""}</span></td>
+          <td style="padding:6px 8px">${p.type}</td>
+          <td style="padding:6px 8px">${planBadge}</td>
+          <td style="padding:6px 8px;color:#666">${p.region}${p.city&&p.city!=="—"?" · "+p.city:""}</td>
+          <td style="padding:6px 8px;font-family:monospace;color:#2AABEE">${p.phone}</td>
+          <td style="padding:6px 8px;text-align:right;font-weight:500;color:#4CAF8A">${p.price?n(p.price)+' ₪':'Договорная'}</td>
+          <td style="padding:6px 8px;text-align:right;color:#999">${p.views||0}</td>
+        </tr>`;
+      }).join("")
+    : `<tr><td colspan="7" style="padding:16px;text-align:center;color:#999;font-size:12px">Поставщики услуг появятся здесь после первых публикаций</td></tr>`;
 
   // ── Cabinets tab ───────────────────────────────────────────────────────
   const CAB = D.cabinets || [];
@@ -1645,15 +1653,12 @@ function _renderInner(){
   const mvTbl = document.getElementById("price-movers");
   if(mvTbl) mvTbl.innerHTML = ptMvRows;
 
-  // Cleaning
-  const cl = PT.cleaning || {};
+  // Cleaning / Packing / Repair — new 2-plan model
   const cleanEl = document.getElementById("price-cleaning");
-  if(cleanEl) cleanEl.innerHTML = `Присутствие в базе: <b style="color:#10b981">${cl.subscription_ils||70} ₪/мес</b><br>Открыть контакт клиента: <b style="color:#10b981">${cl.price||50} ₪/лид</b>`;
-
-  // Packers
-  const pk = PT.packers || {};
-  const packEl = document.getElementById("price-packers");
-  if(packEl) packEl.innerHTML = `Присутствие в базе: <b style="color:#8b5cf6">${pk.subscription_ils||70} ₪/мес</b><br>Открыть контакт клиента: <b style="color:#8b5cf6">${pk.price||50} ₪/лид</b>`;
+  if(cleanEl) cleanEl.innerHTML =
+    `<b>🏆 Профи</b> — <b style="color:#10b981">150 ₪/мес</b> + <b style="color:#10b981">50 ₪/лид</b><br>`+
+    `<b>🤝 Партнер</b> — комиссия 10% с заказа (бесплатно)<br>`+
+    `<b>⭐ Продвижение</b> — <b style="color:#f59e0b">500 ₪/мес</b> (ТОП в городах)`;
 
   // Agent credits table
   const acList = AC.list || [];

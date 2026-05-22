@@ -59,6 +59,9 @@ REGION_DISTRICTS = {
     "south":  ["south"],
 }
 
+# Reverse mapping: city name → region key  (built automatically from REGION_CITIES)
+CITY_TO_REGION = {city: region for region, cities in REGION_CITIES.items() for city in cities}
+
 
 def _t(ctx, ru, en, he):
     lang = get_lang(ctx)
@@ -141,6 +144,30 @@ def _city_kb(ctx, region, prefix):
     all_label = _L({"ru": "🌍 Весь район", "en": "🌍 All region", "he": "🌍 כל האזור", "fr": "🌍 Toute la région"}, lang)
     back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה", "fr": "« Retour"}, lang)
     rows.append([InlineKeyboardButton(all_label, callback_data=f"{prefix}_all")])
+    rows.append([InlineKeyboardButton(back_label, callback_data="svc_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _all_cities_kb(ctx, prefix: str):
+    """Flat keyboard with ALL cities across all regions + 'All Israel' + Back."""
+    lang = get_lang(ctx)
+    all_cities = (
+        REGION_CITIES["north"]
+        + REGION_CITIES["center"]
+        + REGION_CITIES["south"]
+    )
+    rows = []
+    row = []
+    for city in all_cities:
+        row.append(InlineKeyboardButton(city, callback_data=f"{prefix}_{city}"))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    all_label  = _L({"ru": "🌍 Вся страна",  "en": "🌍 All Israel",  "he": "🌍 כל הארץ"}, lang)
+    back_label = _L({"ru": "« Назад", "en": "« Back", "he": "« חזרה"}, lang)
+    rows.append([InlineKeyboardButton(all_label,  callback_data=f"{prefix}_all")])
     rows.append([InlineKeyboardButton(back_label, callback_data="svc_back")])
     return InlineKeyboardMarkup(rows)
 
@@ -299,10 +326,14 @@ class ServiceHandler:
                     CallbackQueryHandler(self.back_to_menu_cb, pattern="^back_to_menu$"),
                 ],
                 ADD_SVC_AWAIT_PAYMENT: [
-                    CallbackQueryHandler(self.handle_svc_paywall_type, pattern="^svcpay_type_"),
-                    CallbackQueryHandler(self.handle_svc_check_payment, pattern="^svcpay_check_"),
-                    CallbackQueryHandler(self.start_add,                pattern="^svcpay_back$"),
-                    CallbackQueryHandler(self.back_to_menu_cb,          pattern="^back_to_menu$"),
+                    CallbackQueryHandler(self.handle_svc_paywall_type,   pattern="^svcpay_type_"),
+                    CallbackQueryHandler(self.handle_svc_pkg_profi,      pattern="^svcpay_pkg_profi_"),
+                    CallbackQueryHandler(self.handle_svc_pkg_partner,    pattern="^svcpay_pkg_partner_"),
+                    CallbackQueryHandler(self.handle_svc_partner_free,   pattern="^svcpay_partner_free_"),
+                    CallbackQueryHandler(self.handle_svc_partner_promo,  pattern="^svcpay_partner_promo_"),
+                    CallbackQueryHandler(self.handle_svc_check_payment,  pattern="^svcpay_check_"),
+                    CallbackQueryHandler(self.start_add,                 pattern="^svcpay_back$"),
+                    CallbackQueryHandler(self.back_to_menu_cb,           pattern="^back_to_menu$"),
                 ],
                 SVC_REPAIR_TYPE: [
                     CallbackQueryHandler(self.handle_repair_browse_type, pattern="^svc_reptype_"),
@@ -365,14 +396,14 @@ class ServiceHandler:
         context.user_data["svc"]["type"] = svc_type
         type_label = _L(SERVICE_TYPES[svc_type], lang)
         await query.edit_message_text(
-            f"✅ <b>{type_label}</b>\n\n" + _t(context, "Выберите район:", "Select region:", "בחר אזור:"),
-            reply_markup=_region_kb(context, "svc_region"),
+            f"✅ <b>{type_label}</b>\n\n" + _t(context, "Выберите город:", "Select city:", "בחר עיר:"),
+            reply_markup=_all_cities_kb(context, "svc_city"),
             parse_mode="HTML"
         )
-        return SVC_REGION
+        return SVC_CITY
 
     async def handle_repair_browse_type(self, update, context):
-        """User picked a repair sub-type while browsing — proceed to region."""
+        """User picked a repair sub-type while browsing — proceed directly to city."""
         query = update.callback_query
         await query.answer()
         sub_type = query.data.replace("svc_reptype_", "")
@@ -380,11 +411,11 @@ class ServiceHandler:
         lang = get_lang(context)
         type_label = _L(REPAIR_SUBTYPES.get(sub_type, {}), lang)
         await query.edit_message_text(
-            f"✅ <b>{type_label}</b>\n\n" + _t(context, "Выберите район:", "Select region:", "בחר אזור:"),
-            reply_markup=_region_kb(context, "svc_region"),
+            f"✅ <b>{type_label}</b>\n\n" + _t(context, "Выберите город:", "Select city:", "בחר עיר:"),
+            reply_markup=_all_cities_kb(context, "svc_city"),
             parse_mode="HTML"
         )
-        return SVC_REGION
+        return SVC_CITY
 
     async def handle_region(self, update, context):
         query = update.callback_query
@@ -424,8 +455,9 @@ class ServiceHandler:
         await query.answer()
         city = query.data.replace("svc_city_", "")
         context.user_data["svc"]["city"] = city
-        region = context.user_data["svc"].get("region")
         svc_type = context.user_data["svc"].get("type")
+        # Look up region from city (so providers scoped to that region are also returned)
+        region = CITY_TO_REGION.get(city) if city != "all" else None
         services = db.get_services(svc_type=svc_type, region=region, city=city)
         if not services:
             await query.edit_message_text(
@@ -585,14 +617,14 @@ class ServiceHandler:
     # ── Paywall payment flow ──────────────────────────────────────────────────
 
     async def handle_svc_paywall_type(self, update, context):
-        """User picked a service type on the paywall screen — show its pricing + PayPal link."""
+        """User picked a service type on the paywall screen — show Профи / Партнер choice."""
         query = update.callback_query
         await query.answer()
         svc_type = query.data.replace("svcpay_type_", "")
         lang = get_lang(context)
-        context.user_data["svcpay_type"] = svc_type  # remember for after payment
+        context.user_data["svcpay_type"] = svc_type
 
-        # If "repair" (parent type) — ask user to pick the specific sub-type first
+        # If "repair" (parent type) — drill down to sub-type first
         if svc_type == "repair":
             type_label = _L(SERVICE_TYPES["repair"], lang)
             text = _L({
@@ -603,50 +635,275 @@ class ServiceHandler:
             await query.edit_message_text(text, reply_markup=_repair_kb(context, "svcpay_type_"), parse_mode="HTML")
             return ADD_SVC_AWAIT_PAYMENT
 
-        from pricing import format_service_pricing, SERVICE_PACKAGES, MOVER_PACKAGES
-        pricing_block = format_service_pricing(svc_type, lang)
+        from pricing import SERVICE_PACKAGES, SVC_PROMO_PACKAGE, SVC_PROFI_MONTHLY_ILS, SVC_PROMO_MONTHLY_ILS
         type_label = _L(ALL_SERVICE_TYPES.get(svc_type, {}), lang)
+        profi_pkg  = next(p for p in SERVICE_PACKAGES if p["key"] == "profi")
+        partner_pkg = next(p for p in SERVICE_PACKAGES if p["key"] == "partner")
 
-        header = _L({
-            "ru": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\nВыберите пакет и оплатите. После оплаты нажмите «✅ Я оплатил — продолжить».",
-            "en": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\nSelect a plan and pay. After payment tap «✅ I paid — continue».",
-            "he": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\nבחר חבילה ושלם. לאחר התשלום לחץ «✅ שילמתי — המשך».",
+        text = _L({
+            "ru": (
+                f"💼 <b>{type_label}</b>\n\n"
+                f"Выберите тарифный план:\n\n"
+                f"🏆 <b>{profi_pkg['label']['ru']}</b>\n"
+                f"  {profi_pkg['desc']['ru']}\n\n"
+                f"🤝 <b>{partner_pkg['label']['ru']}</b>\n"
+                f"  {partner_pkg['desc']['ru']}\n"
+                f"  ⭐ Продвижение ТОП — {SVC_PROMO_MONTHLY_ILS} ₪/мес (опционально)"
+            ),
+            "en": (
+                f"💼 <b>{type_label}</b>\n\n"
+                f"Choose a plan:\n\n"
+                f"🏆 <b>{profi_pkg['label']['en']}</b>\n"
+                f"  {profi_pkg['desc']['en']}\n\n"
+                f"🤝 <b>{partner_pkg['label']['en']}</b>\n"
+                f"  {partner_pkg['desc']['en']}\n"
+                f"  ⭐ TOP Promotion — {SVC_PROMO_MONTHLY_ILS} ₪/month (optional)"
+            ),
+            "he": (
+                f"💼 <b>{type_label}</b>\n\n"
+                f"בחר תוכנית:\n\n"
+                f"🏆 <b>{profi_pkg['label']['he']}</b>\n"
+                f"  {profi_pkg['desc']['he']}\n\n"
+                f"🤝 <b>{partner_pkg['label']['he']}</b>\n"
+                f"  {partner_pkg['desc']['he']}\n"
+                f"  ⭐ קידום TOP — {SVC_PROMO_MONTHLY_ILS} ₪/חודש (אופציונלי)"
+            ),
+        }, lang)
+
+        profi_label   = _L({"ru": f"🏆 Профи — {SVC_PROFI_MONTHLY_ILS} ₪/мес",
+                             "en": f"🏆 Profi — {SVC_PROFI_MONTHLY_ILS} ₪/mo",
+                             "he": f"🏆 פרו — {SVC_PROFI_MONTHLY_ILS} ₪/חודש"}, lang)
+        partner_label = _L({"ru": "🤝 Партнер — комиссия",
+                             "en": "🤝 Partner — commission",
+                             "he": "🤝 שותף — עמלה"}, lang)
+        back_label    = _L({"ru": "« Назад",  "en": "« Back",  "he": "« חזרה"}, lang)
+        later_label   = _L({"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}, lang)
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton(profi_label,   callback_data=f"svcpay_pkg_profi_{svc_type}")],
+            [InlineKeyboardButton(partner_label, callback_data=f"svcpay_pkg_partner_{svc_type}")],
+            [InlineKeyboardButton(back_label,    callback_data="svcpay_back")],
+            [InlineKeyboardButton(later_label,   callback_data="back_to_menu")],
+        ])
+        await query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+        return ADD_SVC_AWAIT_PAYMENT
+
+    async def handle_svc_pkg_profi(self, update, context):
+        """User chose the Профи plan — show pricing + PayPal link."""
+        query = update.callback_query
+        await query.answer()
+        svc_type = query.data.replace("svcpay_pkg_profi_", "")
+        lang = get_lang(context)
+        context.user_data["svcpay_type"] = svc_type
+
+        from pricing import SVC_PROFI_MONTHLY_ILS, SVC_PROFI_LEAD_ILS
+        type_label = _L(ALL_SERVICE_TYPES.get(svc_type, {}), lang)
+        text = _L({
+            "ru": (
+                f"🏆 <b>Абонемент Профи — {type_label}</b>\n\n"
+                f"• {SVC_PROFI_MONTHLY_ILS} ₪/мес — присутствие в базе\n"
+                f"• {SVC_PROFI_LEAD_ILS} ₪/лид — открытие контакта клиента\n\n"
+                "Оплатите абонемент и нажмите «✅ Я оплатил — продолжить»."
+            ),
+            "en": (
+                f"🏆 <b>Profi Plan — {type_label}</b>\n\n"
+                f"• {SVC_PROFI_MONTHLY_ILS} ₪/month — listed in directory\n"
+                f"• {SVC_PROFI_LEAD_ILS} ₪/lead — unlock client contact\n\n"
+                "Pay the subscription and tap «✅ I paid — continue»."
+            ),
+            "he": (
+                f"🏆 <b>מנוי פרו — {type_label}</b>\n\n"
+                f"• {SVC_PROFI_MONTHLY_ILS} ₪/חודש — רישום במאגר\n"
+                f"• {SVC_PROFI_LEAD_ILS} ₪/ליד — פתיחת פרטי לקוח\n\n"
+                "שלם את המנוי ולחץ «✅ שילמתי — המשך»."
+            ),
         }, lang)
 
         import paypal_payment as _mp
         paypal_url = None
         if _mp.is_enabled():
-            # create payment link for the base monthly plan for this service type
             try:
-                if svc_type == "moving":
-                    pkg_key = "mover_base"
-                    result = _mp.create_mover_subscription_link(pkg_key, update.effective_user.id, lang)
-                else:
-                    pkg_key = "service_base"
-                    result = _mp.create_service_subscription_link(pkg_key, svc_type, update.effective_user.id, lang)
+                result = _mp.create_service_subscription_link("profi", svc_type, update.effective_user.id, lang)
                 paypal_url = result.get("url") if result else None
             except Exception:
                 pass
-        else:
-            # PayPal not configured — show contact info
-            contact_msg = _L({
-                "ru": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\n⏳ <b>Оплата картой скоро будет доступна!</b>\n\nСвяжитесь с нами в Telegram для ручной активации.",
-                "en": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\n⏳ <b>Card payment coming soon!</b>\n\nContact us in Telegram for manual activation.",
-                "he": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\n⏳ <b>תשלום בכרטיס בקרוב!</b>\n\nצרו קשר בטלגרם להפעלה ידנית.",
+
+        if not _mp.is_enabled():
+            text += _L({
+                "ru": "\n\n⏳ <b>Оплата картой скоро будет доступна!</b>\n\nСвяжитесь с нами в Telegram для ручной активации.",
+                "en": "\n\n⏳ <b>Card payment coming soon!</b>\n\nContact us in Telegram for manual activation.",
+                "he": "\n\n⏳ <b>תשלום בכרטיס בקרוב!</b>\n\nצרו קשר בטלגרם להפעלה ידנית.",
             }, lang)
             kb = InlineKeyboardMarkup([
                 [InlineKeyboardButton("💬 Telegram", url="https://t.me/flatfinderil_bot")],
-                [InlineKeyboardButton(
-                    _L({"ru": "✅ Я оплатил — продолжить", "en": "✅ I paid — continue", "he": "✅ שילמתי — המשך"}, lang),
-                    callback_data=f"svcpay_check_{svc_type}"
-                )],
-                [InlineKeyboardButton(_L({"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}, lang), callback_data="svcpay_back")],
-                [InlineKeyboardButton(_L({"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}, lang), callback_data="back_to_menu")],
+                [InlineKeyboardButton(_L({"ru": "✅ Я оплатил — продолжить", "en": "✅ I paid — continue", "he": "✅ שילמתי — המשך"}, lang),
+                                      callback_data=f"svcpay_check_{svc_type}")],
+                [InlineKeyboardButton(_L({"ru": "◀ Назад к планам", "en": "◀ Back to plans", "he": "◀ חזרה לתוכניות"}, lang),
+                                      callback_data=f"svcpay_type_{svc_type}")],
+                [InlineKeyboardButton(_L({"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}, lang),
+                                      callback_data="back_to_menu")],
             ])
-            await query.edit_message_text(contact_msg, reply_markup=kb, parse_mode="HTML")
-            return ADD_SVC_AWAIT_PAYMENT
+        else:
+            kb = _paywall_action_kb(context, svc_type, paypal_url)
 
-        await query.edit_message_text(header, reply_markup=_paywall_action_kb(context, svc_type, paypal_url), parse_mode="HTML")
+        await query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+        return ADD_SVC_AWAIT_PAYMENT
+
+    async def handle_svc_pkg_partner(self, update, context):
+        """User chose the Партнер plan — show commission info + register/promo options."""
+        query = update.callback_query
+        await query.answer()
+        svc_type = query.data.replace("svcpay_pkg_partner_", "")
+        lang = get_lang(context)
+        context.user_data["svcpay_type"] = svc_type
+
+        from pricing import SVC_PROMO_MONTHLY_ILS
+        type_label = _L(ALL_SERVICE_TYPES.get(svc_type, {}), lang)
+        text = _L({
+            "ru": (
+                f"🤝 <b>Абонемент Партнер — {type_label}</b>\n\n"
+                "• Комиссия 10% с каждого заказа\n"
+                "• Регистрация в базе — бесплатно\n\n"
+                f"⭐ <b>Продвижение ТОП</b> — {SVC_PROMO_MONTHLY_ILS} ₪/мес\n"
+                "  Ваш профиль первым в результатах по вашим городам\n\n"
+                "Выберите действие:"
+            ),
+            "en": (
+                f"🤝 <b>Partner Plan — {type_label}</b>\n\n"
+                "• 10% commission per order\n"
+                "• Listed in directory — free\n\n"
+                f"⭐ <b>TOP Promotion</b> — {SVC_PROMO_MONTHLY_ILS} ₪/month\n"
+                "  Your profile appears first in results for your cities\n\n"
+                "Choose an action:"
+            ),
+            "he": (
+                f"🤝 <b>מנוי שותף — {type_label}</b>\n\n"
+                "• עמלה 10% מכל הזמנה\n"
+                "• רישום במאגר — חינם\n\n"
+                f"⭐ <b>קידום TOP</b> — {SVC_PROMO_MONTHLY_ILS} ₪/חודש\n"
+                "  הפרופיל שלך יופיע ראשון בתוצאות בעריך\n\n"
+                "בחר פעולה:"
+            ),
+        }, lang)
+
+        free_label  = _L({"ru": "✅ Зарегистрироваться бесплатно", "en": "✅ Register for free", "he": "✅ הרשמה חינם"}, lang)
+        promo_label = _L({"ru": f"⭐ + Продвижение ТОП ({SVC_PROMO_MONTHLY_ILS} ₪/мес)",
+                          "en": f"⭐ + TOP Promotion ({SVC_PROMO_MONTHLY_ILS} ₪/mo)",
+                          "he": f"⭐ + קידום TOP ({SVC_PROMO_MONTHLY_ILS} ₪/חודש)"}, lang)
+        back_label  = _L({"ru": "◀ Назад к планам", "en": "◀ Back to plans", "he": "◀ חזרה לתוכניות"}, lang)
+        later_label = _L({"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}, lang)
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton(free_label,  callback_data=f"svcpay_partner_free_{svc_type}")],
+            [InlineKeyboardButton(promo_label, callback_data=f"svcpay_partner_promo_{svc_type}")],
+            [InlineKeyboardButton(back_label,  callback_data=f"svcpay_type_{svc_type}")],
+            [InlineKeyboardButton(later_label, callback_data="back_to_menu")],
+        ])
+        await query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+        return ADD_SVC_AWAIT_PAYMENT
+
+    async def handle_svc_partner_free(self, update, context):
+        """Партнер registers for free — auto-activate partner subscription then open form."""
+        query = update.callback_query
+        await query.answer()
+        svc_type = query.data.replace("svcpay_partner_free_", "")
+        lang = get_lang(context)
+        user_id = update.effective_user.id
+        context.user_data["svcpay_type"] = svc_type
+
+        # Auto-activate a free partner subscription (365-day validity)
+        from datetime import timedelta
+        expiry = (_dt.utcnow() + timedelta(days=365)).isoformat()
+        db.set_service_subscription(str(user_id), "partner", expiry)
+
+        context.user_data["add_svc"] = {"service_type": svc_type}
+
+        # For repair: ask sub-type before opening region form
+        if svc_type in ("repair", *REPAIR_SUBTYPES.keys()):
+            type_label = _L(SERVICE_TYPES["repair"], lang)
+            text = _L({
+                "ru": f"✅ Вы зарегистрированы как Партнер!\n\n🔨 <b>{type_label}</b>\n\nУточните вид ремонтных работ:",
+                "en": f"✅ Registered as Partner!\n\n🔨 <b>{type_label}</b>\n\nSelect type of repair work:",
+                "he": f"✅ נרשמת כשותף!\n\n🔨 <b>{type_label}</b>\n\nבחר סוג עבודות שיפוץ:",
+            }, lang)
+            await query.edit_message_text(text, reply_markup=_repair_kb(context, "addrep_type_"), parse_mode="HTML")
+            return ADD_SVC_REPAIR_TYPE
+
+        type_label = _L(ALL_SERVICE_TYPES.get(svc_type, {}), lang)
+        text = _L({
+            "ru": f"✅ Вы зарегистрированы как Партнер!\n\n<b>{type_label}</b>\n\nВыберите район работы:",
+            "en": f"✅ Registered as Partner!\n\n<b>{type_label}</b>\n\nSelect work region:",
+            "he": f"✅ נרשמת כשותף!\n\n<b>{type_label}</b>\n\nבחר אזור עבודה:",
+        }, lang)
+        await query.edit_message_text(text, reply_markup=_add_region_kb(context), parse_mode="HTML")
+        return ADD_SVC_REGION
+
+    async def handle_svc_partner_promo(self, update, context):
+        """Партнер wants TOP promo — auto-activate free subscription then show PayPal for 500₪."""
+        query = update.callback_query
+        await query.answer()
+        svc_type = query.data.replace("svcpay_partner_promo_", "")
+        lang = get_lang(context)
+        user_id = update.effective_user.id
+        context.user_data["svcpay_type"] = svc_type
+
+        # Ensure partner subscription is active (free, 365 days)
+        if not _has_active_svc_subscription(user_id):
+            from datetime import timedelta
+            expiry = (_dt.utcnow() + timedelta(days=365)).isoformat()
+            db.set_service_subscription(str(user_id), "partner", expiry)
+
+        from pricing import SVC_PROMO_MONTHLY_ILS
+        type_label = _L(ALL_SERVICE_TYPES.get(svc_type, {}), lang)
+        text = _L({
+            "ru": (
+                f"⭐ <b>Продвижение ТОП — {type_label}</b>\n\n"
+                f"Стоимость: <b>{SVC_PROMO_MONTHLY_ILS} ₪/мес</b>\n\n"
+                "Ваш профиль будет первым в результатах поиска по вашим городам.\n\n"
+                "Оплатите и нажмите «✅ Я оплатил — продолжить»."
+            ),
+            "en": (
+                f"⭐ <b>TOP Promotion — {type_label}</b>\n\n"
+                f"Price: <b>{SVC_PROMO_MONTHLY_ILS} ₪/month</b>\n\n"
+                "Your profile will appear first in search results for your cities.\n\n"
+                "Pay and tap «✅ I paid — continue»."
+            ),
+            "he": (
+                f"⭐ <b>קידום TOP — {type_label}</b>\n\n"
+                f"מחיר: <b>{SVC_PROMO_MONTHLY_ILS} ₪/חודש</b>\n\n"
+                "הפרופיל שלך יופיע ראשון בתוצאות החיפוש בעריך.\n\n"
+                "שלם ולחץ «✅ שילמתי — המשך»."
+            ),
+        }, lang)
+
+        import paypal_payment as _mp
+        paypal_url = None
+        if _mp.is_enabled():
+            try:
+                result = _mp.create_service_subscription_link("promo", svc_type, user_id, lang)
+                paypal_url = result.get("url") if result else None
+            except Exception:
+                pass
+
+        rows = []
+        if paypal_url:
+            rows.append([InlineKeyboardButton(
+                _L({"ru": "💳 Оплатить", "en": "💳 Pay now", "he": "💳 שלם עכשיו"}, lang),
+                url=paypal_url
+            )])
+        else:
+            rows.append([InlineKeyboardButton("💬 Telegram", url="https://t.me/flatfinderil_bot")])
+        rows.append([InlineKeyboardButton(
+            _L({"ru": "✅ Я оплатил — продолжить", "en": "✅ I paid — continue", "he": "✅ שילמתי — המשך"}, lang),
+            callback_data=f"svcpay_check_{svc_type}"
+        )])
+        rows.append([InlineKeyboardButton(
+            _L({"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}, lang),
+            callback_data=f"svcpay_pkg_partner_{svc_type}"
+        )])
+        rows.append([InlineKeyboardButton(
+            _L({"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}, lang),
+            callback_data="back_to_menu"
+        )])
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(rows), parse_mode="HTML")
         return ADD_SVC_AWAIT_PAYMENT
 
     async def handle_svc_check_payment(self, update, context):
