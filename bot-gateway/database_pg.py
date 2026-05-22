@@ -591,7 +591,8 @@ def get_similar_listings(listing: Dict) -> List[Dict]:
                   AND deal_type = %s
                   AND price > 0
                 ORDER BY id DESC
-                """,
+                LIMIT 50
+""",
                 (
                     listing.get("id", 0),
                     listing.get("city", ""),
