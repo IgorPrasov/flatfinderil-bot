@@ -60,11 +60,16 @@ def _save_expiry_to_db(user_id: int, expiry: datetime, plan_type: str = "main"):
         raise
 
 
+_ADMIN_IDS = {668726316, 416049200}
+
+
 def has_access(user_id: int) -> bool:
     """
     Полный доступ: безлимитный поиск + добавление объявлений.
     Активен во время триала или при наличии любой оплаченной подписки.
     """
+    if user_id in _ADMIN_IDS:
+        return True
     if is_trial_active():
         return True
     # Бонусные дни из БД
