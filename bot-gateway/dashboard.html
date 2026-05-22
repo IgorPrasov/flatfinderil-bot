@@ -942,7 +942,7 @@ function setDatePreset(preset){
   } else if(preset==="90"){
     from = toISO(new Date(now - 89*86400000));
   } else if(preset==="all"){
-    from = "2024-01-01"; to = todayISO;
+    from = "2026-03-01"; to = todayISO;
   }
   document.getElementById("date-from").value = from;
   document.getElementById("date-to").value   = to;
@@ -971,7 +971,7 @@ let _loadRetryTimer = null;
 async function loadData(dateFrom, dateTo){
   const from = dateFrom || document.getElementById("date-from")?.value || todayISO;
   const to   = dateTo   || document.getElementById("date-to")?.value   || todayISO;
-  const url  = `/analytics`;
+  const url  = `/analytics?from=${from}&to=${to}`;
   try{
     const r=await fetch(url,{signal:AbortSignal.timeout(15000)});
     const j=await r.json();

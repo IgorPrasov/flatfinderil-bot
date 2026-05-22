@@ -302,7 +302,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
 
     # ── Date range setup ──────────────────────────────────────────────────────
     # Normalise the period so all downstream counters respect it
-    _df = date_from or "2020-01-01"   # "all time" fallback
+    _df = date_from or "2026-03-01"   # "all time" fallback
     _dt = date_to   or today
     # Make sure _dt is inclusive end
     in_period = lambda d: _df <= (d or "") <= _dt
@@ -328,7 +328,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
 
     # Searches scoped to period
     searches_all = data.get("searches", [])
-    searches = [s for s in searches_all if in_period(s.get("date", ""))] if date_from else searches_all
+    searches = [s for s in searches_all if in_period(s.get("time", "")[:10])] if date_from else searches_all
 
     city_counter = Counter()
     filter_counter = Counter()
