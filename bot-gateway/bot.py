@@ -1752,29 +1752,21 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 cache_age     = _time_mod.time() - _ANALYTICS_CACHE["ts"]
                 is_refreshing = _ANALYTICS_CACHE["refreshing"]
 
-            if force or data is None:
-                # Force-refresh or no cache yet — compute synchronously
-                try:
-                    from analytics import get_analytics
-                    data = get_analytics()
-                    with _ANALYTICS_CACHE["lock"]:
-                        _ANALYTICS_CACHE["data"] = data
-                        _ANALYTICS_CACHE["ts"]   = _time_mod.time()
-                        _ANALYTICS_CACHE["refreshing"] = False
-                except Exception as e:
-                    if data is None:
-                        data = {"loading": True, "message": f"Analytics computing: {e}. Retry in 30s."}
-            elif cache_age > 300 and not is_refreshing:
-                # Cache is stale — return old data now, refresh in background
+            # NEVER compute analytics synchronously in the HTTP handler —
+            # it can take 10-30 s and Railway will 502.  Always use cache.
+            # Background thread keeps the cache fresh.
+
+            if force and not is_refreshing:
+                # ?refresh=1 — kick off a background refresh, return current cache
                 with _ANALYTICS_CACHE["lock"]:
                     _ANALYTICS_CACHE["refreshing"] = True
                 threading.Thread(
                     target=_analytics_bg_refresh, daemon=True,
                     name="analytics-refresh"
                 ).start()
-                # data still holds the stale-but-valid cached result — serve it
 
             if data is None:
+                # Cache not warm yet — trigger background refresh if not running
                 if not is_refreshing:
                     with _ANALYTICS_CACHE["lock"]:
                         _ANALYTICS_CACHE["refreshing"] = True
@@ -1783,6 +1775,15 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                         name="analytics-refresh"
                     ).start()
                 data = {"loading": True, "message": "Analytics are being computed, please retry in 30 seconds"}
+            elif cache_age > 300 and not is_refreshing and not force:
+                # Cache is stale — return old data now, refresh in background
+                with _ANALYTICS_CACHE["lock"]:
+                    _ANALYTICS_CACHE["refreshing"] = True
+                threading.Thread(
+                    target=_analytics_bg_refresh, daemon=True,
+                    name="analytics-refresh"
+                ).start()
+                # data still holds the stale-but-valid cached result — serve it
 
             body = json_module.dumps(data, ensure_ascii=False).encode()
             self.send_response(200)
