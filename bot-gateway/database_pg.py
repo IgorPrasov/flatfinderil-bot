@@ -296,6 +296,7 @@ def get_listing(listing_id: int) -> Optional[Dict]:
 def get_all_listings(limit: int = None) -> List[Dict]:
     with _conn() as c:
         with c.cursor() as cur:
+            cur.execute("SET LOCAL statement_timeout = '15000'")
             if limit is not None:
                 cur.execute(
                     "SELECT * FROM listings WHERE active = TRUE ORDER BY id LIMIT %s",
@@ -1721,6 +1722,7 @@ def get_crm_contacts(
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
     with _conn() as c:
         with c.cursor() as cur:
+            cur.execute("SET LOCAL statement_timeout = '10000'")
             cur.execute(f"SELECT * FROM crm_contacts {where} ORDER BY id", params)
             rows = cur.fetchall()
     result = []
@@ -1804,6 +1806,7 @@ def get_crm_deals(contact_id: int = None, status: str = None) -> List[Dict]:
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
     with _conn() as c:
         with c.cursor() as cur:
+            cur.execute("SET LOCAL statement_timeout = '10000'")
             cur.execute(
                 f"SELECT * FROM crm_deals {where} ORDER BY created_at DESC",
                 params,
