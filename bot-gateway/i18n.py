@@ -273,7 +273,7 @@ TRANSLATIONS["sub_search_alert_desc"] = {
 # ── Paywall strings ──────────────────────────────────────────────────────────
 TRANSLATIONS["paywall_search"] = {
     "ru": (
-        "🔒 <b>Тестовый период завершён</b>\n\n"
+        "🔒 <b>Бесплатный просмотр исчерпан</b>\n\n"
         "Показаны первые 3 результата из {total}.\n\n"
         "Оформите подписку, чтобы видеть все объявления без ограничений:\n\n"
         "• 1 неделя — 19.90 ₪\n"
@@ -282,7 +282,7 @@ TRANSLATIONS["paywall_search"] = {
         "• 🔔 Подписка на поиск — 39.90 ₪/мес"
     ),
     "en": (
-        "🔒 <b>Trial period ended</b>\n\n"
+        "🔒 <b>Free preview limit reached</b>\n\n"
         "Showing first 3 results out of {total}.\n\n"
         "Subscribe to see all listings without limits:\n\n"
         "• 1 week — ₪19.90\n"
@@ -291,8 +291,8 @@ TRANSLATIONS["paywall_search"] = {
         "• 🔔 Search alerts — ₪39.90/mo"
     ),
     "he": (
-        "🔒 <b>תקופת הניסיון הסתיימה</b>\n\n"
-        "מוצגים 3 תוצאות ראשונות מתוך {total}.\n\n"
+        "🔒 <b>תצוגה מקדימה חינמית מוגבלת</b>\n\n"
+        "מוצגות 3 תוצאות ראשונות מתוך {total}.\n\n"
         "הירשם כדי לראות את כל המודעות ללא הגבלות:\n\n"
         "• שבוע — ₪19.90\n"
         "• 2 שבועות — ₪29.90 ⭐\n"
@@ -300,7 +300,7 @@ TRANSLATIONS["paywall_search"] = {
         "• 🔔 התראות חיפוש — ₪39.90/חודש"
     ),
     "fr": (
-        "🔒 <b>Période d'essai terminée</b>\n\n"
+        "🔒 <b>Aperçu gratuit épuisé</b>\n\n"
         "Affichage des 3 premiers résultats sur {total}.\n\n"
         "Abonnez-vous pour voir toutes les annonces sans limite :\n\n"
         "• 1 semaine — 19.90 ₪\n"
@@ -311,7 +311,7 @@ TRANSLATIONS["paywall_search"] = {
 }
 TRANSLATIONS["paywall_add"] = {
     "ru": (
-        "🔒 <b>Тестовый период завершён</b>\n\n"
+        "🔒 <b>Требуется подписка</b>\n\n"
         "Добавление объявлений доступно только по подписке.\n\n"
         "• 1 неделя — 19.90 ₪\n"
         "• 2 недели — 29.90 ₪ ⭐\n"
@@ -319,7 +319,7 @@ TRANSLATIONS["paywall_add"] = {
         "• 🔔 Подписка на поиск — 39.90 ₪/мес"
     ),
     "en": (
-        "🔒 <b>Trial period ended</b>\n\n"
+        "🔒 <b>Subscription required</b>\n\n"
         "Adding listings requires an active subscription.\n\n"
         "• 1 week — ₪19.90\n"
         "• 2 weeks — ₪29.90 ⭐\n"
@@ -327,7 +327,7 @@ TRANSLATIONS["paywall_add"] = {
         "• 🔔 Search alerts — ₪39.90/mo"
     ),
     "he": (
-        "🔒 <b>תקופת הניסיון הסתיימה</b>\n\n"
+        "🔒 <b>נדרש מנוי</b>\n\n"
         "הוספת מודעות זמינה רק עם מנוי פעיל.\n\n"
         "• שבוע — ₪19.90\n"
         "• 2 שבועות — ₪29.90 ⭐\n"
@@ -335,7 +335,7 @@ TRANSLATIONS["paywall_add"] = {
         "• 🔔 התראות חיפוש — ₪39.90/חודש"
     ),
     "fr": (
-        "🔒 <b>Période d'essai terminée</b>\n\n"
+        "🔒 <b>Abonnement requis</b>\n\n"
         "L'ajout d'annonces nécessite un abonnement actif.\n\n"
         "• 1 semaine — 19.90 ₪\n"
         "• 2 semaines — 29.90 ₪ ⭐\n"

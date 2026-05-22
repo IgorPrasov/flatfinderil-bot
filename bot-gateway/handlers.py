@@ -144,18 +144,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     track_user(user.id, context.user_data.get("lang", "ru"), first_name=user.first_name, last_name=user.last_name, username=user.username)
 
     welcome_text = format_welcome(user.first_name, context)
-    # Прикрепляем баннер о скором окончании триала, если осталось ≤7 дней
+    # Баннер о скором окончании триала — только пока триал активен
     try:
-        days = days_left_trial()
-        if days <= max(TRIAL_WARNING_THRESHOLDS) and not has_access(user.id) or (is_trial_active() and days <= max(TRIAL_WARNING_THRESHOLDS)):
-            lang = context.user_data.get("lang", "ru")
-            from subscription import get_expiry
-            from datetime import datetime as _dt
-            paid = get_expiry(user.id, "main")
-            # Показываем только если нет активной платной подписки
-            if not (paid and paid > _dt.now()):
-                banner = get_trial_warning(lang, days)
-                welcome_text = banner + "\n\n" + welcome_text
+        if is_trial_active():
+            days = days_left_trial()
+            if days <= max(TRIAL_WARNING_THRESHOLDS):
+                lang = context.user_data.get("lang", "ru")
+                from subscription import get_expiry
+                from datetime import datetime as _dt
+                paid = get_expiry(user.id, "main")
+                if not (paid and paid > _dt.now()):
+                    banner = get_trial_warning(lang, days)
+                    welcome_text = banner + "\n\n" + welcome_text
     except Exception:
         pass
 

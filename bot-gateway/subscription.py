@@ -2,10 +2,10 @@ from datetime import datetime, timedelta
 import database as db
 from config import PLAN_PRICES_ILS, PLAN_DAYS, PLAN_STARS
 
-# Тестовый период — бесплатно для всех до 1 июля 2026
-TRIAL_END_DATE = datetime(2026, 7, 1)
+# Тестовый период отключён. Бесплатно показываем до FREE_SEARCH_LIMIT объявлений.
+TRIAL_END_DATE = datetime(2020, 1, 1)  # в прошлом → is_trial_active() всегда False
 
-# Лимит бесплатного поиска после окончания триала
+# Лимит бесплатного просмотра результатов поиска (без подписки)
 FREE_SEARCH_LIMIT = 3
 
 # Планы подписки. Цены/длительность/Stars приходят из config (и могут быть
@@ -24,8 +24,8 @@ PLANS = {
 
 
 def is_trial_active() -> bool:
-    """Проверяет активен ли тестовый период."""
-    return datetime.now() < TRIAL_END_DATE
+    """Тестовый период отключён — всегда False."""
+    return False
 
 
 def _get_expiry_from_db(user_id: int, plan_type: str = "main"):
@@ -185,15 +185,6 @@ def get_trial_warning(lang: str, days: int) -> str:
 
 def get_status_text(user_id: int, lang: str) -> str:
     """Текст статуса подписки для пользователя."""
-    if is_trial_active():
-        days = days_left_trial()
-        if lang == "ru":
-            return f"🎁 Тестовый период активен ещё {days} дн. (до 15 мая)"
-        elif lang == "en":
-            return f"🎁 Trial period active for {days} more days (until May 15)"
-        else:
-            return f"🎁 תקופת ניסיון פעילה עוד {days} ימים (עד 15 במאי)"
-
     main_expiry = get_expiry(user_id, "main")
     alert_expiry = get_expiry(user_id, "search_alert")
     lines = []
