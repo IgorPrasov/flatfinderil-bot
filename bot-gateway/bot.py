@@ -1163,6 +1163,17 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 logger.error(f"[FB-POST] {e}")
                 return self._send_json({"error": str(e)}, 500)
 
+        # migrate — POST /backoffice/api/migrate  (run migration from volume JSON → PG)
+        if resource == "migrate" and method == "POST":
+            import subprocess as _sp, os as _os
+            env = dict(_os.environ)
+            result = _sp.run(
+                ["python", "migrate_to_pg.py"],
+                capture_output=True, text=True, cwd=_os.path.dirname(_os.path.abspath(__file__)), env=env
+            )
+            lines = [l for l in (result.stdout + result.stderr).splitlines() if "[migrate]" in l]
+            return self._send_json({"stdout": lines, "returncode": result.returncode})
+
         # debug — GET /backoffice/api/debug  (temp: show env paths)
         if resource == "debug" and method == "GET":
             import os as _os, json as _json
