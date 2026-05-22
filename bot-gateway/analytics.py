@@ -328,7 +328,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
 
     # Searches scoped to period
     searches_all = data.get("searches", [])
-    searches = [s for s in searches_all if in_period(s.get("time", "")[:10])] if date_from else searches_all
+    searches = [s for s in searches_all if in_period((s.get("time") or "")[:10])] if date_from else searches_all
 
     city_counter = Counter()
     filter_counter = Counter()
@@ -353,8 +353,12 @@ def get_analytics(date_from: str = None, date_to: str = None):
 
     # Build day list: if period given use it, else last 7 days
     if date_from and date_to:
-        from_dt = datetime.strptime(_df, "%Y-%m-%d")
-        to_dt   = datetime.strptime(_dt, "%Y-%m-%d")
+        try:
+            from_dt = datetime.strptime(_df, "%Y-%m-%d")
+            to_dt   = datetime.strptime(_dt, "%Y-%m-%d")
+        except ValueError:
+            from_dt = datetime.now() - timedelta(days=6)
+            to_dt   = datetime.now()
         delta_days = (to_dt - from_dt).days + 1
         # Cap at 90 days for display
         cap = min(delta_days, 90)
