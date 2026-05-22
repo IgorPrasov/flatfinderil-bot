@@ -241,6 +241,34 @@ def main():
     app.add_handler(CommandHandler("testemail", cmd_testemail))
     app.add_handler(CommandHandler("testpay", cmd_testpay))
     app.add_handler(CommandHandler("digest", cmd_digest))
+
+    _ADMIN_IDS = {668726316, 416049200}
+
+    async def cmd_clearsubscription(update: Update, context) -> None:
+        if update.effective_user.id not in _ADMIN_IDS:
+            return
+        args = context.args
+        if not args:
+            await update.message.reply_text("Usage: /clearsubscription username1 username2 ...")
+            return
+        results = []
+        import database_pg
+        with database_pg._conn() as c:
+            with c.cursor() as cur:
+                for username in args:
+                    uname = username.lstrip("@")
+                    cur.execute("SELECT user_id FROM bot_users WHERE LOWER(username) = LOWER(%s)", (uname,))
+                    row = cur.fetchone()
+                    if not row:
+                        results.append(f"@{uname}: not found in bot_users")
+                        continue
+                    uid = row["user_id"]
+                    cur.execute("DELETE FROM paid_subscriptions WHERE user_id = %s", (uid,))
+                    cur.execute("UPDATE bot_users SET bonus_days = 0, bonus_expiry = NULL WHERE user_id = %s", (uid,))
+                    results.append(f"@{uname} (id={uid}): subscription cleared ✅")
+        await update.message.reply_text("\n".join(results))
+
+    app.add_handler(CommandHandler("clearsubscription", cmd_clearsubscription))
     app.add_handler(commercial.get_conversation_handler())
     app.add_handler(services.get_conversation_handler())
     app.add_handler(crm.get_conversation_handler())
