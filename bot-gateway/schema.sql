@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS user_meta (
 );
 
 CREATE TABLE IF NOT EXISTS listing_fingerprints (
-    fingerprint VARCHAR(64) PRIMARY KEY,
+    fingerprint TEXT PRIMARY KEY,
     listing_id  INTEGER
 );
 
