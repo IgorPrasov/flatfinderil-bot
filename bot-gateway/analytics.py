@@ -539,14 +539,52 @@ def get_analytics(date_from: str = None, date_to: str = None):
     }
     REGION_NAMES = {"north": "🌿 Север", "center": "🏙 Центр", "south": "☀️ Юг", "all": "🌍 Вся страна"}
 
+    import logging as _log_svc
+    _svc_err = None
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as _TE
+    def _safe_get_all_services():
+        try:
+            return db.get_all_services()
+        except Exception as e:
+            return ("_error_", str(e))
+    def _safe_get_svc_subs():
+        try:
+            return db.get_all_service_subscriptions()
+        except Exception as e:
+            return ("_error_", str(e))
     try:
-        services_all = db.get_all_services()
-    except Exception:
+        with ThreadPoolExecutor(max_workers=1) as _ex:
+            _fut = _ex.submit(_safe_get_all_services)
+            _res = _fut.result(timeout=8)
+        if isinstance(_res, tuple) and _res[0] == "_error_":
+            _svc_err = f"get_all_services: {_res[1]}"
+            services_all = list(db_data.get("services", {}).values())
+        else:
+            services_all = _res
+    except _TE:
+        _svc_err = "get_all_services: timeout (8s)"
+        services_all = list(db_data.get("services", {}).values())
+    except Exception as e:
+        _svc_err = f"get_all_services: {e}"
         services_all = list(db_data.get("services", {}).values())
 
     try:
-        _svc_subs_all = db.get_all_service_subscriptions()   # {str(user_id): {plan_key, expiry}}
-    except Exception:
+        with ThreadPoolExecutor(max_workers=1) as _ex:
+            _fut = _ex.submit(_safe_get_svc_subs)
+            _res2 = _fut.result(timeout=8)
+        if isinstance(_res2, tuple) and _res2[0] == "_error_":
+            if _svc_err: _svc_err += f" | get_all_svc_subs: {_res2[1]}"
+            else: _svc_err = f"get_all_svc_subs: {_res2[1]}"
+            _svc_subs_all = {}
+        else:
+            _svc_subs_all = _res2
+    except _TE:
+        if _svc_err: _svc_err += " | svc_subs: timeout (8s)"
+        else: _svc_err = "svc_subs: timeout (8s)"
+        _svc_subs_all = {}
+    except Exception as e:
+        if _svc_err: _svc_err += f" | svc_subs: {e}"
+        else: _svc_err = f"svc_subs: {e}"
         _svc_subs_all = {}
 
     svc_active = [s for s in services_all if s.get("active", True)]
@@ -914,4 +952,5 @@ def get_analytics(date_from: str = None, date_to: str = None):
             reverse=True
         )[:200],
         "pricing": _get_pricing_stats(db),
+        "_svc_debug": _svc_err,
     }

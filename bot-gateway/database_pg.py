@@ -1378,6 +1378,7 @@ def get_all_services() -> list:
     )
     with _conn() as c:
         with c.cursor() as cur:
+            cur.execute("SET LOCAL statement_timeout = '7000'")
             cur.execute(f"SELECT * FROM services ORDER BY {order}")
             rows = cur.fetchall()
     result = []
@@ -1393,6 +1394,7 @@ def get_all_service_subscriptions() -> dict:
     """Return all service subscriptions as {service_id_str: {plan_key, expiry}}."""
     with _conn() as c:
         with c.cursor() as cur:
+            cur.execute("SET LOCAL statement_timeout = '7000'")
             cur.execute("SELECT service_id, plan_key, expiry FROM service_subscriptions")
             rows = cur.fetchall()
     result = {}
