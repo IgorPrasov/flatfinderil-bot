@@ -2,6 +2,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ConversationHandler, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from i18n import get_lang
 import database as db
+from datetime import datetime as _dt
 
 # States
 
@@ -14,8 +15,9 @@ def _L(d, lang):
 
 (
     SVC_MENU, SVC_REGION, SVC_CITY, SVC_RESULTS,
-    ADD_SVC_TYPE, ADD_SVC_REGION, ADD_SVC_CITY, ADD_SVC_PRICE, ADD_SVC_DESC, ADD_SVC_NAME, ADD_SVC_PHONE, ADD_SVC_EMAIL, ADD_SVC_CONFIRM
-) = range(10, 23)
+    ADD_SVC_TYPE, ADD_SVC_REGION, ADD_SVC_CITY, ADD_SVC_PRICE, ADD_SVC_DESC, ADD_SVC_NAME, ADD_SVC_PHONE, ADD_SVC_EMAIL, ADD_SVC_CONFIRM,
+    ADD_SVC_AWAIT_PAYMENT,
+) = range(10, 24)
 
 SERVICE_TYPES = {
     "moving":   {"ru": "🚚 Перевозки",   "en": "🚚 Moving",   "he": "🚚 הובלות", "fr": "🚚 Déménagement"},
@@ -175,6 +177,43 @@ def _format_service_card(s, lang):
     return "\n".join(lines)
 
 
+def _has_active_svc_subscription(user_id: int) -> bool:
+    """Return True if the user has an active service-provider subscription."""
+    try:
+        sub = db.get_service_subscription(str(user_id))
+        if not sub:
+            return False
+        return sub.get("expiry", "") > _dt.utcnow().isoformat()
+    except Exception:
+        return False
+
+
+def _paywall_type_kb(ctx):
+    """Type-selection keyboard shown on the paywall screen."""
+    lang = get_lang(ctx)
+    rows = [[InlineKeyboardButton(_L(names, lang), callback_data=f"svcpay_type_{key}")]
+            for key, names in SERVICE_TYPES.items()]
+    later = _L({"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}, lang)
+    rows.append([InlineKeyboardButton(later, callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _paywall_action_kb(ctx, svc_type: str, paypal_url: str = None):
+    """Keyboard with pay-link + 'I paid' + 'Later' buttons."""
+    lang = get_lang(ctx)
+    rows = []
+    if paypal_url:
+        pay_label = _L({"ru": "💳 Оплатить", "en": "💳 Pay now", "he": "💳 שלם עכשיו"}, lang)
+        rows.append([InlineKeyboardButton(pay_label, url=paypal_url)])
+    check_label = _L({"ru": "✅ Я оплатил — продолжить", "en": "✅ I paid — continue", "he": "✅ שילמתי — המשך"}, lang)
+    rows.append([InlineKeyboardButton(check_label, callback_data=f"svcpay_check_{svc_type}")])
+    back_label = _L({"ru": "◀ Выбрать другой тип", "en": "◀ Change type", "he": "◀ שנה סוג"}, lang)
+    rows.append([InlineKeyboardButton(back_label, callback_data="svcpay_back")])
+    later_label = _L({"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}, lang)
+    rows.append([InlineKeyboardButton(later_label, callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
 class ServiceHandler:
     def get_conversation_handler(self):
         return ConversationHandler(
@@ -234,6 +273,12 @@ class ServiceHandler:
                 ADD_SVC_CONFIRM: [
                     CallbackQueryHandler(self.add_confirm, pattern="^addsvc_confirm_yes$"),
                     CallbackQueryHandler(self.back_to_menu_cb, pattern="^back_to_menu$"),
+                ],
+                ADD_SVC_AWAIT_PAYMENT: [
+                    CallbackQueryHandler(self.handle_svc_paywall_type, pattern="^svcpay_type_"),
+                    CallbackQueryHandler(self.handle_svc_check_payment, pattern="^svcpay_check_"),
+                    CallbackQueryHandler(self.start_add,                pattern="^svcpay_back$"),
+                    CallbackQueryHandler(self.back_to_menu_cb,          pattern="^back_to_menu$"),
                 ],
             },
             fallbacks=[
@@ -442,14 +487,128 @@ class ServiceHandler:
     async def start_add(self, update, context):
         query = update.callback_query
         await query.answer()
-        context.user_data["add_svc"] = {}
-        text = _t(context,
-            "➕ <b>Добавить услугу</b>\n\nВыберите тип услуги:",
-            "➕ <b>Add service</b>\n\nSelect service type:",
-            "➕ <b>הוסף שירות</b>\n\nבחר סוג שירות:"
-        )
-        await query.edit_message_text(text, reply_markup=_add_type_kb(context), parse_mode="HTML")
-        return ADD_SVC_TYPE
+        user_id = update.effective_user.id
+
+        # If the user already has an active service-provider subscription — go straight to the form
+        if _has_active_svc_subscription(user_id):
+            context.user_data["add_svc"] = {}
+            text = _t(context,
+                "✅ <b>Подписка активна!</b>\n\n➕ Добавить услугу\n\nВыберите тип услуги:",
+                "✅ <b>Subscription active!</b>\n\n➕ Add service\n\nSelect service type:",
+                "✅ <b>המנוי פעיל!</b>\n\n➕ הוסף שירות\n\nבחר סוג שירות:"
+            )
+            await query.edit_message_text(text, reply_markup=_add_type_kb(context), parse_mode="HTML")
+            return ADD_SVC_TYPE
+
+        # No active subscription — show pricing first
+        lang = get_lang(context)
+        intro = _L({
+            "ru": (
+                "💼 <b>Размещение услуги на FlatFinderIL</b>\n\n"
+                "Для публикации вашего профиля выберите тип услуги и оплатите пакет.\n\n"
+                "Выберите тип услуги, чтобы увидеть тарифы:"
+            ),
+            "en": (
+                "💼 <b>List your service on FlatFinderIL</b>\n\n"
+                "To publish your profile, select your service type and purchase a plan.\n\n"
+                "Select service type to see pricing:"
+            ),
+            "he": (
+                "💼 <b>פרסם את השירות שלך ב-FlatFinderIL</b>\n\n"
+                "כדי לפרסם את הפרופיל שלך, בחר סוג שירות ורכוש חבילה.\n\n"
+                "בחר סוג שירות לצפייה בתמחור:"
+            ),
+        }, lang)
+        await query.edit_message_text(intro, reply_markup=_paywall_type_kb(context), parse_mode="HTML")
+        return ADD_SVC_AWAIT_PAYMENT
+
+    # ── Paywall payment flow ──────────────────────────────────────────────────
+
+    async def handle_svc_paywall_type(self, update, context):
+        """User picked a service type on the paywall screen — show its pricing + PayPal link."""
+        query = update.callback_query
+        await query.answer()
+        svc_type = query.data.replace("svcpay_type_", "")
+        lang = get_lang(context)
+        context.user_data["svcpay_type"] = svc_type  # remember for after payment
+
+        from pricing import format_service_pricing, SERVICE_PACKAGES, MOVER_PACKAGES
+        pricing_block = format_service_pricing(svc_type, lang)
+        type_label = _L(SERVICE_TYPES.get(svc_type, {}), lang)
+
+        header = _L({
+            "ru": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\nВыберите пакет и оплатите. После оплаты нажмите «✅ Я оплатил — продолжить».",
+            "en": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\nSelect a plan and pay. After payment tap «✅ I paid — continue».",
+            "he": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\nבחר חבילה ושלם. לאחר התשלום לחץ «✅ שילמתי — המשך».",
+        }, lang)
+
+        import paypal_payment as _mp
+        paypal_url = None
+        if _mp.is_enabled():
+            # create payment link for the base monthly plan for this service type
+            try:
+                if svc_type == "moving":
+                    pkg_key = "mover_base"
+                    result = _mp.create_mover_subscription_link(pkg_key, update.effective_user.id, lang)
+                else:
+                    pkg_key = "service_base"
+                    result = _mp.create_service_subscription_link(pkg_key, svc_type, update.effective_user.id, lang)
+                paypal_url = result.get("url") if result else None
+            except Exception:
+                pass
+        else:
+            # PayPal not configured — show contact info
+            contact_msg = _L({
+                "ru": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\n⏳ <b>Оплата картой скоро будет доступна!</b>\n\nСвяжитесь с нами в Telegram для ручной активации.",
+                "en": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\n⏳ <b>Card payment coming soon!</b>\n\nContact us in Telegram for manual activation.",
+                "he": f"💼 <b>{type_label}</b>\n\n{pricing_block}\n\n⏳ <b>תשלום בכרטיס בקרוב!</b>\n\nצרו קשר בטלגרם להפעלה ידנית.",
+            }, lang)
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("💬 Telegram", url="https://t.me/flatfinderil_bot")],
+                [InlineKeyboardButton(
+                    _L({"ru": "✅ Я оплатил — продолжить", "en": "✅ I paid — continue", "he": "✅ שילמתי — המשך"}, lang),
+                    callback_data=f"svcpay_check_{svc_type}"
+                )],
+                [InlineKeyboardButton(_L({"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}, lang), callback_data="svcpay_back")],
+                [InlineKeyboardButton(_L({"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}, lang), callback_data="back_to_menu")],
+            ])
+            await query.edit_message_text(contact_msg, reply_markup=kb, parse_mode="HTML")
+            return ADD_SVC_AWAIT_PAYMENT
+
+        await query.edit_message_text(header, reply_markup=_paywall_action_kb(context, svc_type, paypal_url), parse_mode="HTML")
+        return ADD_SVC_AWAIT_PAYMENT
+
+    async def handle_svc_check_payment(self, update, context):
+        """User tapped '✅ I paid' — verify subscription and open the form."""
+        query = update.callback_query
+        await query.answer()
+        user_id = update.effective_user.id
+        lang = get_lang(context)
+        svc_type = query.data.replace("svcpay_check_", "")
+        context.user_data["svcpay_type"] = svc_type
+
+        if _has_active_svc_subscription(user_id):
+            # Payment confirmed — open the form with the pre-selected type
+            context.user_data["add_svc"] = {"service_type": svc_type}
+            type_label = _L(SERVICE_TYPES.get(svc_type, {}), lang)
+            ok_msg = _L({
+                "ru": f"✅ Оплата подтверждена!\n\n<b>{type_label}</b>\n\nВыберите район работы:",
+                "en": f"✅ Payment confirmed!\n\n<b>{type_label}</b>\n\nSelect work region:",
+                "he": f"✅ התשלום אושר!\n\n<b>{type_label}</b>\n\nבחר אזור עבודה:",
+            }, lang)
+            await query.edit_message_text(ok_msg, reply_markup=_add_region_kb(context), parse_mode="HTML")
+            return ADD_SVC_REGION
+        else:
+            # Payment not received yet
+            not_yet = _L({
+                "ru": "⏳ Оплата ещё не поступила. Завершите оплату и нажмите «✅ Я оплатил» снова.",
+                "en": "⏳ Payment not received yet. Complete the payment and tap «✅ I paid» again.",
+                "he": "⏳ התשלום טרם התקבל. השלם את התשלום ולחץ שוב על «✅ שילמתי».",
+            }, lang)
+            await query.answer(not_yet, show_alert=True)
+            return ADD_SVC_AWAIT_PAYMENT
+
+    # ── Add service form ──────────────────────────────────────────────────────
 
     async def add_handle_type(self, update, context):
         query = update.callback_query
@@ -660,97 +819,22 @@ class ServiceHandler:
             "cleaning": {"ru":"Уборка","en":"Cleaning","he":"ניקיון", "fr": "Ménage"},
         }.get(svc_type, {}).get(lang, svc_type)
 
-        # ── Pricing block per service type ────────────────────────────────────
-        from pricing import format_service_pricing
-        pricing_block = format_service_pricing(svc_type, lang)
+        # User already paid before filling the form — just show success
+        icons = {"moving": "🚛", "packing": "📦", "cleaning": "🧹"}
+        icon = icons.get(svc_type, "✅")
+        greeting = f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'}"
+        greeting_en = f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'}"
+        greeting_he = f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'}"
 
-        import paypal_payment as _mp
-
-        if svc_type == "moving":
-            text = _t(context,
-                f"🚛 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
-                f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваша компания по перевозкам размещена на платформе.\n\n"
-                f"{pricing_block}\n\n"
-                f"Нажмите кнопку ниже, чтобы оформить подписку и начать получать клиентов. "
-                f"Клиенты находят вас через раздел 🔧 <b>Услуги</b>. 💼",
-
-                f"🚛 <b>FlatFinderIL — Service Published!</b>\n\n"
-                f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your moving company is now on the platform.\n\n"
-                f"{pricing_block}\n\n"
-                f"Tap the button below to subscribe and start receiving clients through the 🔧 <b>Services</b> section. 💼",
-
-                f"🚛 <b>FlatFinderIL — השירות פורסם!</b>\n\n"
-                f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} חברת ההובלות שלך פעילה בפלטפורמה.\n\n"
-                f"{pricing_block}\n\n"
-                f"לחץ על הכפתור למטה כדי להירשם לחבילה ולהתחיל לקבל לקוחות. 💼"
-            )
-            if _mp.is_enabled():
-                from pricing import MOVER_PACKAGES
-                rows = []
-                for mpkg in MOVER_PACKAGES:
-                    mpkg_label = mpkg["label"].get(lang, mpkg["label"]["ru"])
-                    rows.append([InlineKeyboardButton(
-                        f"{mpkg_label} — {mpkg['price_ils']} ₪/{'нед' if lang=='ru' else 'wk' if lang=='en' else 'שבוע'}",
-                        callback_data=f"mover_subscribe_{mpkg['key']}"
-                    )])
-                rows.append([InlineKeyboardButton(
-                    {"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}.get(lang, "⏭ Later"),
-                    callback_data="back_to_menu"
-                )])
-                kb = InlineKeyboardMarkup(rows)
-            else:
-                kb = _back_kb(context)
-
-        elif svc_type in ("cleaning", "packing"):
-            icon = "🧹" if svc_type == "cleaning" else "📦"
-            text = _t(context,
-                f"{icon} <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
-                f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваш сервис размещён на платформе.\n\n"
-                f"{pricing_block}\n\n"
-                f"Оформите подписку — и клиенты сразу увидят вас в базе. 💼",
-
-                f"{icon} <b>FlatFinderIL — Service Published!</b>\n\n"
-                f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your service is now live.\n\n"
-                f"{pricing_block}\n\n"
-                f"Subscribe to appear in the directory and start receiving clients. 💼",
-
-                f"{icon} <b>FlatFinderIL — השירות פורסם!</b>\n\n"
-                f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} השירות שלך פעיל בפלטפורמה.\n\n"
-                f"{pricing_block}\n\n"
-                f"הירשם למנוי — ולקוחות יראו אותך במאגר מיד. 💼"
-            )
-            if _mp.is_enabled():
-                from pricing import SERVICE_PACKAGES
-                rows = []
-                for spkg in SERVICE_PACKAGES:
-                    result = _mp.create_service_subscription_link(spkg["key"], svc_type, user.id, lang)
-                    if result and result.get("url"):
-                        spkg_label = spkg["label"].get(lang, spkg["label"]["ru"])
-                        rows.append([InlineKeyboardButton(
-                            f"{spkg_label} — {spkg['price_ils']} ₪",
-                            url=result["url"]
-                        )])
-                rows.append([InlineKeyboardButton(
-                    {"ru": "⏭ Позже", "en": "⏭ Later", "he": "⏭ מאוחר יותר"}.get(lang, "⏭ Later"),
-                    callback_data="back_to_menu"
-                )])
-                kb = InlineKeyboardMarkup(rows) if rows else _back_kb(context)
-            else:
-                kb = _back_kb(context)
-
-        else:
-            text = _t(context,
-                f"🚚 <b>FlatFinderIL — Услуга опубликована!</b>\n\n"
-                f"{'Здравствуйте, <b>' + svc_name + '</b>!' if svc_name else 'Здравствуйте!'} Ваша услуга размещена.\n\n"
-                f"Клиенты уже могут найти вас через раздел 🔧 <b>Услуги</b>. 💼",
-                f"🚚 <b>FlatFinderIL — Service Published!</b>\n\n"
-                f"{'Hello, <b>' + svc_name + '</b>!' if svc_name else 'Hello!'} Your service is now live. 💼",
-                f"🚚 <b>FlatFinderIL — השירות פורסם!</b>\n\n"
-                f"{'שלום, <b>' + svc_name + '</b>!' if svc_name else 'שלום!'} השירות שלך פעיל. 💼"
-            )
-            kb = _back_kb(context)
-
-        await query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+        text = _t(context,
+            f"{icon} <b>FlatFinderIL — Профиль опубликован!</b>\n\n"
+            f"{greeting} Ваш профиль активен и виден клиентам в разделе 🔧 <b>Услуги</b>. 💼",
+            f"{icon} <b>FlatFinderIL — Profile Published!</b>\n\n"
+            f"{greeting_en} Your profile is live and visible to clients in the 🔧 <b>Services</b> section. 💼",
+            f"{icon} <b>FlatFinderIL — הפרופיל פורסם!</b>\n\n"
+            f"{greeting_he} הפרופיל שלך פעיל וגלוי ללקוחות בקטגוריה 🔧 <b>שירותים</b>. 💼"
+        )
+        await query.edit_message_text(text, reply_markup=_back_kb(context), parse_mode="HTML")
         return ConversationHandler.END
 
     async def back_to_menu_cb(self, update, context):
