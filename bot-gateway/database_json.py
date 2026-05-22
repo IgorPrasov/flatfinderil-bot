@@ -113,7 +113,7 @@ def _init_db():
 
 _init_db()
 
-def search_listings(filters: Dict) -> List[Dict]:
+def search_listings(filters: Dict, limit: int = 200) -> List[Dict]:
     data = _load()
     results = []
     for listing in data["listings"].values():
@@ -165,7 +165,7 @@ def search_listings(filters: Dict) -> List[Dict]:
             has_real = any(len(p) > 20 for p in listing.get("photos", []))
             if not has_real: continue
         results.append(listing)
-    return results
+    return results[:limit]
 
 def get_listing(listing_id: int) -> Optional[Dict]:
     data = _load()
