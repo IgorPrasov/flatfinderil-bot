@@ -1785,7 +1785,11 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 ).start()
                 # data still holds the stale-but-valid cached result — serve it
 
-            body = json_module.dumps(data, ensure_ascii=False).encode()
+            try:
+                body = json_module.dumps(data, ensure_ascii=False, default=str).encode()
+            except Exception as _je:
+                logger.error(f"Analytics JSON serialization error: {_je}")
+                body = json_module.dumps({"error": f"Serialization error: {_je}"}, ensure_ascii=False).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
