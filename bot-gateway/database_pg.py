@@ -581,6 +581,30 @@ def search_listings(filters: Dict, limit: int = 200) -> List[Dict]:
     if filters.get("with_photos"):
         clauses.append("jsonb_array_length(photos) > 0")
 
+    # Exclude "looking for apartment" posts regardless of active status
+    _SEEKING_RE = (
+        r'ищ[уёемаю]\s+(квартир|жиль|комнат|студи|\d+\s*комн)|'
+        r'ищем\s+(квартир|комнат|жиль|аренд)|'
+        r'нужна\s+(квартир|комнат)|нужно\s+жиль|'
+        r'в\s+поиске\s+(квартир|жиль|комнат)|'
+        r'подыскива[ею]\s+(квартир|жиль|комнат)|'
+        r'хочу\s+снять|хотим\s+снять|'
+        r'снять\s+(квартир|комнат)[ую]|'
+        r'семья?\s+ищет|пара\s+ищет|'
+        r'срочно\s+ищ[уем]|'
+        r'мне\s+нужна\s+квартир|нам\s+нужна\s+(квартир|комнат)|'
+        r'в\s+поиске\s+жиль|мы\s+ищем\s+(квартир|комнат)|'
+        r'looking\s+for\s+(an?\s+)?(apart|flat|room)|'
+        r'searching\s+for\s+(an?\s+)?(apart|flat|room)|'
+        r'want\s+to\s+rent\b|'
+        r'מחפש[תים]?\s+(דירה|חדר|שכירות)|'
+        r'מחפשים\s+(דירה|חדר|להשכיר)|'
+        r'בחיפוש\s+(אחר\s+)?(דירה|חדר)|'
+        r'צריכ[האים]+\s+(דירה|חדר)'
+    )
+    clauses.append("NOT (title ~* %s OR description ~* %s)")
+    params.extend([_SEEKING_RE, _SEEKING_RE])
+
     where = " AND ".join(clauses)
     sql = f"SELECT * FROM listings WHERE {where} ORDER BY id DESC LIMIT %s"
     params.append(limit)
