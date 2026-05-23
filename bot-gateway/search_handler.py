@@ -15,12 +15,16 @@ from keyboards import (
     infrastructure_keyboard, confirm_search_keyboard, results_navigation_keyboard,
     price_keyboard, back_to_menu_keyboard, shelter_keyboard,
     city_multi_keyboard, district_multi_keyboard, elevator_keyboard, with_photos_keyboard,
+    paywall_keyboard,
 )
 from formatters import format_search_summary, format_listing_card
 from i18n import t, get_lang, get_district_name
 from display_utils import display_listing
 import database as db
 from analytics import track_search, track_user
+from subscription import has_access, FREE_SEARCH_LIMIT, is_trial_active
+from geocoding import get_city_coords, haversine, format_distance
+from overpass import get_pois
 
 
 def _price_label(value, deal_type, lang):
