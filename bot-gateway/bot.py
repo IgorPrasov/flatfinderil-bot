@@ -208,8 +208,10 @@ def main():
         import database as _db
         if hasattr(_db, "_migrate_sublet_deal_type"):
             _db._migrate_sublet_deal_type()
+        if hasattr(_db, "_cleanup_seeking_listings"):
+            _db._cleanup_seeking_listings()
     except Exception as _me:
-        logger.warning(f"[STARTUP] sublet migration skipped: {_me}")
+        logger.warning(f"[STARTUP] migrations skipped: {_me}")
     _warmup_sessions()
     app = Application.builder().token(BOT_TOKEN).build()
     _bot_app = app

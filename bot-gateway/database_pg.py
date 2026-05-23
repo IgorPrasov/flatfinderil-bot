@@ -145,6 +145,45 @@ def _migrate_sublet_deal_type():
         log.warning(f"[MIGRATE] sublet migration failed: {e}")
 
 
+def _cleanup_seeking_listings():
+    """Remove listings that are actually 'looking for apartment' posts, not offerings."""
+    seeking_pattern = (
+        r'ищ[ауеуёемюю]\s+(квартир|жиль|комнат|студи|\d)|'
+        r'нужна\s+(квартир|комнат)|нужно\s+жиль|'
+        r'в\s+поиске\s+(квартир|жиль|комнат)|'
+        r'подыскива[ею]\s+(квартир|жиль|комнат)|'
+        r'хочу\s+снять|хотим\s+снять|'
+        r'снять\s+(квартир|комнат)[ую]|'
+        r'ищем\s+(квартир|комнат|жиль)|'
+        r'семья?\s+ищет|пара\s+ищет|'
+        r'срочно\s+ищу|срочно\s+ищем|'
+        r'мне\s+нужна\s+квартир|нам\s+нужна\s+(квартир|комнат)|'
+        r'looking\s+for\s+(an?\s+)?(apart|flat|room)|'
+        r'searching\s+for\s+(an?\s+)?(apart|flat|room)|'
+        r'want\s+to\s+rent|'
+        r'מחפש[תים]?\s+(דירה|חדר|שכירות)|'
+        r'מחפשים\s+(דירה|חדר|להשכיר)|'
+        r'בחיפוש\s+(אחר\s+)?(דירה|חדר)|'
+        r'צריכ[האים]+\s+(דירה|חדר)'
+    )
+    try:
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute("""
+                    UPDATE listings SET active = FALSE
+                    WHERE active = TRUE
+                      AND source IN ('telegram', 'facebook')
+                      AND (
+                        title ~* %s OR description ~* %s
+                      )
+                """, (seeking_pattern, seeking_pattern))
+                deactivated = cur.rowcount
+        if deactivated:
+            log.info(f"[CLEANUP] Deactivated {deactivated} seeking/wanted listings")
+    except Exception as e:
+        log.warning(f"[CLEANUP] seeking cleanup failed: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Fingerprint helpers
 # ---------------------------------------------------------------------------
