@@ -167,6 +167,16 @@ canvas{max-width:100%}
         <div class="card-body" id="cities-listings"></div>
       </div>
     </div>
+    <div class="grid11" style="margin-top:12px">
+      <div class="card">
+        <div class="card-title">По типу сделки</div>
+        <div class="card-body" id="deal-type-bar"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">По источнику</div>
+        <div class="card-body" id="source-bar"></div>
+      </div>
+    </div>
   </div>
 
   <!-- USERS -->
@@ -1114,6 +1124,36 @@ function _renderInner(){
   // Cities
   document.getElementById("cities-search").innerHTML=barH(D.searches_by_city,"count","city",TG);
   document.getElementById("cities-listings").innerHTML=barH(D.listings.by_city,"count","city",GOLD);
+
+  // Deal type breakdown
+  const dealTypeData = (D.listings.by_deal_type||[]).map(x=>({
+    label: {rent:"🔑 Аренда",sublet:"🔄 Субаренда",buy:"🏠 Покупка"}[x.deal_type]||x.deal_type,
+    count: x.count,
+    color: {rent:TG,sublet:PURPLE,buy:GREEN}[x.deal_type]||GOLD,
+  }));
+  const dealMax = Math.max(1,...dealTypeData.map(x=>x.count));
+  document.getElementById("deal-type-bar").innerHTML = dealTypeData.length
+    ? dealTypeData.map(x=>`
+        <div class="bar-row">
+          <div style="width:120px;font-size:12px;flex-shrink:0">${x.label}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round(x.count/dealMax*100)}%;background:${x.color}"></div></div>
+          <div class="bar-val">${n(x.count)}</div>
+        </div>`).join("")
+    : `<div style="padding:16px;color:#999;font-size:12px;text-align:center">Нет данных</div>`;
+
+  // Source breakdown
+  const srcData = [
+    {label:"📱 Telegram", count:D.listings.telegram||0, color:TG},
+    {label:"📘 Facebook", count:D.listings.facebook||0, color:FBBLUE},
+    {label:"✍️ Вручную",  count:D.listings.manual||0,   color:GOLD},
+  ];
+  const srcMax = Math.max(1,...srcData.map(x=>x.count));
+  document.getElementById("source-bar").innerHTML = srcData.map(x=>`
+    <div class="bar-row">
+      <div style="width:120px;font-size:12px;flex-shrink:0">${x.label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(x.count/srcMax*100)}%;background:${x.color}"></div></div>
+      <div class="bar-val">${n(x.count)}</div>
+    </div>`).join("");
 
   // Users chart
   makeChart("chart-users","bar",D.activity_week.map(x=>x.day),[

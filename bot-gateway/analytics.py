@@ -867,12 +867,13 @@ def get_analytics(date_from: str = None, date_to: str = None):
             "conversion": conversion,
         },
         "listings": {
-            "total": len(listings_all),          # всегда полный размер базы
-            "added_period": len(listings),        # добавлено за выбранный период
+            "total": len(listings_all),
+            "added_period": len(listings),
             "telegram": source_counter.get("telegram", 0),
             "facebook": source_counter.get("facebook", 0),
             "manual":   source_counter.get("manual", 0),
             "by_city": [{"city": c, "count": n} for c, n in Counter(l.get("city","") for l in listings_all if l.get("active", True) and l.get("city","") not in ("", "Израиль")).most_common(30)],
+            "by_deal_type": [{"deal_type": dt, "count": n} for dt, n in Counter(l.get("deal_type","rent") for l in listings_all if l.get("active", True)).most_common()],
             "sources": [{"name": s, "count": n} for s, n in Counter(l.get("contact","") for l in listings_all if l.get("source") == "telegram").most_common(30)],
             "channels_total": len(set(l.get("contact","") for l in listings_all if l.get("source") == "telegram")),
             "fb_sources": fb_sources_list,
