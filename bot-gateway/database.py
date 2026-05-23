@@ -63,6 +63,7 @@ if _USE_PG:
         _load,
         _init_db,
         _text_fingerprint,
+        _migrate_sublet_deal_type,
     )
     import logging as _logging
     _logging.getLogger(__name__).info("[DB] Using PostgreSQL backend")

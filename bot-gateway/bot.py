@@ -204,6 +204,12 @@ async def _handle_mover_subscribe(update, context):
 def main():
     global _bot_app, _bot_loop
     fix_city_migration()
+    try:
+        import database as _db
+        if hasattr(_db, "_migrate_sublet_deal_type"):
+            _db._migrate_sublet_deal_type()
+    except Exception as _me:
+        logger.warning(f"[STARTUP] sublet migration skipped: {_me}")
     _warmup_sessions()
     app = Application.builder().token(BOT_TOKEN).build()
     _bot_app = app
