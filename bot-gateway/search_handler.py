@@ -240,7 +240,7 @@ class SearchHandler:
         await query.answer()
         context.user_data["search_filters"] = {"deal_type": deal_type}
         context.user_data["current_state"] = SEARCH_PROPERTY_TYPE
-        deal_text = t("deal_rent", context) if deal_type == "rent" else t("deal_buy", context)
+        deal_text = {"rent": t("deal_rent", context), "buy": t("deal_buy", context), "sublet": t("deal_sublet", context)}.get(deal_type, t("deal_rent", context))
         await query.edit_message_text(
             "✅ " + _confirmed(context, "Тип сделки", "Deal type", "סוג עסקה", deal_text),
             parse_mode="HTML"

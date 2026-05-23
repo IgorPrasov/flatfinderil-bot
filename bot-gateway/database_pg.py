@@ -121,6 +121,28 @@ def _init_db():
         with c.cursor() as cur:
             cur.execute(sql)
     log.info("PostgreSQL schema initialised.")
+    _migrate_sublet_deal_type()
+
+
+def _migrate_sublet_deal_type():
+    """One-time migration: reclassify rent listings that are actually sublets."""
+    try:
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute("""
+                    UPDATE listings
+                    SET deal_type = 'sublet'
+                    WHERE deal_type = 'rent'
+                      AND (
+                        title       ~* 'субарен|сублет|саблет|sublet|sub-let|краткосрочн|посуточн|לטווח קצר|סאבלט|השכרה קצרה'
+                        OR description ~* 'субарен|сублет|саблет|sublet|sub-let|краткосрочн|посуточн|לטווח קצר|סאבלט|השכרה קצרה'
+                      )
+                """)
+                updated = cur.rowcount
+        if updated:
+            log.info(f"[MIGRATE] Reclassified {updated} listings as sublet")
+    except Exception as e:
+        log.warning(f"[MIGRATE] sublet migration failed: {e}")
 
 
 # ---------------------------------------------------------------------------

@@ -347,10 +347,12 @@ def extract_property_type(text):
 
 
 def extract_deal_type(text):
-    """Detect deal type: rent or buy."""
+    """Detect deal type: rent, buy, or sublet."""
     t = text.lower()
     if re.search(r'продаж|продаётся|продается|למכירה|for\s*sale|מכירה|купить', t):
         return "buy"
+    if re.search(r'субарен|сублет|саблет|sublet|sub-let|краткосрочн|посуточн|на\s+\d+\s+мес|לטווח\s+קצר|סאבלט|השכרה\s+קצרה', t):
+        return "sublet"
     return "rent"
 
 
