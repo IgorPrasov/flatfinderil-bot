@@ -28,7 +28,7 @@ def _price_label(value, deal_type, lang):
         return {"ru": "любая", "en": "any", "he": "כל מחיר", "fr": "tout"}.get(lang, "any")
     if value >= 999_000_000:
         return {"ru": "без лимита", "en": "no limit", "he": "ללא הגבלה", "fr": "sans limite"}.get(lang)
-    if deal_type == "rent":
+    if deal_type in ("rent", "sublet"):
         unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש", "fr": "₪/mois"}.get(lang, "₪")
         return f"{value:,} {unit}".replace(",", " ")
     if value >= 1_000_000:
@@ -453,7 +453,7 @@ class SearchHandler:
         ptypes = f.get("property_types", [])
         deal_type = f.get("deal_type", "rent")
         pool_types = ["house", "villa"]
-        show_pool = deal_type == "rent" and ptypes and all(p in pool_types for p in ptypes)
+        show_pool = deal_type in ("rent", "sublet") and ptypes and all(p in pool_types for p in ptypes)
         if show_pool:
             context.user_data["current_state"] = SEARCH_POOL
             await context.bot.send_message(chat_id=update.effective_chat.id, text=t("step_pool", context), reply_markup=pool_keyboard(context, "pool"), parse_mode="HTML")
@@ -597,12 +597,11 @@ class SearchHandler:
 
         except Exception as _e:
             _logger.error(f"[SEARCH] do_search error: {_e!r}", exc_info=True)
-            debug_msg = f"⚠️ Ошибка: <code>{type(_e).__name__}: {str(_e)[:300]}</code>"
             try:
-                await query.edit_message_text(debug_msg, reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
+                await query.edit_message_text(err_msg, reply_markup=confirm_search_keyboard(context), parse_mode="HTML")
             except Exception:
                 try:
-                    await context.bot.send_message(chat_id=update.effective_chat.id, text=debug_msg, parse_mode="HTML")
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text=err_msg)
                 except Exception:
                     pass
             return SEARCH_CONFIRM
@@ -624,33 +623,6 @@ class SearchHandler:
             from handlers import start
             await start(update, context)
         return ConversationHandler.END
-from telegram import Update
-from telegram.ext import ContextTypes, ConversationHandler, CommandHandler, CallbackQueryHandler
-from config import (
-    SEARCH_TYPE, SEARCH_PROPERTY_TYPE, SEARCH_DISTRICT, SEARCH_CITY,
-    SEARCH_ROOMS, SEARCH_ROOMS_MAX, SEARCH_PRICE_MIN, SEARCH_PRICE_MAX,
-    SEARCH_PARKING, SEARCH_POOL, SEARCH_SHELTER, SEARCH_ELEVATOR, SEARCH_INFRASTRUCTURE, SEARCH_WITH_PHOTOS, SEARCH_CONFIRM,
-    PRICE_RENT_MIN_OPTIONS_RU, PRICE_RENT_MIN_OPTIONS_EN, PRICE_RENT_MIN_OPTIONS_HE,
-    PRICE_RENT_OPTIONS_RU, PRICE_RENT_OPTIONS_EN, PRICE_RENT_OPTIONS_HE,
-    PRICE_BUY_MIN_OPTIONS_RU, PRICE_BUY_MIN_OPTIONS_EN, PRICE_BUY_MIN_OPTIONS_HE,
-    PRICE_BUY_OPTIONS_RU, PRICE_BUY_OPTIONS_EN, PRICE_BUY_OPTIONS_HE,
-)
-from keyboards import (
-    deal_type_keyboard, property_type_keyboard, district_keyboard, city_keyboard,
-    rooms_keyboard, rooms_range_keyboard, parking_keyboard, pool_keyboard,
-    infrastructure_keyboard, confirm_search_keyboard, results_navigation_keyboard,
-    price_keyboard, back_to_menu_keyboard, shelter_keyboard,
-    city_multi_keyboard, district_multi_keyboard, elevator_keyboard, with_photos_keyboard,
-    paywall_keyboard,
-)
-from formatters import format_search_summary, format_listing_card
-from i18n import t, get_lang, get_district_name
-from display_utils import display_listing
-import database as db
-from analytics import track_search, track_user
-from subscription import has_access, FREE_SEARCH_LIMIT, is_trial_active
-from geocoding import get_city_coords, haversine, format_distance
-from overpass import get_pois
 
 
 def _sort_by_proximity(results: list, infra_types: list) -> list:
@@ -704,45 +676,5 @@ def _sort_by_proximity(results: list, infra_types: list) -> list:
 
     annotated.sort(key=lambda x: x["_nearest_m"])
     return annotated
-
-
-def _price_label(value, deal_type, lang):
-    if value == 0:
-        return {"ru": "любая", "en": "any", "he": "כל מחיר", "fr": "tout"}.get(lang, "any")
-    if value >= 999_000_000:
-        return {"ru": "без лимита", "en": "no limit", "he": "ללא הגבלה", "fr": "sans limite"}.get(lang)
-    if deal_type == "rent":
-        unit = {"ru": "₪/мес", "en": "₪/mo", "he": "₪/חודש", "fr": "₪/mois"}.get(lang, "₪")
-        return f"{value:,} {unit}".replace(",", " ")
-    if value >= 1_000_000:
-        mln = {"ru": "млн ₪", "en": "M ₪", "he": "מיל' ₪", "fr": "M ₪"}.get(lang)
-        return f"{value / 1_000_000:.1f} {mln}"
-    return f"{value:,} ₪".replace(",", " ")
-
-
-def _lbl(context, ru, en, he):
-    lang = get_lang(context)
-    return {"ru": ru, "en": en, "he": he}.get(lang, ru)
-
-
-def _confirmed(context, ru, en, he, value):
-    label = _lbl(context, ru, en, he)
-    return "<b>" + label + ":</b> " + str(value)
-
-
-def _get_price_options(deal_type, lang, is_min):
-    if deal_type in ("rent", "sublet"):
-        opts = {
-            "ru": PRICE_RENT_MIN_OPTIONS_RU if is_min else PRICE_RENT_OPTIONS_RU,
-            "en": PRICE_RENT_MIN_OPTIONS_EN if is_min else PRICE_RENT_OPTIONS_EN,
-            "he": PRICE_RENT_MIN_OPTIONS_HE if is_min else PRICE_RENT_OPTIONS_HE,
-        }
-    else:
-        opts = {
-            "ru": PRICE_BUY_MIN_OPTIONS_RU if is_min else PRICE_BUY_OPTIONS_RU,
-            "en": PRICE_BUY_MIN_OPTIONS_EN if is_min else PRICE_BUY_OPTIONS_EN,
-            "he": PRICE_BUY_MIN_OPTIONS_HE if is_min else PRICE_BUY_OPTIONS_HE,
-        }
-    return opts.get(lang, opts["ru"])
 
 
