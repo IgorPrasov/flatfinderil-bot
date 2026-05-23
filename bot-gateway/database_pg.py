@@ -582,8 +582,10 @@ def search_listings(filters: Dict, limit: int = 200) -> List[Dict]:
         clauses.append("jsonb_array_length(photos) > 0")
 
     # Exclude "looking for apartment" posts regardless of active status
+    # PostgreSQL POSIX regex: \s and \d are supported in PG14+, but \b = backspace (NOT word boundary).
+    # Use [0-9] instead of \d to be safe; drop \b entirely (phrase is specific enough).
     _SEEKING_RE = (
-        r'ищ[уёемаю]\s+(квартир|жиль|комнат|студи|\d+\s*комн)|'
+        r'ищ[уёемаю]\s+(квартир|жиль|комнат|студи|[0-9]+\s*комн)|'
         r'ищем\s+(квартир|комнат|жиль|аренд)|'
         r'нужна\s+(квартир|комнат)|нужно\s+жиль|'
         r'в\s+поиске\s+(квартир|жиль|комнат)|'
@@ -596,7 +598,7 @@ def search_listings(filters: Dict, limit: int = 200) -> List[Dict]:
         r'в\s+поиске\s+жиль|мы\s+ищем\s+(квартир|комнат)|'
         r'looking\s+for\s+(an?\s+)?(apart|flat|room)|'
         r'searching\s+for\s+(an?\s+)?(apart|flat|room)|'
-        r'want\s+to\s+rent\b|'
+        r'want\s+to\s+rent\s|want\s+to\s+rent$|'
         r'מחפש[תים]?\s+(דירה|חדר|שכירות)|'
         r'מחפשים\s+(דירה|חדר|להשכיר)|'
         r'בחיפוש\s+(אחר\s+)?(דירה|חדר)|'
