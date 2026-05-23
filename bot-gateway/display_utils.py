@@ -34,23 +34,23 @@ async def display_listing(query, context, listing, index, total):
             await query.message.delete()
         except Exception:
             pass
-        if len(real_photos) == 1:
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=real_photos[0],
-                caption=card_text[:1024],  # Telegram caption limit
-                reply_markup=keyboard,
-                parse_mode="HTML",
-            )
-        else:
-            media = [InputMediaPhoto(pid) for pid in real_photos[:10]]
-            await context.bot.send_media_group(chat_id=chat_id, media=media)
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=card_text,
-                reply_markup=keyboard,
-                parse_mode="HTML",
-            )
+        photo_sent = False
+        try:
+            if len(real_photos) == 1:
+                await context.bot.send_photo(chat_id=chat_id, photo=real_photos[0])
+            else:
+                media = [InputMediaPhoto(pid) for pid in real_photos[:10]]
+                await context.bot.send_media_group(chat_id=chat_id, media=media)
+            photo_sent = True
+        except Exception:
+            pass
+        # Always send text+keyboard as a separate message (avoids caption HTML truncation)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=card_text,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+        )
     else:
         try:
             await query.edit_message_text(card_text, reply_markup=keyboard, parse_mode="HTML")

@@ -435,7 +435,16 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         current = int(data.split("_")[-1])
         new_index = min(current+1, len(results)-1) if "next" in data else max(current-1, 0)
-        await display_listing(query, context, results[new_index], new_index, len(results))
+        try:
+            await display_listing(query, context, results[new_index], new_index, len(results))
+        except Exception as _nav_err:
+            logger.error(f"[NAV] display_listing failed idx={new_index}: {_nav_err!r}", exc_info=True)
+            lang = get_lang(context)
+            err = {"ru": "⚠️ Не удалось загрузить объявление. Попробуйте следующее.", "en": "⚠️ Couldn't load listing. Try the next one.", "he": "⚠️ לא ניתן לטעון מודעה. נסה את הבאה."}.get(lang, "⚠️ Error loading listing.")
+            try:
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=err)
+            except Exception:
+                pass
 
     elif data.startswith("fav_"):
         listing_id = int(data.split("_")[1])
