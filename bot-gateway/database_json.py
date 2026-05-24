@@ -164,6 +164,11 @@ def search_listings(filters: Dict, limit: int = 200) -> List[Dict]:
         if filters.get("with_photos"):
             has_real = any(len(p) > 20 for p in listing.get("photos", []))
             if not has_real: continue
+        # seller type filter
+        st_filter = filters.get("seller_type")
+        if st_filter in ("private", "agent"):
+            if listing.get("seller_type") != st_filter:
+                continue
         results.append(listing)
     return results[:limit]
 
@@ -215,7 +220,12 @@ def add_listing(listing_data: Dict) -> int:
         listing_data.setdefault("views", 0)
         listing_data.setdefault("view_requests", 0)
         listing_data.setdefault("poster_type", "unknown")
-        listing_data.setdefault("seller_type", "private")
+        if not listing_data.get("seller_type"):
+            try:
+                from classifier import classify_seller_type
+                listing_data["seller_type"] = classify_seller_type(listing_data)
+            except Exception:
+                listing_data.setdefault("seller_type", "private")
         data["listings"][str(next_id)] = listing_data
         data["next_id"] = next_id + 1
         user_id = listing_data.get("user_id")

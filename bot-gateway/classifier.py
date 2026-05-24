@@ -245,6 +245,86 @@ def add_to_blacklist(phone: str, reason: str, db_data: dict) -> dict:
     return db_data
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 5. KEYWORD-BASED SELLER TYPE CLASSIFIER (by listing text)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Keywords that strongly indicate a private owner
+_PRIVATE_PATTERNS = re.compile(
+    r'хозяин|хозяйка|хозяева|'
+    r'собственник|собственница|'
+    r'без\s+посредник|без\s+агент|без\s+комисси|'
+    r'от\s+хозяин|сдаю\s+сам|сдаём\s+сами|сдает\s+хоз|'
+    r'без\s+риелтор|без\s+риэлтор|'
+    r'сдаю\s+напрямую|напрямую\s+от\s+владельц|'
+    r'בעלים|ישירות\s+מ|מבעלים|ישיר\s+מהבעלים|'
+    r'ללא\s+תיווך|בלי\s+תיווך|ללא\s+עמלה|בלי\s+עמלה|'
+    r'ישירות\s+מבעל|private\s+owner|no\s+agent|no\s+commission|'
+    r'directly\s+from\s+owner|owner\s+renting|owner\s+selling',
+    re.IGNORECASE
+)
+
+# Keywords that strongly indicate a realtor / agency
+_AGENT_PATTERNS = re.compile(
+    r'агент\b|агентство|агенства|риелтор|риэлтор|брокер\b|'
+    r'агент\s+по\s+недвижимости|комиссия\s+агента|'
+    r'מתווך|תיווך|סוכן\s+נדל|משרד\s+תיווך|עמלת\s+תיווך|'
+    r'\brealtor\b|\bagency\b|\bbroker\b|\bagent\s+fee\b|'
+    r'estate\s+agent|real\s+estate\s+agent',
+    re.IGNORECASE
+)
+
+# Known agent Telegram channels (contact handle → agent by default)
+_KNOWN_AGENT_CHANNELS = {
+    "@flamingorent", "@rentapartmentbatyam", "@ashdod_rent",
+    "@izrailnedvizimosti", "@nagariyaapartments", "@rentbatyam",
+    "@marianadlanru", "@happy_home_ashkelon", "@israel_rent",
+    "@HaifaToRent", "@israel_apartments", "@isra_home_arenda",
+    "@tlvapartments", "@haifa_arenda", "@israel_rent_haifa",
+    "@sapirrent", "@brodsky_apartments", "@israelrealestate",
+    "@Israel_arenda", "@snyat_kvartiruy", "@fishytlv",
+    "@ambery_longrent_telaviv", "@aptfornew",
+}
+
+
+def classify_seller_type(listing: dict) -> str:
+    """
+    Keyword-based classification of a listing as 'agent' or 'private'.
+
+    Priority:
+      1. Known agent Telegram channel contact  → 'agent' (highest priority)
+      2. Explicit agent keywords in text       → 'agent'
+      3. Private keywords in title+description → 'private'
+      4. Default                               → 'private' (assume private if unknown)
+
+    Known agent channels take top priority because their text may mention
+    "без посредника" / "without commission" when REPORTING about listings found,
+    which would otherwise trigger the private keyword classifier incorrectly.
+
+    Returns 'private' or 'agent'.
+    """
+    # 1. Known agent channels — highest priority
+    contact = (listing.get("contact") or "").strip().lower()
+    if contact in {c.lower() for c in _KNOWN_AGENT_CHANNELS}:
+        return "agent"
+
+    text = " ".join(filter(None, [
+        listing.get("title", "") or "",
+        listing.get("description", "") or "",
+    ])).lower()
+
+    # 2. Explicit agent keywords in text
+    if _AGENT_PATTERNS.search(text):
+        return "agent"
+
+    # 3. Private owner signals
+    if _PRIVATE_PATTERNS.search(text):
+        return "private"
+
+    # 4. Default: assume private (better UX — don't hide from private filter)
+    return "private"
+
+
 def add_to_agents(phone: str, db_data: dict) -> dict:
     """Добавить номер в таблицу агентов вручную."""
     db_data = _ensure_classifier_tables(db_data)

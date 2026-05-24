@@ -150,6 +150,19 @@ def with_photos_keyboard(ctx):
     ])
 
 
+def owner_type_keyboard(ctx):
+    lang = get_lang(ctx)
+    private = {"ru": "👤 Только частники", "en": "👤 Private only", "he": "👤 פרטיים בלבד", "fr": "👤 Particuliers seulement"}.get(lang, "👤 Private only")
+    agent   = {"ru": "🏢 Только агенты",   "en": "🏢 Agents only",  "he": "🏢 סוכנים בלבד", "fr": "🏢 Agents seulement"}.get(lang, "🏢 Agents only")
+    any_    = {"ru": "🔄 Не важно",        "en": "🔄 Any",          "he": "🔄 לא משנה",       "fr": "🔄 Peu importe"}.get(lang, "🔄 Any")
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(private, callback_data="owner_private"),
+         InlineKeyboardButton(agent,   callback_data="owner_agent")],
+        [InlineKeyboardButton(any_,    callback_data="owner_any")],
+        [InlineKeyboardButton(t("btn_back", ctx), callback_data="back")],
+    ])
+
+
 def infrastructure_keyboard(ctx,selected=None):
     if selected is None: selected=[]
     lang=get_lang(ctx)

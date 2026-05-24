@@ -180,6 +180,11 @@ def format_search_summary(filters: dict, ctx) -> str:
         lines.append(_tr("sum_infra", val=", ".join([get_infra_name(k,lang) for k in filters["infrastructure"]])))
     if filters.get("with_photos"):
         lines.append(_tr("sum_with_photos"))
+    seller_type = filters.get("seller_type")
+    if seller_type == "private":
+        lines.append(_tr("sum_owner_private"))
+    elif seller_type == "agent":
+        lines.append(_tr("sum_owner_agent"))
     if len(lines)==1: lines.append(_tr("sum_all"))
     return "\n".join(lines)
 

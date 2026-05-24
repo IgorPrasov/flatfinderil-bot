@@ -122,6 +122,7 @@ def _init_db():
             cur.execute(sql)
     log.info("PostgreSQL schema initialised.")
     _migrate_sublet_deal_type()
+    _migrate_seller_type()
 
 
 def _migrate_sublet_deal_type():
@@ -143,6 +144,47 @@ def _migrate_sublet_deal_type():
             log.info(f"[MIGRATE] Reclassified {updated} listings as sublet")
     except Exception as e:
         log.warning(f"[MIGRATE] sublet migration failed: {e}")
+
+
+def _migrate_seller_type():
+    """Classify existing listings as 'agent' or 'private' based on content + channel."""
+    try:
+        from classifier import classify_seller_type
+        with _conn() as c:
+            with c.cursor() as cur:
+                # Add column if missing (idempotent)
+                cur.execute("""
+                    ALTER TABLE listings
+                    ADD COLUMN IF NOT EXISTS seller_type VARCHAR(20)
+                """)
+                # Fetch only unclassified listings
+                cur.execute("""
+                    SELECT id, title, description, contact
+                    FROM listings
+                    WHERE seller_type IS NULL
+                    LIMIT 2000
+                """)
+                rows = cur.fetchall()
+                if not rows:
+                    return
+                updated = 0
+                for row in rows:
+                    listing = {
+                        "id": row["id"],
+                        "title": row["title"] or "",
+                        "description": row["description"] or "",
+                        "contact": row["contact"] or "",
+                    }
+                    st = classify_seller_type(listing)
+                    cur.execute(
+                        "UPDATE listings SET seller_type = %s WHERE id = %s",
+                        (st, row["id"]),
+                    )
+                    updated += 1
+        if updated:
+            log.info(f"[MIGRATE] Classified {updated} listings with seller_type")
+    except Exception as e:
+        log.warning(f"[MIGRATE] seller_type migration failed: {e}")
 
 
 def _cleanup_seeking_listings():
@@ -266,7 +308,13 @@ def add_listing(listing_data: Dict, skip_dedup: bool = False) -> int:
             listing_data.setdefault("views", 0)
             listing_data.setdefault("view_requests", 0)
             listing_data.setdefault("poster_type", "unknown")
-            listing_data.setdefault("seller_type", "private")
+            # Auto-classify seller_type if not already set
+            if not listing_data.get("seller_type"):
+                try:
+                    from classifier import classify_seller_type
+                    listing_data["seller_type"] = classify_seller_type(listing_data)
+                except Exception:
+                    listing_data.setdefault("seller_type", "private")
 
             # Known scalar columns
             cols = {
@@ -587,6 +635,11 @@ def search_listings(filters: Dict, limit: int = 200) -> List[Dict]:
 
     if filters.get("with_photos"):
         clauses.append("jsonb_array_length(photos) > 0")
+
+    seller_type = filters.get("seller_type")
+    if seller_type in ("private", "agent"):
+        clauses.append("seller_type = %s")
+        params.append(seller_type)
 
     # Exclude "looking for apartment" posts regardless of active status
     # PostgreSQL POSIX regex: \s and \d are supported in PG14+, but \b = backspace (NOT word boundary).
