@@ -123,6 +123,48 @@ def _init_db():
     log.info("PostgreSQL schema initialised.")
     _migrate_sublet_deal_type()
     _migrate_seller_type()
+    _grant_bonus_by_username("anastasiavaar", days=5)
+
+
+def _grant_bonus_by_username(username: str, days: int):
+    """One-time: find user by username and grant bonus days if not already granted."""
+    try:
+        with _conn() as c:
+            with c.cursor() as cur:
+                # Find user_id by username (case-insensitive)
+                cur.execute(
+                    "SELECT user_id FROM bot_users WHERE LOWER(username) = LOWER(%s) LIMIT 1",
+                    (username,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    log.info(f"[GRANT] @{username} not found in bot_users yet — skipping")
+                    return
+                user_id = row["user_id"]
+                # Check if already has bonus_expiry in future
+                cur.execute(
+                    "SELECT bonus_expiry FROM user_meta WHERE user_id = %s",
+                    (user_id,)
+                )
+                meta = cur.fetchone()
+                from datetime import datetime, timezone
+                now = datetime.now(tz=timezone.utc)
+                if meta and meta["bonus_expiry"] and meta["bonus_expiry"] > now:
+                    log.info(f"[GRANT] @{username} already has bonus until {meta['bonus_expiry']} — skip")
+                    return
+                # Grant bonus
+                cur.execute("""
+                    INSERT INTO user_meta (user_id, bonus_expiry)
+                    VALUES (%s, NOW() + %s * INTERVAL '1 day')
+                    ON CONFLICT (user_id) DO UPDATE
+                      SET bonus_expiry = COALESCE(
+                            GREATEST(user_meta.bonus_expiry, NOW()),
+                            NOW()
+                          ) + %s * INTERVAL '1 day'
+                """, (user_id, days, days))
+        log.info(f"[GRANT] ✅ Granted {days} bonus days to @{username} (uid={user_id})")
+    except Exception as e:
+        log.warning(f"[GRANT] Failed to grant bonus to @{username}: {e}")
 
 
 def _migrate_sublet_deal_type():
