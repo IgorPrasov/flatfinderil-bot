@@ -1427,6 +1427,64 @@ async def cmd_testpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def cmd_grant(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Grant bonus days to a user by @username (admin only).
+    Usage: /grant @username [days]   — default 5 days.
+    Example: /grant @anastasiavaar 5
+    """
+    user = update.effective_user
+    if not user or (user.username or "").lower() not in {u.lower() for u in ADMIN_USERNAMES}:
+        await update.message.reply_text("⛔ Нет доступа.")
+        return
+
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(
+            "Использование: <code>/grant @username [days]</code>\n"
+            "Пример: <code>/grant @anastasiavaar 5</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    target_username = args[0].lstrip("@").strip()
+    try:
+        days = int(args[1]) if len(args) > 1 else 5
+    except ValueError:
+        days = 5
+
+    # Look up user_id by username in bot_users table
+    target_id = None
+    try:
+        users_list = db.get_all_bot_users(limit=5000)
+        for u in users_list:
+            if (u.get("username") or "").lower() == target_username.lower():
+                target_id = u["user_id"]
+                break
+    except Exception as e:
+        logger.error(f"[GRANT] Error looking up username: {e}")
+
+    if not target_id:
+        await update.message.reply_text(
+            f"❌ Пользователь @{target_username} не найден в базе.\n"
+            "Пользователь должен был хотя бы раз запустить бота (/start).",
+        )
+        return
+
+    try:
+        db.add_bonus_days(target_id, days)
+        from datetime import datetime, timedelta, timezone
+        expiry = (datetime.now(tz=timezone.utc) + timedelta(days=days)).strftime("%d.%m.%Y")
+        await update.message.reply_text(
+            f"✅ Пользователю @{target_username} (id={target_id}) добавлено <b>{days} дней</b> доступа.\n"
+            f"Действует до: <b>{expiry}</b>",
+            parse_mode="HTML",
+        )
+        logger.info(f"[GRANT] admin={user.username} → @{target_username}({target_id}) +{days}d")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
+        logger.error(f"[GRANT] Failed to add bonus days: {e}")
+
+
 # ── Card payment handler — registered at group=-1 (highest priority) ──────────
 # Runs BEFORE any ConversationHandler so it works even mid-conversation.
 

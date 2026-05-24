@@ -11,7 +11,7 @@ from handlers import (
     refer_command, handle_edit_text,
     handle_pre_checkout, handle_successful_payment,
     handle_stars_invoice,
-    cmd_testpay,
+    cmd_testpay, cmd_grant,
 )
 from search_handler import SearchHandler
 from listing_handler import ListingHandler
@@ -286,6 +286,7 @@ def main():
     app.add_handler(get_alert_handler())
     app.add_handler(get_lead_handler())
     app.add_handler(CommandHandler("reply", admin_reply_cmd))
+    app.add_handler(CommandHandler("grant", cmd_grant))
     # Alert standalone callbacks
     app.add_handler(CallbackQueryHandler(show_alerts_menu,      pattern="^alerts_menu$"))
     app.add_handler(CallbackQueryHandler(handle_alert_subscribe, pattern="^alert_subscribe$"))
