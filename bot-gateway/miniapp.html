@@ -144,6 +144,18 @@
     .btn-full { width: 100%; }
     .btn-icon { background: transparent; border: 1px solid var(--border); color: var(--text2); }
 
+    /* ── Infrastructure chips ─────────────────────────────────────────────── */
+    .chip-label {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 10px; font-size: 12px;
+      cursor: pointer; transition: all .15s; user-select: none;
+    }
+    .chip-label:has(input:checked) {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+    .chip-label input[type=checkbox] { display: none; }
+
     /* ── Cards ────────────────────────────────────────────────────────────── */
     .card {
       background: var(--card);
@@ -463,54 +475,91 @@
           <div class="form-group">
             <label data-i18n="deal_type">Тип сделки</label>
             <select id="f-deal">
-              <option value="" data-i18n="any">Любой</option>
-              <option value="rent" data-i18n="rent">Аренда</option>
-              <option value="buy" data-i18n="buy">Покупка</option>
+              <option value="">Любой</option>
+              <option value="rent">Аренда</option>
+              <option value="buy">Покупка</option>
+              <option value="sublet">Саблет</option>
             </select>
           </div>
           <div class="form-group">
-            <label data-i18n="city">Город</label>
+            <label>Город</label>
             <select id="f-city">
-              <option value="" data-i18n="any">Любой</option>
-              <option>Tel Aviv</option>
-              <option>Haifa</option>
-              <option>Jerusalem</option>
-              <option>Netanya</option>
-              <option>Ashdod</option>
-              <option>Ashkelon</option>
-              <option>Bat Yam</option>
-              <option>Holon</option>
-              <option>Rishon</option>
-              <option>Ramat Gan</option>
-              <option>Herzliya</option>
-              <option>Nahariya</option>
-              <option>Beersheba</option>
-              <option>Eilat</option>
+              <option value="">Любой</option>
+              <option>Бат-Ям</option>
+              <option>Хайфа</option>
+              <option>Тель-Авив</option>
+              <option>Нагария</option>
+              <option>Ашкелон</option>
+              <option>Ашдод</option>
+              <option>Рамат-Ган</option>
+              <option>Нетания</option>
+              <option>Иерусалим</option>
+              <option>Ришон-ле-Цион</option>
+              <option>Холон</option>
+              <option>Петах-Тиква</option>
+              <option>Герцлия</option>
+              <option>Акко</option>
+              <option>Эйлат</option>
+              <option>Реховот</option>
+              <option>Беэр-Шева</option>
+              <option>Тверия</option>
+              <option>Кармиэль</option>
             </select>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label data-i18n="rooms_min">Комнат (от)</label>
-            <input type="number" id="f-rooms-min" min="1" max="10" placeholder="1">
+            <label>Комнат (от)</label>
+            <select id="f-rooms-min">
+              <option value="">—</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5+</option>
+            </select>
           </div>
           <div class="form-group">
-            <label data-i18n="rooms_max">Комнат (до)</label>
-            <input type="number" id="f-rooms-max" min="1" max="10" placeholder="5">
+            <label>Комнат (до)</label>
+            <select id="f-rooms-max">
+              <option value="">—</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="7">7+</option>
+            </select>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label data-i18n="price_min">Цена (от) ₪</label>
+            <label>Цена (от) ₪</label>
             <input type="number" id="f-price-min" min="0" placeholder="0">
           </div>
           <div class="form-group">
-            <label data-i18n="price_max">Цена (до) ₪</label>
+            <label>Цена (до) ₪</label>
             <input type="number" id="f-price-max" min="0" placeholder="50000">
           </div>
         </div>
-        <button class="btn btn-primary btn-full" onclick="doSearch()" id="search-btn">
-          <span>🔍</span> <span data-i18n="search_btn">Найти</span>
+
+        <!-- Infrastructure filter -->
+        <div class="form-group" style="margin-top:4px">
+          <label>🏙 Инфраструктура</label>
+          <div id="infra-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+            <label class="chip-label"><input type="checkbox" value="transport" class="infra-cb"> 🚌 Транспорт</label>
+            <label class="chip-label"><input type="checkbox" value="park" class="infra-cb"> 🌳 Парк</label>
+            <label class="chip-label"><input type="checkbox" value="beach" class="infra-cb"> 🏖 Пляж</label>
+            <label class="chip-label"><input type="checkbox" value="school" class="infra-cb"> 🏫 Школа</label>
+            <label class="chip-label"><input type="checkbox" value="kindergarten" class="infra-cb"> 🧒 Детсад</label>
+            <label class="chip-label"><input type="checkbox" value="mall" class="infra-cb"> 🛍 Торг. центр</label>
+            <label class="chip-label"><input type="checkbox" value="gym" class="infra-cb"> 💪 Спортзал</label>
+            <label class="chip-label"><input type="checkbox" value="restaurant" class="infra-cb"> 🍽 Рестораны</label>
+            <label class="chip-label"><input type="checkbox" value="hospital" class="infra-cb"> 🏥 Больница</label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="doSearch()" id="search-btn" style="margin-top:12px">
+          <span>🔍</span> Найти
         </button>
       </div>
 
@@ -523,12 +572,12 @@
     <section id="tab-map" class="tab">
       <div id="map-controls">
         <select id="map-city-filter" onchange="filterMapMarkers()">
-          <option value="" data-i18n="all_cities">Все города</option>
-          <option>Tel Aviv</option><option>Haifa</option><option>Jerusalem</option>
-          <option>Netanya</option><option>Ashdod</option><option>Ashkelon</option>
-          <option>Bat Yam</option><option>Holon</option><option>Rishon</option>
-          <option>Ramat Gan</option><option>Herzliya</option><option>Nahariya</option>
-          <option>Beersheba</option><option>Eilat</option>
+          <option value="">Все города</option>
+          <option>Бат-Ям</option><option>Хайфа</option><option>Тель-Авив</option>
+          <option>Нагария</option><option>Ашкелон</option><option>Ашдод</option>
+          <option>Рамат-Ган</option><option>Нетания</option><option>Иерусалим</option>
+          <option>Ришон-ле-Цион</option><option>Холон</option><option>Петах-Тиква</option>
+          <option>Герцлия</option><option>Акко</option><option>Эйлат</option>
         </select>
         <button class="btn btn-secondary btn-sm" onclick="refreshMap()" title="Обновить">↻</button>
       </div>
@@ -1065,22 +1114,30 @@ async function doSearch() {
   const btn = document.getElementById("search-btn");
   btn.disabled = true;
 
+  // Collect infrastructure checkboxes
+  const infraChecked = [...document.querySelectorAll(".infra-cb:checked")]
+    .map(cb => cb.value);
+
   const filters = {
     deal_type: document.getElementById("f-deal").value,
-    city: document.getElementById("f-city").value,
+    city:      document.getElementById("f-city").value,
     rooms_min: document.getElementById("f-rooms-min").value,
     rooms_max: document.getElementById("f-rooms-max").value,
     price_min: document.getElementById("f-price-min").value,
     price_max: document.getElementById("f-price-max").value,
   };
-  STATE.lastFilters = { ...filters };
+  STATE.lastFilters = { ...filters, infrastructure: infraChecked };
 
   // Build query string — skip empty / "any" values
   const SKIP_VALS = ["", "any", "all", null, undefined];
-  const qs = Object.entries(filters)
+  const params = Object.entries(filters)
     .filter(([, v]) => !SKIP_VALS.includes(v))
-    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
-    .join("&");
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`);
+
+  // Infrastructure: repeat param for each value → infrastructure=park&infrastructure=transport
+  infraChecked.forEach(v => params.push(`infrastructure=${encodeURIComponent(v)}`));
+
+  const qs = params.join("&");
 
   const area = document.getElementById("results-area");
   area.innerHTML = `<div class="spinner"></div>`;
