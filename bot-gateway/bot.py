@@ -1888,6 +1888,13 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             return self._handle_backoffice("GET", path)
 
         if path == "/analytics":
+            # Require token for internal analytics endpoint
+            _token = os.environ.get("DASHBOARD_TOKEN", "")
+            if _token:
+                qs_check = parse_qs(parsed.query)
+                given_token = (qs_check.get("token") or [""])[0]
+                if given_token != _token:
+                    return self._send_json({"error": "Forbidden"}, 403)
             qs = parse_qs(parsed.query)
             date_from = (qs.get("from") or [None])[0]
             date_to   = (qs.get("to")   or [None])[0]
@@ -2081,8 +2088,29 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
             self.end_headers()
             self.wfile.write(body)
 
-        else:
+        elif path == "/internal/dashboard":
+            # Dashboard protected by secret token — internal use only
+            _token = os.environ.get("DASHBOARD_TOKEN", "")
+            qs = parse_qs(parsed.query)
+            given = (qs.get("token") or [""])[0]
+            if not _token or given != _token:
+                body = b"403 Forbidden"
+                self.send_response(403)
+                self.send_header("Content-Type", "text/plain")
+                self.send_header("Content-Length", len(body))
+                self.end_headers()
+                self.wfile.write(body)
+                return
             self._send_html(DASHBOARD_FILE)
+
+        else:
+            # Unknown route — return 404 (dashboard no longer exposed publicly)
+            body = b"Not found"
+            self.send_response(404)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
 
     def do_POST(self):
         path = urlparse(self.path).path
