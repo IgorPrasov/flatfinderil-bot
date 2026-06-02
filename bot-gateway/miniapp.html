@@ -474,17 +474,17 @@
         <div class="form-row">
           <div class="form-group">
             <label data-i18n="deal_type">Тип сделки</label>
-            <select id="f-deal">
-              <option value="">Любой</option>
-              <option value="rent">Аренда</option>
-              <option value="buy">Покупка</option>
-              <option value="sublet">Саблет</option>
+            <select id="f-deal" data-i18n-sel="1">
+              <option value="" data-i18n="any">Любой</option>
+              <option value="rent" data-i18n="rent">Аренда</option>
+              <option value="buy" data-i18n="buy">Покупка</option>
+              <option value="sublet" data-i18n="sublet">Саблет</option>
             </select>
           </div>
           <div class="form-group">
-            <label>Город</label>
-            <select id="f-city">
-              <option value="">Любой</option>
+            <label data-i18n="city">Город</label>
+            <select id="f-city" data-i18n-sel="1">
+              <option value="" data-i18n="any">Любой</option>
               <option>Бат-Ям</option>
               <option>Хайфа</option>
               <option>Тель-Авив</option>
@@ -509,7 +509,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Комнат (от)</label>
+            <label data-i18n="rooms_label_from">Комнат (от)</label>
             <select id="f-rooms-min">
               <option value="">—</option>
               <option value="1">1</option>
@@ -520,7 +520,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label>Комнат (до)</label>
+            <label data-i18n="rooms_label_to">Комнат (до)</label>
             <select id="f-rooms-max">
               <option value="">—</option>
               <option value="2">2</option>
@@ -533,33 +533,33 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Цена (от) ₪</label>
+            <label data-i18n="price_label_from">Цена (от) ₪</label>
             <input type="number" id="f-price-min" min="0" placeholder="0">
           </div>
           <div class="form-group">
-            <label>Цена (до) ₪</label>
+            <label data-i18n="price_label_to">Цена (до) ₪</label>
             <input type="number" id="f-price-max" min="0" placeholder="50000">
           </div>
         </div>
 
         <!-- Infrastructure filter -->
         <div class="form-group" style="margin-top:4px">
-          <label>🏙 Инфраструктура</label>
+          <label data-i18n="infra_label">🏙 Инфраструктура</label>
           <div id="infra-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
-            <label class="chip-label"><input type="checkbox" value="transport" class="infra-cb"> 🚌 Транспорт</label>
-            <label class="chip-label"><input type="checkbox" value="park" class="infra-cb"> 🌳 Парк</label>
-            <label class="chip-label"><input type="checkbox" value="beach" class="infra-cb"> 🏖 Пляж</label>
-            <label class="chip-label"><input type="checkbox" value="school" class="infra-cb"> 🏫 Школа</label>
-            <label class="chip-label"><input type="checkbox" value="kindergarten" class="infra-cb"> 🧒 Детсад</label>
-            <label class="chip-label"><input type="checkbox" value="mall" class="infra-cb"> 🛍 Торг. центр</label>
-            <label class="chip-label"><input type="checkbox" value="gym" class="infra-cb"> 💪 Спортзал</label>
-            <label class="chip-label"><input type="checkbox" value="restaurant" class="infra-cb"> 🍽 Рестораны</label>
-            <label class="chip-label"><input type="checkbox" value="hospital" class="infra-cb"> 🏥 Больница</label>
+            <label class="chip-label"><input type="checkbox" value="transport" class="infra-cb"><span data-i18n="infra_transport">🚌 Транспорт</span></label>
+            <label class="chip-label"><input type="checkbox" value="park" class="infra-cb"><span data-i18n="infra_park">🌳 Парк</span></label>
+            <label class="chip-label"><input type="checkbox" value="beach" class="infra-cb"><span data-i18n="infra_beach">🏖 Пляж</span></label>
+            <label class="chip-label"><input type="checkbox" value="school" class="infra-cb"><span data-i18n="infra_school">🏫 Школа</span></label>
+            <label class="chip-label"><input type="checkbox" value="kindergarten" class="infra-cb"><span data-i18n="infra_kindergarten">🧒 Детсад</span></label>
+            <label class="chip-label"><input type="checkbox" value="mall" class="infra-cb"><span data-i18n="infra_mall">🛍 Торг. центр</span></label>
+            <label class="chip-label"><input type="checkbox" value="gym" class="infra-cb"><span data-i18n="infra_gym">💪 Спортзал</span></label>
+            <label class="chip-label"><input type="checkbox" value="restaurant" class="infra-cb"><span data-i18n="infra_restaurant">🍽 Рестораны</span></label>
+            <label class="chip-label"><input type="checkbox" value="hospital" class="infra-cb"><span data-i18n="infra_hospital">🏥 Больница</span></label>
           </div>
         </div>
 
         <button class="btn btn-primary btn-full" onclick="doSearch()" id="search-btn" style="margin-top:12px">
-          <span>🔍</span> Найти
+          <span>🔍</span> <span data-i18n="search_btn">Найти</span>
         </button>
       </div>
 
@@ -795,6 +795,21 @@ const I18N = {
     auth_required: "Требуется авторизация",
     auth_hint: "Откройте приложение через Telegram",
     error_generic: "Что-то пошло не так",
+    sublet: "Саблет",
+    infra_label: "🏙 Инфраструктура",
+    infra_transport: "🚌 Транспорт",
+    infra_park: "🌳 Парк",
+    infra_beach: "🏖 Пляж",
+    infra_school: "🏫 Школа",
+    infra_kindergarten: "🧒 Детсад",
+    infra_mall: "🛍 Торг. центр",
+    infra_gym: "💪 Спортзал",
+    infra_restaurant: "🍽 Рестораны",
+    infra_hospital: "🏥 Больница",
+    rooms_label_from: "Комнат (от)",
+    rooms_label_to: "Комнат (до)",
+    price_label_from: "Цена (от) ₪",
+    price_label_to: "Цена (до) ₪",
   },
   en: {
     search_title: "Search",
@@ -868,6 +883,21 @@ const I18N = {
     auth_required: "Auth required",
     auth_hint: "Open through Telegram",
     error_generic: "Something went wrong",
+    sublet: "Sublet",
+    infra_label: "🏙 Infrastructure",
+    infra_transport: "🚌 Transport",
+    infra_park: "🌳 Park",
+    infra_beach: "🏖 Beach",
+    infra_school: "🏫 School",
+    infra_kindergarten: "🧒 Kindergarten",
+    infra_mall: "🛍 Shopping mall",
+    infra_gym: "💪 Gym",
+    infra_restaurant: "🍽 Restaurants",
+    infra_hospital: "🏥 Hospital",
+    rooms_label_from: "Rooms (min)",
+    rooms_label_to: "Rooms (max)",
+    price_label_from: "Price (min) ₪",
+    price_label_to: "Price (max) ₪",
   },
   he: {
     search_title: "חיפוש",
@@ -941,6 +971,21 @@ const I18N = {
     auth_required: "נדרשת אימות",
     auth_hint: "פתח דרך טלגרם",
     error_generic: "משהו השתבש",
+    sublet: "סאבלט",
+    infra_label: "🏙 תשתיות",
+    infra_transport: "🚌 תחבורה",
+    infra_park: "🌳 פארק",
+    infra_beach: "🏖 חוף",
+    infra_school: "🏫 בית ספר",
+    infra_kindergarten: "🧒 גן ילדים",
+    infra_mall: "🛍 קניון",
+    infra_gym: "💪 חדר כושר",
+    infra_restaurant: "🍽 מסעדות",
+    infra_hospital: "🏥 בית חולים",
+    rooms_label_from: "חדרים (מ-)",
+    rooms_label_to: "חדרים (עד)",
+    price_label_from: "מחיר (מ-) ₪",
+    price_label_to: "מחיר (עד) ₪",
   },
 };
 
@@ -997,6 +1042,16 @@ function applyI18n() {
   document.querySelectorAll("[data-i18n]").forEach(el => {
     const key = el.getAttribute("data-i18n");
     el.textContent = t(key);
+  });
+  // Placeholders
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+    el.placeholder = t(el.getAttribute("data-i18n-ph"));
+  });
+  // Select <option> inside elements with data-i18n-sel
+  document.querySelectorAll("select[data-i18n-sel]").forEach(sel => {
+    sel.querySelectorAll("option[data-i18n]").forEach(opt => {
+      opt.textContent = t(opt.getAttribute("data-i18n"));
+    });
   });
 }
 
