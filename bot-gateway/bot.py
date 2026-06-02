@@ -2072,8 +2072,8 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 self.end_headers()
                 self.wfile.write(body)
 
-        elif path in ("/miniapp", "/app", "/miniapp/"):
-            # Serve the Telegram Mini App HTML
+        elif path in ("/", "/miniapp", "/app", "/miniapp/"):
+            # Root and /miniapp both serve the Mini App
             self._send_html(MINIAPP_FILE)
 
         elif path.startswith("/api/miniapp/"):
