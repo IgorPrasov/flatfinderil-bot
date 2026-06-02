@@ -8,7 +8,7 @@ from telegram.ext import (
 from config import BOT_TOKEN
 from handlers import (
     start, handle_menu, my_listings, handle_unknown, agent_cabinet,
-    refer_command, handle_edit_text,
+    refer_command, show_referral_callback, handle_edit_text,
     handle_pre_checkout, handle_successful_payment,
     handle_stars_invoice,
     cmd_testpay, cmd_grant,
@@ -310,6 +310,7 @@ def main():
     app.add_handler(CommandHandler("help", handle_unknown))
     app.add_handler(CommandHandler("cabinet", agent_cabinet))
     app.add_handler(CommandHandler("refer", refer_command))
+    app.add_handler(CallbackQueryHandler(show_referral_callback, pattern="^show_referral$"))
     app.add_handler(CommandHandler("testemail", cmd_testemail))
     app.add_handler(CommandHandler("testpay", cmd_testpay))
     app.add_handler(CommandHandler("digest", cmd_digest))
@@ -410,6 +411,13 @@ def main():
         logger.info("Lead trigger checker started")
     except Exception as _e:
         logger.warning(f"Lead checker not started: {_e}")
+
+    # Start subscription campaigner (day3/day7/day14 upsell messages)
+    try:
+        from subscription_campaigner import start_campaign_loop
+        start_campaign_loop(app.bot)
+    except Exception as _e:
+        logger.warning(f"Subscription campaigner not started: {_e}")
 
     # Start Facebook parser if cookies are configured (env var OR database)
     if os.environ.get("FB_COOKIES_JSON"):

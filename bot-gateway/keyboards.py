@@ -35,13 +35,14 @@ def main_menu_keyboard(ctx):
     rent_label   = {"ru": "🔑 Аренда", "en": "🔑 Rent",   "he": "🔑 שכירות",  "fr": "🔑 Location"}.get(lang, "🔑 Аренда")
     sublet_label = {"ru": "🔄 Саблет", "en": "🔄 Sublet", "he": "🔄 סאבלט",   "fr": "🔄 Sous-loc"}.get(lang, "🔄 Саблет")
     buy_label    = {"ru": "🏦 Купить", "en": "🏦 Buy",    "he": "🏦 קנייה",   "fr": "🏦 Acheter"}.get(lang, "🏦 Купить")
+    refer_label = {"ru": "🎁 Пригласить друга", "en": "🎁 Invite friend", "he": "🎁 הזמן חבר", "fr": "🎁 Inviter un ami"}.get(lang, "🎁 Пригласить друга")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(rent_label, callback_data="search_rent"), InlineKeyboardButton(sublet_label, callback_data="search_sublet"), InlineKeyboardButton(buy_label, callback_data="search_buy")],
         [InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites"), InlineKeyboardButton(alerts_label, callback_data="alerts_menu")],
         [InlineKeyboardButton(t("btn_commercial", ctx), callback_data="commercial"), InlineKeyboardButton(svc_label, callback_data="services")],
         [InlineKeyboardButton(t("btn_my_listings", ctx), callback_data="my_listings"), InlineKeyboardButton(t("btn_add_listing", ctx), callback_data="add_listing")],
         [InlineKeyboardButton(t("btn_all_listings", ctx), callback_data="all_listings"), InlineKeyboardButton(t("btn_help", ctx), callback_data="help")],
-        [InlineKeyboardButton(sub_label, callback_data="subscription"), InlineKeyboardButton(t("btn_my_subscriptions", ctx), callback_data="my_subscriptions")],
+        [InlineKeyboardButton(sub_label, callback_data="subscription"), InlineKeyboardButton(refer_label, callback_data="show_referral")],
         [InlineKeyboardButton(t("btn_cabinet", ctx), callback_data="cabinet"), InlineKeyboardButton(t("btn_language", ctx), callback_data="choose_lang")],
         [InlineKeyboardButton(contact_label, callback_data="contact_admin"), InlineKeyboardButton(insta_label, url="https://www.instagram.com/flatfinderil/")],
     ])

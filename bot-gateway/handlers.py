@@ -1192,6 +1192,69 @@ async def refer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def show_referral_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Callback: кнопка 🎁 Пригласить друга из главного меню."""
+    query = update.callback_query
+    await query.answer()
+    lang = get_lang(context)
+    user_id = update.effective_user.id
+    bot_username = (await context.bot.get_me()).username
+    link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+    count = db.get_referral_count(user_id)
+    bonus_days = db.get_bonus_days(user_id)
+
+    invited_str = {
+        "ru": f"Приглашено друзей: <b>{count}</b>",
+        "en": f"Friends invited: <b>{count}</b>",
+        "he": f"חברים שהוזמנו: <b>{count}</b>",
+    }.get(lang, f"Invited: <b>{count}</b>")
+
+    bonus_str = ""
+    if bonus_days > 0:
+        bonus_str = {
+            "ru": f"\n🎁 Накоплено бонусных дней: <b>{bonus_days}</b>",
+            "en": f"\n🎁 Accumulated bonus days: <b>{bonus_days}</b>",
+            "he": f"\n🎁 ימי בונוס שנצברו: <b>{bonus_days}</b>",
+        }.get(lang, f"\n🎁 Bonus days: <b>{bonus_days}</b>")
+
+    text = {
+        "ru": (
+            "🎁 <b>Пригласи друга — получи +7 дней!</b>\n\n"
+            "За каждого друга, который зайдёт по твоей ссылке, "
+            "ты получаешь <b>+7 дней подписки</b> — и он тоже!\n\n"
+            f"🔗 Твоя ссылка:\n<code>{link}</code>\n\n"
+            f"📊 {invited_str}{bonus_str}"
+        ),
+        "en": (
+            "🎁 <b>Invite a friend — get +7 days!</b>\n\n"
+            "For each friend who joins via your link, "
+            "you both get <b>+7 days subscription!</b>\n\n"
+            f"🔗 Your link:\n<code>{link}</code>\n\n"
+            f"📊 {invited_str}{bonus_str}"
+        ),
+        "he": (
+            "🎁 <b>הזמן חבר — קבל +7 ימים!</b>\n\n"
+            "על כל חבר שמצטרף דרך הקישור שלך, "
+            "שניכם מקבלים <b>+7 ימי מנוי!</b>\n\n"
+            f"🔗 הקישור שלך:\n<code>{link}</code>\n\n"
+            f"📊 {invited_str}{bonus_str}"
+        ),
+    }.get(lang, "")
+
+    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+    share_text = {"ru": "📤 Поделиться ссылкой", "en": "📤 Share link", "he": "📤 שתף קישור"}.get(lang, "📤 Share")
+    sub_text   = {"ru": "💳 Подписаться",         "en": "💳 Subscribe",  "he": "💳 הירשם"}.get(lang, "💳 Subscribe")
+    back_text  = {"ru": "◀ Назад",                "en": "◀ Back",        "he": "◀ חזרה"}.get(lang, "◀ Back")
+    share_url  = f"https://t.me/share/url?url={link}&text=FlatFinderIL%20—%20поиск%20жилья%20в%20Израиле"
+
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton(share_text, url=share_url)],
+        [InlineKeyboardButton(sub_text, callback_data="subscription")],
+        [InlineKeyboardButton(back_text, callback_data="back_to_menu")],
+    ])
+    await query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+
+
 async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "lang" not in context.user_data:
         await update.message.reply_text(
