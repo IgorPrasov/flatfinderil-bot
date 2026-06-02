@@ -433,6 +433,83 @@ def handle_ai_search(body: dict) -> dict:
     return _ai_parse_query(query, lang)
 
 
+def handle_get_alerts(user_id: int) -> dict:
+    """Return user's active search alerts/subscriptions."""
+    import database_json as dbj
+    try:
+        subs = dbj.get_user_subscriptions(user_id)
+        return {"alerts": subs}
+    except Exception as e:
+        return {"alerts": [], "error": str(e)}
+
+
+def handle_create_alert(body: dict, user: Optional[dict]) -> dict:
+    """Create a new search alert from provided filters."""
+    import database_json as dbj
+    user_id = int(body.get("user_id", 0))
+    if not user_id and user:
+        user_id = user.get("id", 0)
+    if not user_id:
+        return {"error": "Missing user_id"}
+    filters = body.get("filters", {})
+    try:
+        sub_id = dbj.add_search_subscription(user_id, filters)
+        return {"ok": True, "id": sub_id}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def handle_delete_alert(alert_id: str, params: dict, user: Optional[dict]) -> dict:
+    """Delete a search alert by id."""
+    import database_json as dbj
+    user_id = int((params.get("user_id") or ["0"])[0])
+    if not user_id and user:
+        user_id = user.get("id", 0)
+    if not user_id:
+        return {"error": "Missing user_id"}
+    try:
+        # alert_id format is "{user_id}_{index}" — extract index
+        parts = str(alert_id).split("_")
+        if len(parts) >= 2:
+            sub_index = int(parts[-1])
+        else:
+            return {"error": "Invalid alert id format"}
+        dbj.remove_search_subscription(user_id, sub_index)
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def handle_contact_service(body: dict, user: Optional[dict]) -> dict:
+    """Register a contact lead for a service provider."""
+    service_id = body.get("service_id")
+    user_id = int(body.get("user_id", 0))
+    if not user_id and user:
+        user_id = user.get("id", 0)
+    message = body.get("message", "Запрос через Mini App")
+    if not service_id:
+        return {"error": "Missing service_id"}
+    try:
+        import database_json as dbj
+        # Try to use lead system if available
+        if hasattr(dbj, "add_service_lead"):
+            dbj.add_service_lead(service_id, user_id, message)
+        else:
+            # Fallback: log the contact as a viewing request
+            import database as db
+            data = db._load()
+            data.setdefault("service_contacts", []).append({
+                "service_id": service_id,
+                "user_id": user_id,
+                "message": message,
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            })
+            db._save(data)
+    except Exception:
+        pass  # Contact logging is best-effort
+    return {"ok": True}
+
+
 def handle_get_services(params: dict) -> dict:
     """Return service providers (movers, cleaning, packing, repairs)."""
     try:
@@ -521,8 +598,28 @@ def route(method: str, path: str, params: dict, body: dict, headers: dict) -> tu
     if method == "POST" and path == "/api/miniapp/ai-search":
         return handle_ai_search(body), 200
 
+    # GET /api/miniapp/alerts
+    if method == "GET" and path == "/api/miniapp/alerts":
+        uid = int((params.get("user_id") or ["0"])[0])
+        if not uid and user:
+            uid = user.get("id", 0)
+        return handle_get_alerts(uid), 200
+
+    # POST /api/miniapp/alerts
+    if method == "POST" and path == "/api/miniapp/alerts":
+        return handle_create_alert(body, user), 200
+
+    # DELETE /api/miniapp/alerts/<id>
+    if method == "DELETE" and path.startswith("/api/miniapp/alerts/"):
+        alert_id = path.split("/")[-1]
+        return handle_delete_alert(alert_id, params, user), 200
+
     # GET /api/miniapp/services
     if method == "GET" and path == "/api/miniapp/services":
         return handle_get_services(params), 200
+
+    # POST /api/miniapp/services/contact
+    if method == "POST" and path == "/api/miniapp/services/contact":
+        return handle_contact_service(body, user), 200
 
     return {"error": "Not found"}, 404

@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FlatFinderIL</title>
+
+  <!-- Telegram Mini App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #17212b;
+      --card:      #232e3c;
+      --card2:     #2b3a4d;
+      --accent:    #2563EB;
+      --accent2:   #1d4ed8;
+      --text:      #ffffff;
+      --text2:     #8a9bb0;
+      --danger:    #e53e3e;
+      --success:   #22c55e;
+      --border:    #2f3f52;
+      --tab-h:     60px;
+      --input-bg:  #1a2636;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      overscroll-behavior: none;
+    }
+
+    /* ── App shell ────────────────────────────────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    #content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 8px;
+    }
+
+    /* ── Tab sections ─────────────────────────────────────────────────────── */
+    section.tab {
+      display: none;
+      padding: 12px;
+      min-height: 100%;
+      animation: fadeIn 0.15s ease;
+    }
+    section.tab.active { display: block; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    /* ── Tab bar ──────────────────────────────────────────────────────────── */
+    #tabbar {
+      display: flex;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      height: var(--tab-h);
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      border: none;
+      background: transparent;
+      color: var(--text2);
+      font-size: 11px;
+      cursor: pointer;
+      padding: 6px 2px;
+      transition: color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn .icon { font-size: 20px; line-height: 1; }
+    .tab-btn.active { color: var(--accent); }
+
+    /* ── Form elements ────────────────────────────────────────────────────── */
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 14px;
+      appearance: none;
+      outline: none;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .form-row.single { grid-template-columns: 1fr; }
+    .form-row label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+    .form-group { display: flex; flex-direction: column; }
+
+    /* ── Buttons ──────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { opacity: 0.75; transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-secondary { background: var(--card2); color: var(--text); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
+    .btn-full { width: 100%; }
+    .btn-icon { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+
+    /* ── Cards ────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .listing-card .title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+    .listing-card .meta {
+      font-size: 13px;
+      color: var(--text2);
+      margin-bottom: 8px;
+    }
+    .listing-card .price {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    .listing-card .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .listing-card .btn-details { flex: 1; }
+    .btn-fav {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-fav.saved { color: #e53e3e; border-color: #e53e3e; }
+
+    /* ── Spinner / states ─────────────────────────────────────────────────── */
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 32px auto;
+      display: block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .state-box {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text2);
+    }
+    .state-box .icon { font-size: 40px; margin-bottom: 12px; }
+    .state-box p { margin-bottom: 16px; font-size: 14px; }
+
+    /* ── Page header ──────────────────────────────────────────────────────── */
+    .page-header {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Search tab ───────────────────────────────────────────────────────── */
+    #filters-panel {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 14px;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Map tab ──────────────────────────────────────────────────────────── */
+    #tab-map { padding: 0; }
+    #map-container {
+      position: relative;
+      height: calc(100vh - var(--tab-h) - 50px);
+      height: calc(100dvh - var(--tab-h) - 50px);
+    }
+    #map { width: 100%; height: 100%; }
+    #map-controls {
+      padding: 10px 12px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    #map-controls select { flex: 1; }
+    .map-popup-card {
+      background: var(--card);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px;
+      min-width: 200px;
+      font-size: 13px;
+    }
+    .map-popup-card .price { color: var(--accent); font-weight: 700; margin: 4px 0; }
+
+    /* ── Mortgage calculator ──────────────────────────────────────────────── */
+    .calc-result {
+      background: var(--card2);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 16px;
+      border: 1px solid var(--border);
+    }
+    .calc-result .monthly {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--accent);
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .calc-result .monthly-label {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text2);
+      margin-bottom: 14px;
+    }
+    .calc-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .calc-row:last-child { border-bottom: none; }
+    .calc-row .label { color: var(--text2); }
+    .calc-row .value { font-weight: 600; }
+    .affordability {
+      margin-top: 12px;
+      padding: 10px;
+      background: var(--card);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text2);
+      border-left: 3px solid var(--accent);
+      line-height: 1.5;
+    }
+
+    /* ── Alerts ───────────────────────────────────────────────────────────── */
+    .alert-chip {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .alert-chip .info { flex: 1; }
+    .alert-chip .info strong { display: block; margin-bottom: 4px; font-size: 14px; }
+    .alert-chip .info span { font-size: 12px; color: var(--text2); }
+
+    /* ── Services ─────────────────────────────────────────────────────────── */
+    .category-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .cat-btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cat-btn:active { background: var(--card2); }
+    .cat-btn.active { border-color: var(--accent); background: rgba(37,99,235,0.12); }
+    .cat-btn .cat-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+    .cat-btn .cat-name { font-size: 13px; font-weight: 600; }
+
+    .specialist-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+    .specialist-card .s-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .specialist-card .s-desc { font-size: 13px; color: var(--text2); margin-bottom: 6px; line-height: 1.4; }
+    .specialist-card .s-meta { font-size: 12px; color: var(--text2); margin-bottom: 10px; }
+    .specialist-card .s-meta span { margin-right: 10px; }
+
+    /* ── Toast ────────────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: calc(var(--tab-h) + 12px);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--card2);
+      color: var(--text);
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none;
+      z-index: 9999;
+      max-width: 90vw;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Modal overlay ────────────────────────────────────────────────────── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    #modal-overlay.open { display: flex; }
+    #modal-box {
+      background: var(--card);
+      border-radius: 16px 16px 0 0;
+      padding: 20px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    #modal-box h3 { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+    #modal-body .detail-photo {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      background: var(--card2);
+    }
+    #modal-body .detail-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    #modal-body .detail-price { font-size: 22px; font-weight: 800; color: var(--accent); margin-bottom: 10px; }
+    #modal-body .detail-meta { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 10px; }
+    #modal-body .detail-desc { font-size: 14px; line-height: 1.6; color: #cdd6e3; }
+    #modal-close {
+      width: 100%;
+      margin-top: 16px;
+    }
+
+    /* ── Badges ───────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-rent { background: rgba(37,99,235,0.2); color: #60a5fa; }
+    .badge-buy  { background: rgba(34,197,94,0.2);  color: #4ade80; }
+
+    /* ── Favorites empty ──────────────────────────────────────────────────── */
+    .fav-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+
+    /* ── RTL support ──────────────────────────────────────────────────────── */
+    html[lang="he"] { direction: rtl; }
+    html[lang="he"] .listing-card .actions { flex-direction: row-reverse; }
+    html[lang="he"] .alert-chip .info { text-align: right; }
+    html[lang="he"] .affordability { border-left: none; border-right: 3px solid var(--accent); }
+
+    /* ── Scrollbar ────────────────────────────────────────────────────────── */
+    #content::-webkit-scrollbar { width: 4px; }
+    #content::-webkit-scrollbar-track { background: transparent; }
+    #content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── Leaflet popup dark override ──────────────────────────────────────── */
+    .leaflet-popup-content-wrapper {
+      background: var(--card) !important;
+      color: var(--text) !important;
+      border: 1px solid var(--border) !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+    }
+    .leaflet-popup-tip { background: var(--card) !important; }
+    .leaflet-popup-close-button { color: var(--text2) !important; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Content area ──────────────────────────────────────────────────────── -->
+  <div id="content">
+
+    <!-- ── Tab 1: Search ───────────────────────────────────────────────────── -->
+    <section id="tab-search" class="tab active">
+      <div class="page-header"><span>🔍</span> <span data-i18n="search_title">Поиск</span></div>
+
+      <div id="filters-panel">
+        <div class="form-row">
+          <div class="form-group">
+            <label data-i18n="deal_type">Тип сделки</label>
+            <select id="f-deal">
+              <option value="" data-i18n="any">Любой</option>
+              <option value="rent" data-i18n="rent">Аренда</option>
+              <option value="buy" data-i18n="buy">Покупка</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label data-i18n="city">Город</label>
+            <select id="f-city">
+              <option value="" data-i18n="any">Любой</option>
+              <option>Tel Aviv</option>
+              <option>Haifa</option>
+              <option>Jerusalem</option>
+              <option>Netanya</option>
+              <option>Ashdod</option>
+              <option>Ashkelon</option>
+              <option>Bat Yam</option>
+              <option>Holon</option>
+              <option>Rishon</option>
+              <option>Ramat Gan</option>
+              <option>Herzliya</option>
+              <option>Nahariya</option>
+              <option>Beersheba</option>
+              <option>Eilat</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label data-i18n="rooms_min">Комнат (от)</label>
+            <input type="number" id="f-rooms-min" min="1" max="10" placeholder="1">
+          </div>
+          <div class="form-group">
+            <label data-i18n="rooms_max">Комнат (до)</label>
+            <input type="number" id="f-rooms-max" min="1" max="10" placeholder="5">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label data-i18n="price_min">Цена (от) ₪</label>
+            <input type="number" id="f-price-min" min="0" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label data-i18n="price_max">Цена (до) ₪</label>
+            <input type="number" id="f-price-max" min="0" placeholder="50000">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="doSearch()" id="search-btn">
+          <span>🔍</span> <span data-i18n="search_btn">Найти</span>
+        </button>
+      </div>
+
+      <div id="results-area">
+        <!-- Listings injected here -->
+      </div>
+    </section>
+
+    <!-- ── Tab 2: Map ──────────────────────────────────────────────────────── -->
+    <section id="tab-map" class="tab">
+      <div id="map-controls">
+        <select id="map-city-filter" onchange="filterMapMarkers()">
+          <option value="" data-i18n="all_cities">Все города</option>
+          <option>Tel Aviv</option><option>Haifa</option><option>Jerusalem</option>
+          <option>Netanya</option><option>Ashdod</option><option>Ashkelon</option>
+          <option>Bat Yam</option><option>Holon</option><option>Rishon</option>
+          <option>Ramat Gan</option><option>Herzliya</option><option>Nahariya</option>
+          <option>Beersheba</option><option>Eilat</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="refreshMap()" title="Обновить">↻</button>
+      </div>
+      <div id="map-container">
+        <div id="map"></div>
+      </div>
+    </section>
+
+    <!-- ── Tab 3: Favorites ────────────────────────────────────────────────── -->
+    <section id="tab-favorites" class="tab">
+      <div class="page-header"><span>❤️</span> <span data-i18n="fav_title">Избранное</span></div>
+      <div id="favorites-area">
+        <!-- Injected -->
+      </div>
+    </section>
+
+    <!-- ── Tab 4: Mortgage Calculator ─────────────────────────────────────── -->
+    <section id="tab-calc" class="tab">
+      <div class="page-header"><span>💰</span> <span data-i18n="calc_title">Ипотека</span></div>
+
+      <div class="card">
+        <div class="form-row single">
+          <div class="form-group">
+            <label data-i18n="property_price">Стоимость жилья ₪</label>
+            <input type="number" id="c-price" value="2000000" min="100000" step="50000">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label data-i18n="down_payment">Первый взнос %</label>
+            <input type="number" id="c-down" value="30" min="0" max="100">
+          </div>
+          <div class="form-group">
+            <label data-i18n="rate">Ставка % год.</label>
+            <input type="number" id="c-rate" value="4.5" min="0.1" max="30" step="0.1">
+          </div>
+        </div>
+        <div class="form-row single">
+          <div class="form-group">
+            <label data-i18n="years">Срок (лет)</label>
+            <input type="number" id="c-years" value="25" min="1" max="40">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="calcMortgage()">
+          <span>🧮</span> <span data-i18n="calc_btn">Рассчитать</span>
+        </button>
+      </div>
+
+      <div id="calc-result" class="calc-result" style="display:none"></div>
+    </section>
+
+    <!-- ── Tab 5: Alerts ───────────────────────────────────────────────────── -->
+    <section id="tab-alerts" class="tab">
+      <div class="page-header"><span>🔔</span> <span data-i18n="alerts_title">Алерты</span></div>
+      <div id="alerts-area">
+        <!-- Injected -->
+      </div>
+    </section>
+
+    <!-- ── Tab 6: Services ─────────────────────────────────────────────────── -->
+    <section id="tab-services" class="tab">
+      <div class="page-header"><span>🤝</span> <span data-i18n="services_title">Услуги</span></div>
+
+      <div class="category-grid" id="cat-grid">
+        <div class="cat-btn" onclick="loadServices('mortgage_broker')" data-cat="mortgage_broker">
+          <span class="cat-icon">💰</span>
+          <span class="cat-name" data-i18n="cat_broker">Брокеры</span>
+        </div>
+        <div class="cat-btn" onclick="loadServices('moving')" data-cat="moving">
+          <span class="cat-icon">🚚</span>
+          <span class="cat-name" data-i18n="cat_moving">Перевозки</span>
+        </div>
+        <div class="cat-btn" onclick="loadServices('cleaning')" data-cat="cleaning">
+          <span class="cat-icon">🧹</span>
+          <span class="cat-name" data-i18n="cat_cleaning">Клининг</span>
+        </div>
+        <div class="cat-btn" onclick="loadServices('packing')" data-cat="packing">
+          <span class="cat-icon">📦</span>
+          <span class="cat-name" data-i18n="cat_packing">Упаковка</span>
+        </div>
+        <div class="cat-btn" onclick="loadServices('repair')" data-cat="repair">
+          <span class="cat-icon">🔨</span>
+          <span class="cat-name" data-i18n="cat_repair">Ремонт</span>
+        </div>
+      </div>
+
+      <div id="services-area">
+        <!-- Specialists injected here -->
+      </div>
+    </section>
+
+  </div><!-- #content -->
+
+  <!-- ── Tab bar ──────────────────────────────────────────────────────────── -->
+  <nav id="tabbar">
+    <button class="tab-btn active" onclick="switchTab('search', this)">
+      <span class="icon">🔍</span>
+      <span data-i18n="tab_search">Поиск</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('map', this)">
+      <span class="icon">🗺️</span>
+      <span data-i18n="tab_map">Карта</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('favorites', this)">
+      <span class="icon">❤️</span>
+      <span data-i18n="tab_fav">Избранное</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('calc', this)">
+      <span class="icon">💰</span>
+      <span data-i18n="tab_calc">Ипотека</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('alerts', this)">
+      <span class="icon">🔔</span>
+      <span data-i18n="tab_alerts">Алерты</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('services', this)">
+      <span class="icon">🤝</span>
+      <span data-i18n="tab_services">Услуги</span>
+    </button>
+  </nav>
+
+</div><!-- #app -->
+
+<!-- ── Toast notification ────────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ── Detail modal ──────────────────────────────────────────────────────── -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal-box">
+    <h3 id="modal-title">Объявление</h3>
+    <div id="modal-body"></div>
+    <button class="btn btn-secondary btn-full" id="modal-close" onclick="closeModal()">✕ Закрыть</button>
+  </div>
+</div>
+
+<!-- ── Leaflet JS ─────────────────────────────────────────────────────────── -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// FLATFINDERIL MINI APP  —  vanilla JS, no build tools
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── i18n strings ──────────────────────────────────────────────────────────────
+const I18N = {
+  ru: {
+    search_title: "Поиск",
+    deal_type: "Тип сделки",
+    any: "Любой",
+    rent: "Аренда",
+    buy: "Покупка",
+    city: "Город",
+    rooms_min: "Комнат (от)",
+    rooms_max: "Комнат (до)",
+    price_min: "Цена (от) ₪",
+    price_max: "Цена (до) ₪",
+    search_btn: "Найти",
+    all_cities: "Все города",
+    fav_title: "Избранное",
+    calc_title: "Ипотека",
+    property_price: "Стоимость жилья ₪",
+    down_payment: "Первый взнос %",
+    rate: "Ставка % год.",
+    years: "Срок (лет)",
+    calc_btn: "Рассчитать",
+    alerts_title: "Алерты",
+    services_title: "Услуги",
+    tab_search: "Поиск",
+    tab_map: "Карта",
+    tab_fav: "Избранное",
+    tab_calc: "Ипотека",
+    tab_alerts: "Алерты",
+    tab_services: "Услуги",
+    cat_broker: "Брокеры",
+    cat_moving: "Перевозки",
+    cat_cleaning: "Клининг",
+    cat_packing: "Упаковка",
+    cat_repair: "Ремонт",
+    per_month: "/мес",
+    rooms: "комн.",
+    floor: "эт.",
+    details: "Подробнее",
+    loading: "Загрузка...",
+    no_results: "Ничего не найдено",
+    no_results_hint: "Попробуйте изменить фильтры",
+    retry: "Повторить",
+    no_favorites: "Нет избранных",
+    no_favorites_hint: "Сохраняйте понравившиеся объявления",
+    no_alerts: "Нет алертов",
+    no_alerts_hint: "Создайте алерт, чтобы получать уведомления о новых объявлениях",
+    create_alert: "Создать алерт",
+    delete: "Удалить",
+    contact: "Связаться",
+    contact_sent: "Запрос отправлен!",
+    contact_error: "Ошибка отправки",
+    monthly_payment: "Ежемесячный платёж",
+    total_interest: "Общие проценты",
+    total_paid: "Всего выплат",
+    loan_amount: "Сумма кредита",
+    affordability_title: "Рекомендуем:",
+    save_to_fav: "Сохранено в избранное",
+    removed_from_fav: "Убрано из избранного",
+    alert_created: "Алерт создан",
+    alert_deleted: "Алерт удалён",
+    area: "пл.",
+    sqm: "м²",
+    close: "Закрыть",
+    deal_rent: "Аренда",
+    deal_buy: "Покупка",
+    price_from: "от ₪",
+    specialists: "специалистов",
+    back: "← Назад",
+    no_services: "Специалисты не найдены",
+    no_services_hint: "Попробуйте другую категорию",
+    auth_required: "Требуется авторизация",
+    auth_hint: "Откройте приложение через Telegram",
+    error_generic: "Что-то пошло не так",
+  },
+  en: {
+    search_title: "Search",
+    deal_type: "Deal type",
+    any: "Any",
+    rent: "Rent",
+    buy: "Buy",
+    city: "City",
+    rooms_min: "Rooms (min)",
+    rooms_max: "Rooms (max)",
+    price_min: "Price (min) ₪",
+    price_max: "Price (max) ₪",
+    search_btn: "Search",
+    all_cities: "All cities",
+    fav_title: "Favorites",
+    calc_title: "Mortgage",
+    property_price: "Property price ₪",
+    down_payment: "Down payment %",
+    rate: "Annual rate %",
+    years: "Term (years)",
+    calc_btn: "Calculate",
+    alerts_title: "Alerts",
+    services_title: "Services",
+    tab_search: "Search",
+    tab_map: "Map",
+    tab_fav: "Favorites",
+    tab_calc: "Mortgage",
+    tab_alerts: "Alerts",
+    tab_services: "Services",
+    cat_broker: "Brokers",
+    cat_moving: "Moving",
+    cat_cleaning: "Cleaning",
+    cat_packing: "Packing",
+    cat_repair: "Repairs",
+    per_month: "/mo",
+    rooms: "rooms",
+    floor: "fl.",
+    details: "Details",
+    loading: "Loading...",
+    no_results: "Nothing found",
+    no_results_hint: "Try adjusting filters",
+    retry: "Retry",
+    no_favorites: "No favorites",
+    no_favorites_hint: "Save listings you like",
+    no_alerts: "No alerts",
+    no_alerts_hint: "Create an alert to get notified about new listings",
+    create_alert: "Create alert",
+    delete: "Delete",
+    contact: "Contact",
+    contact_sent: "Request sent!",
+    contact_error: "Send error",
+    monthly_payment: "Monthly payment",
+    total_interest: "Total interest",
+    total_paid: "Total paid",
+    loan_amount: "Loan amount",
+    affordability_title: "We recommend:",
+    save_to_fav: "Added to favorites",
+    removed_from_fav: "Removed from favorites",
+    alert_created: "Alert created",
+    alert_deleted: "Alert deleted",
+    area: "area",
+    sqm: "m²",
+    close: "Close",
+    deal_rent: "Rent",
+    deal_buy: "Buy",
+    price_from: "from ₪",
+    specialists: "specialists",
+    back: "← Back",
+    no_services: "No specialists found",
+    no_services_hint: "Try another category",
+    auth_required: "Auth required",
+    auth_hint: "Open through Telegram",
+    error_generic: "Something went wrong",
+  },
+  he: {
+    search_title: "חיפוש",
+    deal_type: "סוג עסקה",
+    any: "כל",
+    rent: "שכירות",
+    buy: "קנייה",
+    city: "עיר",
+    rooms_min: "חדרים (מ-)",
+    rooms_max: "חדרים (עד)",
+    price_min: "מחיר (מ-) ₪",
+    price_max: "מחיר (עד) ₪",
+    search_btn: "חפש",
+    all_cities: "כל הערים",
+    fav_title: "מועדפים",
+    calc_title: "משכנתה",
+    property_price: "מחיר נכס ₪",
+    down_payment: "הון עצמי %",
+    rate: "ריבית % שנתי",
+    years: "תקופה (שנים)",
+    calc_btn: "חשב",
+    alerts_title: "התראות",
+    services_title: "שירותים",
+    tab_search: "חיפוש",
+    tab_map: "מפה",
+    tab_fav: "מועדפים",
+    tab_calc: "משכנתה",
+    tab_alerts: "התראות",
+    tab_services: "שירותים",
+    cat_broker: "מתווכים",
+    cat_moving: "הובלות",
+    cat_cleaning: "ניקיון",
+    cat_packing: "אריזה",
+    cat_repair: "שיפוץ",
+    per_month: "/חודש",
+    rooms: "חד'",
+    floor: "קומה",
+    details: "פרטים",
+    loading: "טוען...",
+    no_results: "לא נמצאו תוצאות",
+    no_results_hint: "נסה לשנות את הסינון",
+    retry: "נסה שוב",
+    no_favorites: "אין מועדפים",
+    no_favorites_hint: "שמור דירות שאהבת",
+    no_alerts: "אין התראות",
+    no_alerts_hint: "צור התראה לקבל עדכונים על דירות חדשות",
+    create_alert: "צור התראה",
+    delete: "מחק",
+    contact: "צור קשר",
+    contact_sent: "הבקשה נשלחה!",
+    contact_error: "שגיאה בשליחה",
+    monthly_payment: "תשלום חודשי",
+    total_interest: "סה\"כ ריבית",
+    total_paid: "סה\"כ תשלום",
+    loan_amount: "סכום הלוואה",
+    affordability_title: "המלצה:",
+    save_to_fav: "נשמר למועדפים",
+    removed_from_fav: "הוסר ממועדפים",
+    alert_created: "ההתראה נוצרה",
+    alert_deleted: "ההתראה נמחקה",
+    area: "שטח",
+    sqm: "מ\"ר",
+    close: "סגור",
+    deal_rent: "שכירות",
+    deal_buy: "קנייה",
+    price_from: "מ-₪",
+    specialists: "מומחים",
+    back: "← חזרה",
+    no_services: "לא נמצאו מומחים",
+    no_services_hint: "נסה קטגוריה אחרת",
+    auth_required: "נדרשת אימות",
+    auth_hint: "פתח דרך טלגרם",
+    error_generic: "משהו השתבש",
+  },
+};
+
+// ── State ──────────────────────────────────────────────────────────────────────
+const STATE = {
+  lang: "ru",
+  user: null,
+  initData: "",
+  listings: [],
+  favorites: new Set(),
+  mapInitialized: false,
+  mapListings: [],
+  mapMarkers: [],
+  leafletMap: null,
+  lastFilters: {},
+  activeTab: "search",
+  currentCategory: null,
+};
+
+// ── Telegram WebApp init ───────────────────────────────────────────────────────
+(function initTelegram() {
+  const tg = window.Telegram?.WebApp;
+  if (!tg) return;
+
+  tg.ready();
+  tg.expand();
+
+  // Detect user & language
+  const user = tg.initDataUnsafe?.user;
+  if (user) {
+    STATE.user = user;
+    const langCode = (user.language_code || "ru").split("-")[0].toLowerCase();
+    STATE.lang = ["ru", "en", "he"].includes(langCode) ? langCode : "ru";
+  }
+  STATE.initData = tg.initData || "";
+
+  // Apply theme colors from Telegram
+  const root = document.documentElement;
+  if (tg.themeParams?.bg_color) root.style.setProperty("--bg", tg.themeParams.bg_color);
+  if (tg.themeParams?.button_color) root.style.setProperty("--accent", tg.themeParams.button_color);
+
+  // Set RTL if Hebrew
+  if (STATE.lang === "he") {
+    document.documentElement.lang = "he";
+  }
+})();
+
+// ── i18n helpers ──────────────────────────────────────────────────────────────
+function t(key) {
+  return I18N[STATE.lang]?.[key] || I18N.ru[key] || key;
+}
+
+function applyI18n() {
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    el.textContent = t(key);
+  });
+}
+
+// ── API helper ─────────────────────────────────────────────────────────────────
+async function api(method, path, data = null) {
+  const opts = {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Telegram-Init-Data": STATE.initData,
+    },
+  };
+  if (data && method !== "GET") opts.body = JSON.stringify(data);
+  const res = await fetch(path, opts);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────────
+let _toastTimer = null;
+function showToast(msg, duration = 2500) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove("show"), duration);
+}
+
+// ── Format helpers ─────────────────────────────────────────────────────────────
+function formatPrice(price, dealType) {
+  const num = Number(price);
+  if (!num) return "—";
+  const formatted = num.toLocaleString("ru-RU");
+  const suffix = dealType === "rent" ? ` ₪${t("per_month")}` : " ₪";
+  return formatted + suffix;
+}
+
+function formatPricePlain(n) {
+  return Number(n).toLocaleString("ru-RU") + " ₪";
+}
+
+function formatListingMeta(listing) {
+  const parts = [];
+  if (listing.city) parts.push("📍 " + listing.city);
+  if (listing.rooms) parts.push(listing.rooms + " " + t("rooms"));
+  if (listing.floor) parts.push(listing.floor + " " + t("floor"));
+  if (listing.area_sqm) parts.push(listing.area_sqm + " " + t("sqm"));
+  return parts.join(" · ");
+}
+
+function alertFiltersLabel(filters) {
+  if (!filters) return "—";
+  const parts = [];
+  if (filters.deal_type) parts.push(filters.deal_type === "rent" ? t("deal_rent") : t("deal_buy"));
+  if (filters.city) parts.push(filters.city);
+  if (filters.rooms_min || filters.rooms_max) {
+    const mn = filters.rooms_min || "";
+    const mx = filters.rooms_max || "";
+    parts.push(mn && mx ? `${mn}–${mx} ${t("rooms")}` : `${mn || mx} ${t("rooms")}`);
+  }
+  if (filters.price_max) parts.push(`до ₪${Number(filters.price_max).toLocaleString()}`);
+  return parts.join(", ") || "Все объявления";
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────────
+function switchTab(id, btnEl) {
+  // Hide all tabs
+  document.querySelectorAll("section.tab").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+
+  // Show selected tab
+  document.getElementById("tab-" + id).classList.add("active");
+  btnEl.classList.add("active");
+  STATE.activeTab = id;
+
+  // Scroll to top
+  document.getElementById("content").scrollTop = 0;
+
+  // Lazy init / load per tab
+  if (id === "map") initMap();
+  if (id === "favorites") loadFavorites();
+  if (id === "alerts") loadAlerts();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 1 — SEARCH
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function buildListingCard(listing, showRemove = false) {
+  const isFav = STATE.favorites.has(String(listing.id));
+  const favClass = isFav ? "saved" : "";
+  const favIcon = isFav ? "❤️" : "🤍";
+  const dealBadge = listing.deal_type === "rent"
+    ? `<span class="badge badge-rent">${t("deal_rent")}</span>`
+    : `<span class="badge badge-buy">${t("deal_buy")}</span>`;
+
+  const removeBtn = showRemove
+    ? `<button class="btn btn-danger btn-sm" onclick="removeFavorite(${listing.id})" title="${t('delete')}">✕</button>`
+    : "";
+
+  return `
+    <div class="card listing-card" id="lcard-${listing.id}">
+      <div class="title">${escHtml(listing.title || "Без названия")}</div>
+      <div class="meta">${formatListingMeta(listing)} ${dealBadge}</div>
+      <div class="price">${formatPrice(listing.price, listing.deal_type)}</div>
+      <div class="actions">
+        <button class="btn btn-primary btn-sm btn-details" onclick="openListing(${listing.id})">${t("details")}</button>
+        <button class="btn-fav ${favClass}" id="fav-${listing.id}" onclick="toggleFavorite(${listing.id})">${favIcon}</button>
+        ${removeBtn}
+      </div>
+    </div>`;
+}
+
+async function doSearch() {
+  const btn = document.getElementById("search-btn");
+  btn.disabled = true;
+
+  const filters = {
+    deal_type: document.getElementById("f-deal").value,
+    city: document.getElementById("f-city").value,
+    rooms_min: document.getElementById("f-rooms-min").value,
+    rooms_max: document.getElementById("f-rooms-max").value,
+    price_min: document.getElementById("f-price-min").value,
+    price_max: document.getElementById("f-price-max").value,
+  };
+  STATE.lastFilters = { ...filters };
+
+  // Build query string
+  const qs = Object.entries(filters)
+    .filter(([, v]) => v !== "" && v !== null && v !== undefined)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join("&");
+
+  const area = document.getElementById("results-area");
+  area.innerHTML = `<div class="spinner"></div>`;
+
+  try {
+    const data = await api("GET", `/api/miniapp/listings?${qs}&limit=50`);
+    STATE.listings = data.listings || [];
+    renderSearchResults();
+  } catch (err) {
+    area.innerHTML = errorState(err.message, "doSearch()");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderSearchResults() {
+  const area = document.getElementById("results-area");
+  const listings = STATE.listings;
+
+  if (!listings.length) {
+    area.innerHTML = `
+      <div class="state-box">
+        <div class="icon">🔍</div>
+        <p>${t("no_results")}</p>
+        <p style="font-size:13px">${t("no_results_hint")}</p>
+      </div>`;
+    return;
+  }
+
+  area.innerHTML = `
+    <div style="font-size:13px;color:var(--text2);margin-bottom:8px;">
+      Найдено: ${listings.length}
+    </div>
+    ${listings.map(l => buildListingCard(l)).join("")}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 2 — MAP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// City → approximate center coordinates [lat, lng]
+const CITY_COORDS = {
+  "Tel Aviv":   [32.0853, 34.7818],
+  "Haifa":      [32.7940, 34.9896],
+  "Jerusalem":  [31.7683, 35.2137],
+  "Netanya":    [32.3215, 34.8532],
+  "Ashdod":     [31.8045, 34.6553],
+  "Ashkelon":   [31.6688, 34.5742],
+  "Bat Yam":    [32.0167, 34.7500],
+  "Holon":      [32.0140, 34.7790],
+  "Rishon":     [31.9610, 34.8010],
+  "Ramat Gan":  [32.0686, 34.8238],
+  "Herzliya":   [32.1657, 34.8439],
+  "Nahariya":   [33.0072, 35.0950],
+  "Beersheba":  [31.2520, 34.7915],
+  "Eilat":      [29.5581, 34.9482],
+};
+
+function initMap() {
+  if (STATE.mapInitialized) return;
+  STATE.mapInitialized = true;
+
+  // Center on Israel
+  const map = L.map("map", {
+    center: [31.7683, 35.2137],
+    zoom: 8,
+    zoomControl: true,
+  });
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap contributors",
+    maxZoom: 19,
+  }).addTo(map);
+
+  STATE.leafletMap = map;
+
+  // Load listings for map
+  loadMapListings();
+}
+
+async function loadMapListings() {
+  try {
+    const data = await api("GET", "/api/miniapp/listings?limit=200");
+    STATE.mapListings = data.listings || [];
+    renderMapMarkers();
+  } catch (err) {
+    console.error("Map listings load error:", err);
+  }
+}
+
+function renderMapMarkers() {
+  const map = STATE.leafletMap;
+  if (!map) return;
+
+  // Clear existing markers
+  STATE.mapMarkers.forEach(m => map.removeLayer(m));
+  STATE.mapMarkers = [];
+
+  const cityFilter = document.getElementById("map-city-filter")?.value || "";
+
+  const listings = cityFilter
+    ? STATE.mapListings.filter(l => l.city === cityFilter)
+    : STATE.mapListings;
+
+  listings.forEach(listing => {
+    const cityCoords = CITY_COORDS[listing.city];
+    if (!cityCoords) return;
+
+    // Jitter coords slightly so multiple listings in same city don't stack
+    const lat = cityCoords[0] + (Math.random() - 0.5) * 0.04;
+    const lng = cityCoords[1] + (Math.random() - 0.5) * 0.04;
+
+    const icon = L.divIcon({
+      html: `<div style="
+        background:${listing.deal_type === 'rent' ? '#2563EB' : '#22c55e'};
+        color:#fff;font-size:11px;font-weight:700;
+        padding:3px 6px;border-radius:6px;
+        white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.4);
+      ">${Number(listing.price || 0).toLocaleString("ru-RU")}₪</div>`,
+      className: "",
+      iconAnchor: [20, 10],
+    });
+
+    const marker = L.marker([lat, lng], { icon })
+      .addTo(map)
+      .bindPopup(buildMapPopup(listing), { maxWidth: 260 });
+
+    STATE.mapMarkers.push(marker);
+  });
+}
+
+function buildMapPopup(listing) {
+  return `
+    <div class="map-popup-card">
+      <strong>${escHtml(listing.title || "Без названия")}</strong>
+      <div class="price">${formatPrice(listing.price, listing.deal_type)}</div>
+      <div>${formatListingMeta(listing)}</div>
+      <div style="margin-top:8px">
+        <button onclick="openListing(${listing.id})" style="
+          background:#2563EB;color:#fff;border:none;border-radius:6px;
+          padding:6px 12px;font-size:13px;cursor:pointer;width:100%
+        ">${t("details")}</button>
+      </div>
+    </div>`;
+}
+
+function filterMapMarkers() {
+  renderMapMarkers();
+}
+
+function refreshMap() {
+  loadMapListings();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 3 — FAVORITES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function loadFavorites() {
+  const area = document.getElementById("favorites-area");
+
+  if (!STATE.user) {
+    area.innerHTML = `
+      <div class="state-box">
+        <div class="icon">🔒</div>
+        <p>${t("auth_required")}</p>
+        <p style="font-size:13px">${t("auth_hint")}</p>
+      </div>`;
+    return;
+  }
+
+  area.innerHTML = `<div class="spinner"></div>`;
+
+  try {
+    const data = await api("GET", `/api/miniapp/favorites?user_id=${STATE.user.id}`);
+    const listings = data.listings || [];
+
+    // Update local favorites set
+    STATE.favorites = new Set(listings.map(l => String(l.id)));
+
+    if (!listings.length) {
+      area.innerHTML = `
+        <div class="state-box">
+          <div class="icon">❤️</div>
+          <p>${t("no_favorites")}</p>
+          <p style="font-size:13px">${t("no_favorites_hint")}</p>
+        </div>`;
+      return;
+    }
+
+    area.innerHTML = `<div class="fav-grid">${listings.map(l => buildListingCard(l, true)).join("")}</div>`;
+  } catch (err) {
+    area.innerHTML = errorState(err.message, "loadFavorites()");
+  }
+}
+
+async function toggleFavorite(listingId) {
+  if (!STATE.user) {
+    showToast(t("auth_required"));
+    return;
+  }
+
+  try {
+    const data = await api("POST", "/api/miniapp/favorites/toggle", {
+      listing_id: listingId,
+      user_id: STATE.user.id,
+    });
+
+    const btn = document.getElementById("fav-" + listingId);
+    if (data.saved) {
+      STATE.favorites.add(String(listingId));
+      if (btn) { btn.textContent = "❤️"; btn.classList.add("saved"); }
+      showToast(t("save_to_fav"));
+    } else {
+      STATE.favorites.delete(String(listingId));
+      if (btn) { btn.textContent = "🤍"; btn.classList.remove("saved"); }
+      showToast(t("removed_from_fav"));
+    }
+  } catch (err) {
+    showToast(t("error_generic"));
+  }
+}
+
+async function removeFavorite(listingId) {
+  if (!STATE.user) return;
+  await toggleFavorite(listingId);
+  // Remove card from DOM
+  const card = document.getElementById("lcard-" + listingId);
+  if (card) card.remove();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 4 — MORTGAGE CALCULATOR
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function calcMortgage() {
+  const price = parseFloat(document.getElementById("c-price").value) || 0;
+  const downPct = parseFloat(document.getElementById("c-down").value) || 0;
+  const annualRate = parseFloat(document.getElementById("c-rate").value) || 0;
+  const years = parseInt(document.getElementById("c-years").value) || 0;
+
+  if (!price || !years) return;
+
+  const principal = price - (price * downPct / 100);
+  const r = annualRate / 100 / 12;
+  const n = years * 12;
+
+  let monthly;
+  if (r === 0) {
+    monthly = principal / n;
+  } else {
+    const pow = Math.pow(1 + r, n);
+    monthly = principal * r * pow / (pow - 1);
+  }
+
+  const totalPaid = monthly * n;
+  const totalInterest = totalPaid - principal;
+  const downAmount = price * downPct / 100;
+
+  // Affordability guide: recommended income is monthly * 3
+  const recIncome = monthly * 3;
+
+  const resultEl = document.getElementById("calc-result");
+  resultEl.style.display = "block";
+  resultEl.innerHTML = `
+    <div class="monthly">${formatPricePlain(Math.round(monthly))}</div>
+    <div class="monthly-label">${t("monthly_payment")}</div>
+
+    <div class="calc-row">
+      <span class="label">${t("loan_amount")}</span>
+      <span class="value">${formatPricePlain(Math.round(principal))}</span>
+    </div>
+    <div class="calc-row">
+      <span class="label">${t("down_payment")} (${downPct}%)</span>
+      <span class="value">${formatPricePlain(Math.round(downAmount))}</span>
+    </div>
+    <div class="calc-row">
+      <span class="label">${t("total_interest")}</span>
+      <span class="value" style="color:#f87171">${formatPricePlain(Math.round(totalInterest))}</span>
+    </div>
+    <div class="calc-row">
+      <span class="label">${t("total_paid")}</span>
+      <span class="value">${formatPricePlain(Math.round(totalPaid))}</span>
+    </div>
+
+    <div class="affordability">
+      <strong>${t("affordability_title")}</strong><br>
+      Рекомендуемый доход семьи: <strong>${formatPricePlain(Math.round(recIncome))}/мес</strong><br>
+      Выплата составляет ${Math.round((monthly / recIncome) * 100)}% от рекомендуемого дохода.
+      ${monthly / recIncome > 0.4
+        ? " ⚠️ Платёж высокий — более 40% дохода."
+        : " ✅ Платёж в пределах нормы."}
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 5 — ALERTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function loadAlerts() {
+  const area = document.getElementById("alerts-area");
+
+  if (!STATE.user) {
+    area.innerHTML = `
+      <div class="state-box">
+        <div class="icon">🔒</div>
+        <p>${t("auth_required")}</p>
+        <p style="font-size:13px">${t("auth_hint")}</p>
+      </div>`;
+    return;
+  }
+
+  area.innerHTML = `<div class="spinner"></div>`;
+
+  try {
+    const data = await api("GET", `/api/miniapp/alerts?user_id=${STATE.user.id}`);
+    const alerts = data.alerts || [];
+
+    let html = "";
+    if (!alerts.length) {
+      html = `
+        <div class="state-box">
+          <div class="icon">🔔</div>
+          <p>${t("no_alerts")}</p>
+          <p style="font-size:13px">${t("no_alerts_hint")}</p>
+        </div>`;
+    } else {
+      html = alerts.map(alert => `
+        <div class="alert-chip" id="alert-${alert.id}">
+          <div class="info">
+            <strong>🔔 ${alertFiltersLabel(alert.filters)}</strong>
+            <span>${alert.created ? new Date(alert.created).toLocaleDateString("ru-RU") : ""}</span>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="deleteAlert('${alert.id}')">
+            ${t("delete")}
+          </button>
+        </div>`).join("");
+    }
+
+    // Always show "create alert" button
+    html += `
+      <button class="btn btn-primary btn-full" style="margin-top:12px" onclick="createAlertFromLastSearch()">
+        + ${t("create_alert")}
+      </button>`;
+
+    area.innerHTML = html;
+  } catch (err) {
+    area.innerHTML = errorState(err.message, "loadAlerts()");
+  }
+}
+
+async function deleteAlert(alertId) {
+  if (!STATE.user) return;
+  try {
+    await api("DELETE", `/api/miniapp/alerts/${alertId}?user_id=${STATE.user.id}`);
+    const el = document.getElementById("alert-" + alertId);
+    if (el) el.remove();
+    showToast(t("alert_deleted"));
+  } catch (err) {
+    showToast(t("error_generic"));
+  }
+}
+
+async function createAlertFromLastSearch() {
+  if (!STATE.user) {
+    showToast(t("auth_required"));
+    return;
+  }
+
+  // Build filters from last search, or open search tab to fill
+  const filters = { ...STATE.lastFilters };
+  // Remove empty values
+  Object.keys(filters).forEach(k => { if (!filters[k]) delete filters[k]; });
+
+  try {
+    const data = await api("POST", "/api/miniapp/alerts", {
+      user_id: STATE.user.id,
+      filters,
+    });
+    showToast(t("alert_created"));
+    // Reload alerts
+    loadAlerts();
+  } catch (err) {
+    showToast(t("error_generic"));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TAB 6 — SERVICES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function loadServices(category) {
+  STATE.currentCategory = category;
+
+  // Mark active button
+  document.querySelectorAll(".cat-btn").forEach(b => {
+    b.classList.toggle("active", b.dataset.cat === category);
+  });
+
+  const area = document.getElementById("services-area");
+  area.innerHTML = `<div class="spinner"></div>`;
+
+  try {
+    const data = await api("GET", `/api/miniapp/services?type=${encodeURIComponent(category)}`);
+    const services = data.services || [];
+
+    if (!services.length) {
+      area.innerHTML = `
+        <div class="state-box">
+          <div class="icon">🤝</div>
+          <p>${t("no_services")}</p>
+          <p style="font-size:13px">${t("no_services_hint")}</p>
+        </div>`;
+      return;
+    }
+
+    area.innerHTML = services.map(svc => `
+      <div class="specialist-card" id="svc-${svc.id}">
+        <div class="s-name">${escHtml(svc.name || "—")}</div>
+        <div class="s-desc">${escHtml(svc.description || "")}</div>
+        <div class="s-meta">
+          ${svc.regions ? `<span>📍 ${svc.regions.join(", ")}</span>` : ""}
+          ${svc.price_from ? `<span>${t("price_from")}${Number(svc.price_from).toLocaleString()}</span>` : ""}
+          ${svc.phone ? `<span>📞 ${escHtml(svc.phone)}</span>` : ""}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="contactService(${svc.id}, this)">
+            📩 ${t("contact")}
+          </button>
+          ${svc.telegram ? `
+            <a href="https://t.me/${svc.telegram.replace('@','')}" target="_blank" class="btn btn-secondary btn-sm">
+              ✈️ Telegram
+            </a>` : ""}
+          ${svc.phone ? `
+            <a href="tel:${svc.phone}" class="btn btn-secondary btn-sm">
+              📞 Позвонить
+            </a>` : ""}
+        </div>
+      </div>`).join("");
+
+  } catch (err) {
+    area.innerHTML = errorState(err.message, `loadServices('${category}')`);
+  }
+}
+
+async function contactService(serviceId, btn) {
+  if (!STATE.user) {
+    showToast(t("auth_required"));
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "...";
+
+  try {
+    await api("POST", "/api/miniapp/services/contact", {
+      service_id: serviceId,
+      user_id: STATE.user.id,
+    });
+    btn.textContent = "✅ " + t("contact_sent");
+    btn.style.background = "var(--success)";
+    showToast(t("contact_sent"));
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = "📩 " + t("contact");
+    showToast(t("contact_error"));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LISTING DETAIL MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function openListing(id) {
+  const overlay = document.getElementById("modal-overlay");
+  const body = document.getElementById("modal-body");
+  const title = document.getElementById("modal-title");
+
+  overlay.classList.add("open");
+  body.innerHTML = `<div class="spinner"></div>`;
+  title.textContent = t("loading");
+
+  try {
+    const listing = await api("GET", `/api/miniapp/listings/${id}`);
+
+    title.textContent = listing.title || "Объявление";
+
+    // First photo or placeholder
+    const photoHtml = (listing.photos && listing.photos.length > 0)
+      ? `<img class="detail-photo" src="${escHtml(listing.photos[0])}" alt="фото" onerror="this.style.display='none'">`
+      : "";
+
+    // Tags
+    const tags = [];
+    if (listing.parking) tags.push("🚗 Парковка");
+    if (listing.pool) tags.push("🏊 Бассейн");
+    if (listing.elevator) tags.push("🛗 Лифт");
+    if (listing.shelter) tags.push("🛡 Убежище");
+    if (listing.infrastructure && Array.isArray(listing.infrastructure)) {
+      tags.push(...listing.infrastructure.map(i => i));
+    }
+
+    body.innerHTML = `
+      ${photoHtml}
+      <div class="detail-title">${escHtml(listing.title || "Без названия")}</div>
+      <div class="detail-price">${formatPrice(listing.price, listing.deal_type)}</div>
+      <div class="detail-meta">
+        ${listing.city ? `📍 ${escHtml(listing.city)}` : ""}
+        ${listing.district ? `, ${escHtml(listing.district)}` : ""}
+        ${listing.neighborhood ? ` · ${escHtml(listing.neighborhood)}` : ""}<br>
+        ${listing.rooms ? `🛏 ${listing.rooms} ${t("rooms")}` : ""}
+        ${listing.floor !== undefined && listing.floor !== null ? ` · ${listing.floor} ${t("floor")}` : ""}
+        ${listing.area_sqm ? ` · ${listing.area_sqm} ${t("sqm")}` : ""}
+      </div>
+      ${tags.length ? `<div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px">
+        ${tags.map(tag => `<span style="background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:12px">${escHtml(tag)}</span>`).join("")}
+      </div>` : ""}
+      ${listing.description ? `<div class="detail-desc">${escHtml(listing.description)}</div>` : ""}
+      ${listing.contact ? `<div style="margin-top:12px;font-size:13px;color:var(--text2)">📞 ${escHtml(listing.contact)}</div>` : ""}
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn btn-primary" style="flex:1" onclick="toggleFavorite(${id})" id="modal-fav-btn">
+          ${STATE.favorites.has(String(id)) ? "❤️ В избранном" : "🤍 Сохранить"}
+        </button>
+      </div>`;
+
+  } catch (err) {
+    body.innerHTML = `<div class="state-box"><p>${t("error_generic")}</p></div>`;
+    title.textContent = "Ошибка";
+  }
+}
+
+function closeModal(event) {
+  // Close only if clicking overlay background (not modal box)
+  if (event && event.target !== document.getElementById("modal-overlay")) return;
+  document.getElementById("modal-overlay").classList.remove("open");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function escHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function errorState(msg, retryFn) {
+  return `
+    <div class="state-box">
+      <div class="icon">⚠️</div>
+      <p>${t("error_generic")}</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">${escHtml(msg)}</p>
+      <button class="btn btn-secondary" onclick="${retryFn}">${t("retry")}</button>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+(function init() {
+  // Apply translations
+  applyI18n();
+
+  // Load initial listings for search tab
+  doSearch();
+
+  // Load user's saved favorites IDs silently (for heart icons)
+  if (STATE.user) {
+    api("GET", `/api/miniapp/favorites?user_id=${STATE.user.id}`)
+      .then(data => {
+        STATE.favorites = new Set((data.listings || []).map(l => String(l.id)));
+      })
+      .catch(() => {});
+  }
+})();
+
+</script>
+</body>
+</html>

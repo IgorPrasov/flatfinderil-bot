@@ -251,14 +251,16 @@ async def _set_bot_commands(application) -> None:
             "WEBAPP_URL",
             "https://flatfinderil-bot-production.up.railway.app/",
         )
+        # Point menu button to the Mini App (served at /miniapp)
+        miniapp_url = webapp_url.rstrip("/") + "/miniapp"
         from telegram import MenuButtonWebApp, WebAppInfo
         await application.bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(
                 text="🏠 FlatFinderIL",
-                web_app=WebAppInfo(url=webapp_url),
+                web_app=WebAppInfo(url=miniapp_url),
             )
         )
-        logger.info(f"Menu button set → Web App {webapp_url}")
+        logger.info(f"Menu button set → Web App {miniapp_url}")
     except Exception as e:
         logger.warning(f"set_chat_menu_button failed: {e}")
 
@@ -543,6 +545,7 @@ DASHBOARD_FILE  = os.path.join(os.path.dirname(__file__), "dashboard.html")
 BACKOFFICE_FILE = os.path.join(os.path.dirname(__file__), "backoffice.html")
 LANDING_FILE    = os.path.join(os.path.dirname(__file__), "landing.html")
 LEGAL_FILE      = os.path.join(os.path.dirname(__file__), "legal.html")
+MINIAPP_FILE    = os.path.join(os.path.dirname(__file__), "miniapp.html")
 
 # Public-facing domains — show landing page only, block internal tools
 _PUBLIC_DOMAINS = {
@@ -2069,6 +2072,10 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 self.end_headers()
                 self.wfile.write(body)
 
+        elif path in ("/miniapp", "/app", "/miniapp/"):
+            # Serve the Telegram Mini App HTML
+            self._send_html(MINIAPP_FILE)
+
         elif path.startswith("/api/miniapp/"):
             try:
                 from mini_app_api import route as miniapp_route
@@ -2320,13 +2327,33 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
         self._send_json({"error":"Not found"},404)
 
     def do_DELETE(self):
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
         if path.startswith("/api/crm"):
             return self._handle_crm_api("DELETE", path)
         if path.startswith("/backoffice/api/"):
             if not _bo_check_session(self.headers):
                 return self._send_json({"error":"Unauthorized"},401)
             return self._handle_bo_api("DELETE", path)
+        # Mini App API DELETE (e.g. DELETE /api/miniapp/alerts/<id>)
+        if path.startswith("/api/miniapp/"):
+            try:
+                from mini_app_api import route as miniapp_route
+                from urllib.parse import parse_qs as _pqs
+                params  = _pqs(parsed.query)
+                headers = dict(self.headers)
+                result, status = miniapp_route("DELETE", path, params, {}, headers)
+                body = json_module.dumps(result, ensure_ascii=False, default=str).encode("utf-8")
+            except Exception as e:
+                body   = json_module.dumps({"error": str(e)}).encode("utf-8")
+                status = 500
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Content-Length", len(body))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         self._send_json({"error":"Not found"},404)
 
     def do_OPTIONS(self):
