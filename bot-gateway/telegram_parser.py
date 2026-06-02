@@ -30,7 +30,7 @@ CHANNELS = [
     "flamingorent",
     "snyat_kvartiruy",
     "aptfornew",
-    "ambery_longrent_telaviv",
+
     "israel_rent_haifa",
     "sapirrent",
     "Sublet_Israel",
@@ -96,7 +96,7 @@ CITY_KEYWORDS = {
     "кирьят-ям": "Хайфа", "кирьят ям": "Хайфа",
     "kiryat yam": "Хайфа", "קריית ים": "Хайфа", "קרית ים": "Хайфа",
     "кирьят-моцкин": "Хайфа", "кирьят моцкин": "Хайфа",
-    "kiryat motzkin": "Хайфа", "קריית מוצקין": "Хайфа",
+    "kiryat motzkin": "Хайфа", "קריית מוצקין": "Хайфа", "קרית מוצקין": "Хайфа",
     "неве-шаанан хайфа": "Хайфа", "неве шаанан": "Хайфа",
     "адар": "Хайфа", "adar": "Хайфа",
     "рамат-шапира": "Хайфа", "рамот ремез": "Хайфа", "рамот шапира": "Хайфа",
@@ -196,6 +196,11 @@ CITY_KEYWORDS = {
     "нагаария": "Нагария",
     # Russian case forms (genitive/prepositional) for common cities
     "нагарии": "Нагария", "нагарию": "Нагария",  # в Нагарии
+    # Abbreviations
+    " та ": "Тель-Авив", "южный та": "Тель-Авив", "северный та": "Тель-Авив",
+    "т.а.": "Тель-Авив", "т/а": "Тель-Авив",
+    "южный тель-авив": "Тель-Авив", "северный тель-авив": "Тель-Авив",
+    "центр тель-авива": "Тель-Авив", "центр та": "Тель-Авив",
     "нетании": "Нетания", "нетанию": "Нетания",  # в Нетании
     "ашдоде": "Ашдод", "ашдода": "Ашдод",  # в Ашдоде
     "ашкелоне": "Ашкелон", "ашкелона": "Ашкелон",  # в Ашкелоне
@@ -897,7 +902,7 @@ async def parse_channel_telethon(client, channel: str, limit: int = 50) -> int:
 
 # ─── main loop ───────────────────────────────────────────────────────────────
 
-async def run_parser():
+async def run_parser(once: bool = False):
     print("=" * 50)
     print("Telegram Parser — FlatFinderIL")
     print(f"Каналов: {len(CHANNELS)}")
@@ -951,10 +956,15 @@ async def run_parser():
 
         was_deep = first_run
         first_run = False
+        if once:
+            print(f"\n✅ Итого новых: {total} | --once: завершение.")
+            break
         pause = 300 if was_deep else 1800  # 5 min after deep scan, 30 min normally
         print(f"\n✅ Итого новых: {total} | Следующий запуск через {pause // 60} мин.")
         await asyncio.sleep(pause)
 
 
 if __name__ == "__main__":
-    asyncio.run(run_parser())
+    import sys
+    once = "--once" in sys.argv
+    asyncio.run(run_parser(once=once))

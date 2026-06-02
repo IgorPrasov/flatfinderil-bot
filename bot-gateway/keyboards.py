@@ -33,7 +33,7 @@ def main_menu_keyboard(ctx):
     insta_label   = {"ru": "📸 Instagram", "en": "📸 Instagram", "he": "📸 אינסטגרם", "fr": "📸 Instagram"}.get(lang, "📸 Instagram")
     alerts_label = {"ru": "🔔 Уведомления", "en": "🔔 Alerts", "he": "🔔 התראות", "fr": "🔔 Alertes"}.get(lang, "🔔 Уведомления")
     rent_label   = {"ru": "🔑 Аренда", "en": "🔑 Rent",   "he": "🔑 שכירות",  "fr": "🔑 Location"}.get(lang, "🔑 Аренда")
-    sublet_label = {"ru": "🔄 Сублет", "en": "🔄 Sublet", "he": "🔄 סאבלט",   "fr": "🔄 Sous-loc"}.get(lang, "🔄 Сублет")
+    sublet_label = {"ru": "🔄 Саблет", "en": "🔄 Sublet", "he": "🔄 סאבלט",   "fr": "🔄 Sous-loc"}.get(lang, "🔄 Саблет")
     buy_label    = {"ru": "🏦 Купить", "en": "🏦 Buy",    "he": "🏦 קנייה",   "fr": "🏦 Acheter"}.get(lang, "🏦 Купить")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(rent_label, callback_data="search_rent"), InlineKeyboardButton(sublet_label, callback_data="search_sublet"), InlineKeyboardButton(buy_label, callback_data="search_buy")],
@@ -192,17 +192,24 @@ def results_navigation_keyboard(ctx, current, total, listing_id, listing=None):
     if current < total - 1:
         nav_row.append(InlineKeyboardButton(t("btn_next", ctx), callback_data=f"result_next_{current}"))
 
-    # Google Maps URL button — always use English city name for correct map resolution
+    # Google Maps URL button — only if we know the actual city (not just "Израиль")
     map_url = None
     if listing:
         import urllib.parse
         city_ru = listing.get("city", "")
-        city_en = get_city_name(city_ru, "en")   # e.g. "Тель-Авив" → "Tel Aviv"
-        neighborhood = listing.get("neighborhood", "")
-        # Build query: neighborhood (if exists), English city, Israel
-        query_parts = [p for p in [neighborhood, city_en, "Israel"] if p]
-        map_query = ", ".join(query_parts)
-        map_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(map_query)}"
+        # Don't show map if city is unknown / whole-country placeholder
+        if city_ru and city_ru not in ("Израиль", "Israel", ""):
+            city_en = get_city_name(city_ru, "en")
+            # If city still wasn't translated — skip map button
+            if city_en and city_en != city_ru:
+                neighborhood = listing.get("neighborhood", "")
+                # Skip neighborhoods that look like Cyrillic (not useful for Maps)
+                if neighborhood and any('Ѐ' <= c <= 'ӿ' for c in neighborhood):
+                    neighborhood = ""
+                # Build query: neighborhood (if exists), English city, Israel
+                query_parts = [p for p in [neighborhood, city_en, "Israel"] if p]
+                map_query = ", ".join(query_parts)
+                map_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(map_query)}"
 
     lang = get_lang(ctx)
     show_phone_label = {"ru": "📞 Показать номер", "en": "📞 Show phone", "he": "📞 הצג מספר", "fr": "📞 Afficher le numéro"}.get(lang, "📞 Show phone")

@@ -248,8 +248,7 @@ def _get_price_stats(city: str = None, deal_type: str = "rent", days: int = 30) 
     from collections import defaultdict
     import database as db
 
-    data     = db._load()
-    listings = list(data.get("listings", {}).values())
+    listings = db.get_all_listings(limit=10000)
     cutoff   = (date.today() - timedelta(days=days)).isoformat()
     today    = date.today().isoformat()
 
@@ -334,8 +333,7 @@ def _get_backoffice_daily_stats() -> dict:
     from collections import defaultdict
     import database as db
 
-    data     = db._load()
-    listings = list(data.get("listings", {}).values())
+    listings = db.get_all_listings(limit=10000)
     today    = date.today().isoformat()
     yday     = (date.today() - timedelta(days=1)).isoformat()
 
@@ -373,9 +371,9 @@ def _get_backoffice_daily_stats() -> dict:
 
 
 def _cleanup_spam_listings() -> dict:
-    import database as db
+    import database_json as _dbj
     from telegram_parser import is_ad_or_spam
-    data = db._load()
+    data = _dbj._load()
     removed = []
     for lid, listing in list(data["listings"].items()):
         if listing.get("source") not in ("telegram", "facebook"):
@@ -388,7 +386,7 @@ def _cleanup_spam_listings() -> dict:
         for uid in data.get("user_listings", {}):
             if lid in data["user_listings"][uid]:
                 data["user_listings"][uid].remove(lid)
-    db._save(data)
+    _dbj._save(data)
     return {"removed": len(removed), "ids": removed[:50]}
 
 

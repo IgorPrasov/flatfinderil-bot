@@ -22,10 +22,11 @@ def _L(d, lang):
 ) = range(10, 26)
 
 SERVICE_TYPES = {
-    "moving":   {"ru": "🚚 Перевозки",   "en": "🚚 Moving",   "he": "🚚 הובלות",  "fr": "🚚 Déménagement"},
-    "packing":  {"ru": "📦 Упаковка",    "en": "📦 Packing",  "he": "📦 אריזה",   "fr": "📦 Emballage"},
-    "cleaning": {"ru": "🧹 Клининг",     "en": "🧹 Cleaning", "he": "🧹 ניקיון",  "fr": "🧹 Ménage"},
-    "repair":   {"ru": "🔨 Ремонт",      "en": "🔨 Repairs",  "he": "🔨 שיפוצים", "fr": "🔨 Rénovation"},
+    "moving":           {"ru": "🚚 Перевозки",          "en": "🚚 Moving",          "he": "🚚 הובלות",         "fr": "🚚 Déménagement"},
+    "packing":          {"ru": "📦 Упаковка",           "en": "📦 Packing",         "he": "📦 אריזה",          "fr": "📦 Emballage"},
+    "cleaning":         {"ru": "🧹 Клининг",            "en": "🧹 Cleaning",        "he": "🧹 ניקיון",         "fr": "🧹 Ménage"},
+    "repair":           {"ru": "🔨 Ремонт",             "en": "🔨 Repairs",         "he": "🔨 שיפוצים",        "fr": "🔨 Rénovation"},
+    "mortgage_broker":  {"ru": "💰 Кредитный брокер",  "en": "💰 Mortgage Broker", "he": "💰 יועץ משכנתאות", "fr": "💰 Courtier en prêt"},
 }
 
 # Sub-types for the "repair" category
@@ -269,7 +270,8 @@ class ServiceHandler:
     def get_conversation_handler(self):
         return ConversationHandler(
             entry_points=[
-                CallbackQueryHandler(self.start, pattern="^services$"),
+                CallbackQueryHandler(self.start,                  pattern="^services$"),
+                CallbackQueryHandler(self.start_mortgage_broker,  pattern="^find_mortgage_broker$"),
             ],
             states={
                 SVC_MENU: [
@@ -351,6 +353,63 @@ class ServiceHandler:
             ],
             per_message=False, allow_reentry=True,
         )
+
+    async def start_mortgage_broker(self, update, context):
+        """Entry point from buy-search results — pre-selects mortgage_broker type."""
+        query = update.callback_query
+        await query.answer()
+        lang = get_lang(context)
+
+        # City might be pre-filled from the search filters
+        city = (context.user_data.get("search_filters") or {}).get("city", "all")
+        context.user_data["svc"] = {"type": "mortgage_broker", "city": city}
+
+        # Search brokers (try city first, fallback to all)
+        services = db.get_services(svc_type="mortgage_broker", city=city if city != "any" else None)
+        if not services and city not in ("all", "any", None):
+            services = db.get_services(svc_type="mortgage_broker")
+
+        if services:
+            context.user_data["svc_results"] = services
+            context.user_data["svc_idx"] = 0
+            header = _L({
+                "ru": f"💰 <b>Кредитные брокеры</b>  —  найдено: {len(services)}",
+                "en": f"💰 <b>Mortgage Brokers</b>  —  found: {len(services)}",
+                "he": f"💰 <b>יועצי משכנתאות</b>  —  נמצאו: {len(services)}",
+                "fr": f"💰 <b>Courtiers en prêt</b>  —  trouvés: {len(services)}",
+            }, lang)
+            await query.edit_message_text(header, parse_mode="HTML")
+            await self._show_service(update, context, query=query)
+            return SVC_RESULTS
+        else:
+            no_text = _L({
+                "ru": (
+                    "💰 <b>Кредитные брокеры</b>\n\n"
+                    "😔 Пока нет зарегистрированных брокеров.\n\n"
+                    "Вы ипотечный брокер? Зарегистрируйтесь — получайте клиентов прямо из бота!\n"
+                    "👉 @flatfinderil_bot"
+                ),
+                "en": (
+                    "💰 <b>Mortgage Brokers</b>\n\n"
+                    "😔 No brokers registered yet.\n\n"
+                    "Are you a mortgage broker? Register now and get leads directly from the bot!\n"
+                    "👉 @flatfinderil_bot"
+                ),
+                "he": (
+                    "💰 <b>יועצי משכנתאות</b>\n\n"
+                    "😔 עדיין אין יועצים רשומים.\n\n"
+                    "האם אתה יועץ משכנתאות? הירשם עכשיו וקבל לקוחות ישירות מהבוט!\n"
+                    "👉 @flatfinderil_bot"
+                ),
+                "fr": (
+                    "💰 <b>Courtiers en prêt immobilier</b>\n\n"
+                    "😔 Aucun courtier enregistré pour l'instant.\n\n"
+                    "Vous êtes courtier en crédit immobilier? Inscrivez-vous et recevez des leads!\n"
+                    "👉 @flatfinderil_bot"
+                ),
+            }, lang)
+            await query.edit_message_text(no_text, reply_markup=_back_kb(context), parse_mode="HTML")
+            return ConversationHandler.END
 
     async def start(self, update, context):
         query = update.callback_query

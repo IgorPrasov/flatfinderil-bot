@@ -1078,7 +1078,7 @@ function _renderInner(){
 
   document.getElementById("kpi-users").innerHTML=
     kpi("🔔","Участников (Join)",n(M.total||0),`+${M.new_week||0} за неделю`,GREEN)+
-    kpi("👥","Всего польз.",n(D.users.total),"запустили бота",TG)+
+    kpi("👥","Всего польз.",n(D.users.total),`с профилем: ${n(D.users.real||D.users.total)}`,TG)+
     kpi("🆕","Новых",n(D.users.new_period||D.users.new_today),periodSub,GREEN)+
     kpi("⚡","Активных",n(D.users.active_period||D.users.active_today),periodSub,GOLD)+
     kpi("📅","Активных за неделю",n(D.users.active_week),"",PURPLE);

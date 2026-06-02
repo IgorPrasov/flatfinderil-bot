@@ -123,7 +123,8 @@ def _get_pricing_stats(db, raw: dict = None, stats_data: dict = None, lead_stats
     from datetime import datetime as _dt
     if raw is None:
         try:
-            raw = db._load()
+            import database_json as _dbj
+            raw = _dbj._load()
         except Exception:
             raw = {}
 
@@ -314,6 +315,11 @@ def get_analytics(date_from: str = None, date_to: str = None):
 
     users = data.get("users", {})
     total_users = len(users)
+    # "Real" users — have at least a name or @username (excludes ghost/privacy accounts)
+    real_users = sum(
+        1 for u in users.values()
+        if u.get("first_name") or u.get("username")
+    )
 
     # User counts scoped to period
     new_today  = sum(1 for u in users.values() if u.get("first_seen") == today)
@@ -489,7 +495,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
     fb_sources_list = [
         {"name": _FB_GROUP_NAMES.get(gid, gid), "count": cnt,
          "url": f"https://www.facebook.com/groups/{gid}"}
-        for gid, cnt in fb_group_counter.most_common(30)
+        for gid, cnt in fb_group_counter.most_common(200)
         if gid
     ]
     income = round(
@@ -811,7 +817,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
     return {
         "period": {"from": _df, "to": _dt, "days": (datetime.strptime(_dt,"%Y-%m-%d")-datetime.strptime(_df,"%Y-%m-%d")).days+1},
         "users": {
-            "total": total_users, "new_today": new_today,
+            "total": total_users, "real": real_users, "new_today": new_today,
             "active_today": active_today, "new_week": new_week, "active_week": active_week,
             "new_period": new_period, "active_period": active_period,
         },

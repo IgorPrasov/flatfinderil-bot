@@ -116,10 +116,10 @@ def _build_html(report: dict) -> str:
         }
 
     deal_labels = {
-        "ru": {"rent": "Аренда", "buy": "Продажа", "sublet": "Сублет", "commercial": "Коммерческая"},
+        "ru": {"rent": "Аренда", "buy": "Продажа", "sublet": "Саблет", "commercial": "Коммерческая"},
         "en": {"rent": "Rent", "buy": "Sale", "sublet": "Sublet", "commercial": "Commercial"},
         "he": {"rent": "השכרה", "buy": "מכירה", "sublet": "סאבלט", "commercial": "מסחרי"},
-    }.get(lang, {"rent": "Аренда", "buy": "Продажа", "sublet": "Сублет", "commercial": "Коммерческая"})
+    }.get(lang, {"rent": "Аренда", "buy": "Продажа", "sublet": "Саблет", "commercial": "Коммерческая"})
 
     rooms_suffix = {"ru": " комн.", "en": "", "he": " חד'"}.get(lang, "")
 

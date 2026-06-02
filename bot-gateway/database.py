@@ -70,5 +70,12 @@ if _USE_PG:
     _logging.getLogger(__name__).info("[DB] Using PostgreSQL backend")
 else:
     from database_json import *        # noqa: F401, F403
+    from database_json import (        # re-export private helpers (not picked up by *)
+        _load,
+        _save,
+        _init_db,
+        _text_fingerprint,
+        _dedup_listings,
+    )
     import logging as _logging
     _logging.getLogger(__name__).info("[DB] Using JSON file backend")

@@ -93,7 +93,7 @@ def _deal_keyboard(ctx):
     lang = get_lang(ctx)
     rent = _L({"ru": "🔑 Аренда", "en": "🔑 Rent", "he": "🔑 השכרה", "fr": "🔑 Location"}, lang)
     buy = _L({"ru": "💰 Продажа", "en": "💰 Sale", "he": "💰 מכירה", "fr": "💰 Vente"}, lang)
-    sublet = _L({"ru": "🔄 Сублет", "en": "🔄 Sublet", "he": "🔄 סאבלט", "fr": "🔄 Sous-location"}, lang)
+    sublet = _L({"ru": "🔄 Саблет", "en": "🔄 Sublet", "he": "🔄 סאבלט", "fr": "🔄 Sous-location"}, lang)
     commercial = _L({"ru": "🏢 Коммерческая", "en": "🏢 Commercial", "he": "🏢 מסחרי", "fr": "🏢 Commercial"}, lang)
     back   = _L({"ru": "« Назад",   "en": "« Back",    "he": "« חזרה",   "fr": "« Retour"}, lang)
     cancel = _L({"ru": "❌ Отмена", "en": "❌ Cancel",  "he": "❌ ביטול",  "fr": "❌ Annuler"}, lang)
@@ -793,7 +793,7 @@ class ListingHandler:
         deal_labels = {
             "rent": {"ru": "Аренда", "en": "Rent", "he": "השכרה", "fr": "Location"},
             "buy": {"ru": "Продажа", "en": "Sale", "he": "מכירה", "fr": "Vente"},
-            "sublet": {"ru": "Сублет", "en": "Sublet", "he": "סאבלט", "fr": "Sous-location"},
+            "sublet": {"ru": "Саблет", "en": "Sublet", "he": "סאבלט", "fr": "Sous-location"},
             "commercial": {"ru": "Коммерческая", "en": "Commercial", "he": "מסחרי", "fr": "Commercial"},
         }
         lang = get_lang(context)
@@ -1593,7 +1593,7 @@ async def _send_welcome_message(context, user_id: int, listing: dict, listing_id
     deal_label = {
         "rent":       {"ru": "Аренда",       "en": "Rent",       "he": "שכירות", "fr": "Location"},
         "buy":        {"ru": "Продажа",       "en": "Sale",       "he": "מכירה", "fr": "Vente"},
-        "sublet":     {"ru": "Сублет",        "en": "Sublet",     "he": "סאבלט", "fr": "Sous-location"},
+        "sublet":     {"ru": "Саблет",        "en": "Sublet",     "he": "סאבלט", "fr": "Sous-location"},
         "commercial": {"ru": "Коммерческая",  "en": "Commercial", "he": "מסחרי", "fr": "Commercial"},
     }.get(listing.get("deal_type","rent"), {}).get(lang, listing.get("deal_type",""))
 

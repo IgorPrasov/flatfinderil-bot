@@ -639,6 +639,33 @@ class SearchHandler:
             context.user_data["results"] = results
             await query.edit_message_text(t("found_n", context, n=total_found), parse_mode="HTML")
             await display_listing(query, context, results[0], 0, len(results))
+
+            # For "buy" searches — offer mortgage broker button
+            if f.get("deal_type") == "buy":
+                lang = get_lang(context)
+                broker_text = {
+                    "ru": "💰 <b>Нужна ипотека?</b>\n\nНайдём кредитного брокера — специалиста по ипотеке в Израиле.",
+                    "en": "💰 <b>Need a mortgage?</b>\n\nFind a mortgage broker — a specialist who will help you get the best loan.",
+                    "he": "💰 <b>צריך משכנתא?</b>\n\nמצא יועץ משכנתאות — מומחה שיעזור לך לקבל את ההלוואה הטובה ביותר.",
+                    "fr": "💰 <b>Besoin d'un crédit immobilier?</b>\n\nTrouvez un courtier en prêt — un spécialiste qui vous aidera à obtenir le meilleur taux.",
+                }.get(lang, "💰 <b>Need a mortgage?</b>\n\nFind a mortgage broker.")
+                broker_btn_label = {
+                    "ru": "💰 Найти кредитного брокера",
+                    "en": "💰 Find Mortgage Broker",
+                    "he": "💰 מצא יועץ משכנתאות",
+                    "fr": "💰 Trouver un courtier",
+                }.get(lang, "💰 Find Mortgage Broker")
+                from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+                kb = InlineKeyboardMarkup([[
+                    InlineKeyboardButton(broker_btn_label, callback_data="find_mortgage_broker")
+                ]])
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=broker_text,
+                    reply_markup=kb,
+                    parse_mode="HTML",
+                )
+
             return ConversationHandler.END
 
         except Exception as _e:

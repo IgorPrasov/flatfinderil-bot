@@ -45,25 +45,41 @@ def _dedup_listings():
 
 # _dedup_listings()  # disabled — was removing valid FB/Telegram listings on every startup
 
+_BACKUP_FILE = DB_FILE + '.backup'
+_DEFAULTS = [
+    ("subscriptions", {}), ("favorites_prices", {}), ("reviews", {}),
+    ("referrals", {}), ("referral_bonuses", {}), ("closed_deals", {}),
+    ("view_requesters", {}), ("deal_next_id", 1), ("services", {}),
+    ("services_next_id", 1), ("crm_contacts", {}), ("crm_contact_next_id", 1),
+    ("crm_deals", {}), ("crm_deal_next_id", 1), ("crm_notes", {}),
+    ("paid_subscriptions", {}), ("agent_profiles", {}), ("service_profiles", {}),
+    ("listing_credits", {}), ("listing_free_used", {}), ("service_subscriptions", {}),
+]
+
+def _apply_defaults(data):
+    for key, default in _DEFAULTS:
+        if key not in data:
+            data[key] = default
+    return data
+
 def _load():
-    if os.path.exists(DB_FILE):
+    import logging as _log
+    _logger = _log.getLogger(__name__)
+    for path in (DB_FILE, _BACKUP_FILE):
+        if not os.path.exists(path):
+            continue
         try:
-            with open(DB_FILE, 'r', encoding='utf-8') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            for key, default in [
-                ("subscriptions", {}), ("favorites_prices", {}), ("reviews", {}),
-                ("referrals", {}), ("referral_bonuses", {}), ("closed_deals", {}),
-                ("view_requesters", {}), ("deal_next_id", 1), ("services", {}),
-                ("services_next_id", 1), ("crm_contacts", {}), ("crm_contact_next_id", 1),
-                ("crm_deals", {}), ("crm_deal_next_id", 1), ("crm_notes", {}),
-                ("paid_subscriptions", {}), ("agent_profiles", {}), ("service_profiles", {}),
-                ("listing_credits", {}), ("listing_free_used", {}), ("service_subscriptions", {}),
-            ]:
-                if key not in data:
-                    data[key] = default
-            return data
-        except Exception:
-            pass
+            if not isinstance(data.get("listings"), dict):
+                raise ValueError("listings key missing or not a dict")
+            if path == _BACKUP_FILE:
+                _logger.warning(f"[DB] Main DB corrupt — recovered from backup ({len(data['listings'])} listings)")
+            return _apply_defaults(data)
+        except Exception as e:
+            if path == DB_FILE:
+                _logger.error(f"[DB] Failed to load main DB: {e} — trying backup")
+    _logger.error("[DB] Both main and backup DB unreadable — starting fresh")
     return {
         "listings": {}, "favorites": {}, "user_listings": {}, "next_id": 11,
         "subscriptions": {}, "favorites_prices": {}, "reviews": {}, "referrals": {},
@@ -74,11 +90,28 @@ def _load():
     }
 
 def _save(data):
-    # Atomic write: write to temp then rename to avoid partial-write corruption
-    tmp = DB_FILE + '.tmp'
+    # Safety guard: never save an empty listings dict if a non-empty DB exists
+    if not data.get("listings") and os.path.exists(DB_FILE):
+        try:
+            existing = json.loads(open(DB_FILE, 'r', encoding='utf-8').read())
+            if existing.get("listings"):
+                import logging as _log
+                _log.getLogger(__name__).error("[DB] _save() blocked: attempted to overwrite non-empty DB with empty listings")
+                return
+        except Exception:
+            pass
+    # Atomic write: unique temp name (process+thread) avoids cross-thread collisions
+    import threading as _thr
+    tmp = f"{DB_FILE}.{os.getpid()}.{_thr.get_ident()}.tmp"
     with open(tmp, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     os.replace(tmp, DB_FILE)
+    # Keep a rolling backup for corruption recovery
+    try:
+        import shutil as _shutil
+        _shutil.copy2(DB_FILE, _BACKUP_FILE)
+    except Exception:
+        pass
 
 def _get_listings():
     return _load()

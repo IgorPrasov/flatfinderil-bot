@@ -201,6 +201,68 @@ async def _handle_mover_subscribe(update, context):
         await query.answer(err.get(lang, err["ru"]), show_alert=True)
 
 
+async def _set_bot_commands(application) -> None:
+    """Register bot command menu + bottom-left menu button."""
+    from telegram import BotCommand, BotCommandScopeAllPrivateChats
+
+    # ── 1. Slash-command list (shows when user taps '/') ─────────────────────
+    commands_ru = [
+        BotCommand("start",    "🏠 Главное меню"),
+        BotCommand("search",   "🔍 Поиск квартиры"),
+        BotCommand("add",      "➕ Добавить объявление"),
+        BotCommand("listings", "📋 Мои объявления"),
+        BotCommand("help",     "❓ Помощь"),
+    ]
+    commands_en = [
+        BotCommand("start",    "🏠 Main menu"),
+        BotCommand("search",   "🔍 Search listing"),
+        BotCommand("add",      "➕ Add listing"),
+        BotCommand("listings", "📋 My listings"),
+        BotCommand("help",     "❓ Help"),
+    ]
+    commands_he = [
+        BotCommand("start",    "🏠 תפריט ראשי"),
+        BotCommand("search",   "🔍 חיפוש דירה"),
+        BotCommand("add",      "➕ הוסף מודעה"),
+        BotCommand("listings", "📋 המודעות שלי"),
+        BotCommand("help",     "❓ עזרה"),
+    ]
+    try:
+        await application.bot.set_my_commands(commands_ru)
+        await application.bot.set_my_commands(
+            commands_en,
+            scope=BotCommandScopeAllPrivateChats(),
+            language_code="en",
+        )
+        await application.bot.set_my_commands(
+            commands_he,
+            scope=BotCommandScopeAllPrivateChats(),
+            language_code="he",
+        )
+        logger.info("Bot command menu registered (ru/en/he)")
+    except Exception as e:
+        logger.warning(f"set_my_commands failed: {e}")
+
+    # ── 2. Menu button (bottom-left, next to message input) ──────────────────
+    # Opens the Mini App / landing page as a Telegram Web App.
+    # URL is taken from WEBAPP_URL env var; falls back to the Railway deployment URL.
+    try:
+        webapp_url = os.environ.get(
+            "WEBAPP_URL",
+            "https://flatfinderil-bot-production.up.railway.app/",
+        )
+        from telegram import MenuButtonWebApp, WebAppInfo
+        await application.bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="🏠 FlatFinderIL",
+                web_app=WebAppInfo(url=webapp_url),
+            )
+        )
+        logger.info(f"Menu button set → Web App {webapp_url}")
+    except Exception as e:
+        logger.warning(f"set_chat_menu_button failed: {e}")
+
+
 def main():
     global _bot_app, _bot_loop
     fix_city_migration()
@@ -213,7 +275,7 @@ def main():
     except Exception as _me:
         logger.warning(f"[STARTUP] migrations skipped: {_me}")
     _warmup_sessions()
-    app = Application.builder().token(BOT_TOKEN).build()
+    app = Application.builder().token(BOT_TOKEN).post_init(_set_bot_commands).build()
     _bot_app = app
     _bot_loop = asyncio.get_event_loop()
     search = SearchHandler()
