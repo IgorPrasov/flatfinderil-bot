@@ -1075,9 +1075,10 @@ async function doSearch() {
   };
   STATE.lastFilters = { ...filters };
 
-  // Build query string
+  // Build query string — skip empty / "any" values
+  const SKIP_VALS = ["", "any", "all", null, undefined];
   const qs = Object.entries(filters)
-    .filter(([, v]) => v !== "" && v !== null && v !== undefined)
+    .filter(([, v]) => !SKIP_VALS.includes(v))
     .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
     .join("&");
 

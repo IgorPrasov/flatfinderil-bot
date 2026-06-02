@@ -318,18 +318,23 @@ def handle_get_listings(params: dict) -> dict:
     import database as db
 
     filters = {}
-    if params.get("deal_type"):
-        filters["deal_type"] = params["deal_type"][0]
+    _SKIP = ("", "any", "all", "Любой", "Any")   # values that mean "no filter"
+    deal = (params.get("deal_type") or [""])[0]
+    if deal and deal not in _SKIP:
+        filters["deal_type"] = deal
     if params.get("property_types"):
         filters["property_types"] = params["property_types"]
     if params.get("cities"):
         filters["cities"] = params["cities"]
-    if params.get("city"):
-        filters["city"] = params["city"][0]
-    if params.get("rooms_min"):
-        filters["rooms_min"] = float(params["rooms_min"][0])
-    if params.get("rooms_max"):
-        filters["rooms_max"] = float(params["rooms_max"][0])
+    city = (params.get("city") or [""])[0]
+    if city and city not in _SKIP:
+        filters["city"] = city
+    rooms_min = (params.get("rooms_min") or [""])[0]
+    if rooms_min and rooms_min not in _SKIP:
+        filters["rooms_min"] = float(rooms_min)
+    rooms_max = (params.get("rooms_max") or [""])[0]
+    if rooms_max and rooms_max not in _SKIP:
+        filters["rooms_max"] = float(rooms_max)
     if params.get("price_min"):
         filters["price_min"] = int(params["price_min"][0])
     if params.get("price_max"):
