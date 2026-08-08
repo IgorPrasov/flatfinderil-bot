@@ -198,6 +198,7 @@ def load_facebook_cookies() -> list[dict]:
     Загружает Facebook cookies.
     Сначала проверяет env FB_COOKIES_JSON (Railway), затем Chrome (macOS).
     Возвращает список dict в формате Playwright: {name, value, domain, path}.
+    Поддерживает форматы: Cookie-Editor JSON, простой JSON, Netscape текст.
     """
     import json as _json
 
@@ -225,11 +226,25 @@ def load_facebook_cookies() -> list[dict]:
                     val = unquote(value) if "%" in (value or "") else (value or "")
                     all_cookies[name] = {"name": name, "value": val, "domain": ".facebook.com", "path": "/"}
             elif isinstance(env_data, list):
-                # Формат: [{name, value, ...}, ...]
+                # Формат: [{name, value, ...}, ...] или Cookie-Editor полный формат
                 for c in env_data:
-                    val = unquote(c["value"]) if "%" in (c.get("value") or "") else (c.get("value") or "")
-                    all_cookies[c["name"]] = {"name": c["name"], "value": val, "domain": ".facebook.com", "path": "/"}
+                    name = c.get("name", "")
+                    value = c.get("value", "")
+                    if name and value:
+                        val = unquote(value) if "%" in (value or "") else (value or "")
+                        all_cookies[name] = {
+                            "name": name,
+                            "value": val,
+                            "domain": c.get("domain", ".facebook.com"),
+                            "path": c.get("path", "/"),
+                        }
+            cookie_names = list(all_cookies.keys())
             log.info(f"✅ Cookies из FB_COOKIES_JSON: {len(all_cookies)} шт.")
+            log.info(f"   Cookie names: {', '.join(cookie_names)}")
+            if "c_user" in all_cookies:
+                log.info(f"   ✓ c_user найден: {all_cookies['c_user']['value']}")
+            if "xs" in all_cookies:
+                log.info(f"   ✓ xs найден (session token)")
             return list(all_cookies.values())
         except Exception as e:
             log.warning(f"⚠️  Ошибка парсинга FB_COOKIES_JSON: {e}")
