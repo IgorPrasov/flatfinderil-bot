@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "email-preview",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "9191", "--directory", "/tmp"],
+      "port": 9191
+    },
+    {
+      "name": "dashboard-proxy",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-c", "import http.server,socketserver,urllib.request,ssl,os; os.chdir('/Users/alinatsarenko/projects/flatfinderil-bot/bot-gateway'); P=8765;\n_ctx=ssl.create_default_context(); _ctx.check_hostname=False; _ctx.verify_mode=ssl.CERT_NONE\nclass H(http.server.SimpleHTTPRequestHandler):\n    def do_GET(self):\n        if self.path.startswith('/api/') or self.path.startswith('/analytics') or self.path.startswith('/news') or self.path.startswith('/rss'):\n            try:\n                u='https://flatfinderil-bot-production.up.railway.app'+self.path; r=urllib.request.urlopen(u,timeout=15,context=_ctx); body=r.read()\n                self.send_response(200); self.send_header('Content-Type',r.headers.get('Content-Type','application/json')); self.send_header('Content-Length',len(body)); self.end_headers(); self.wfile.write(body)\n            except Exception as e:\n                self.send_response(500); self.end_headers(); self.wfile.write(str(e).encode())\n            return\n        if self.path=='/' or self.path.startswith('/?'):\n            self.path='/dashboard.html'\n        return super().do_GET()\nsocketserver.TCPServer(('',P),H).serve_forever()"],
+      "port": 8765
+    }
+  ]
+}

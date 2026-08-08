@@ -4,9 +4,13 @@ Results are cached in poi_cache.json to avoid repeated API calls.
 """
 import json
 import os
+import ssl
 import urllib.request
 import urllib.parse
 import logging
+
+# macOS / Railway SSL fix
+_SSL_CTX = ssl._create_unverified_context()
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +122,7 @@ def get_pois(lat: float, lng: float, infra_type: str, radius: int = 3000) -> lis
             method="POST",
             headers={"User-Agent": "FlatFinderIL-Bot/1.0"},
         )
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as resp:
             result = json.loads(resp.read())
 
         pois = []

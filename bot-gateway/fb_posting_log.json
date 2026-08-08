@@ -1,0 +1,1384 @@
+[
+  {
+    "date": "2026-05-14T12:51:11",
+    "message_preview": "🏠 Ищете квартиру в Израиле или хотите сдать свою?\n\nПредставляем FlatFinderIL — Telegram-бот, который объединяет всех уча",
+    "ok": true,
+    "sent": 0,
+    "failed": 16,
+    "total": 16,
+    "details": [
+      {
+        "name": "Аренда квартир в Израиле",
+        "id": "141464740539934",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир Израиль | דירות להשכרה",
+        "id": "819372811594662",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Квартиры без маклера",
+        "id": "1697329423753683",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Из рук в руки – Аренда жилья без маклера",
+        "id": "321202505245057",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Русскоязычный Израиль – жильё, услуги",
+        "id": "919120634860210",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Тель-Авив – Доска объявлений Израиля",
+        "id": "TelAvivBoard",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "ДОСКА ОБЪЯВЛЕНИЙ ИЗРАИЛЯ",
+        "id": "2lumi",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Объявления Израиля на русском",
+        "id": "adsisrael",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Весь Гуш-Дан",
+        "id": "2928147683954852",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда жилья Израиль – Бат Ям",
+        "id": "647964450757105",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "АРЕНДА БАТ ЯМ | השכרה בת ים",
+        "id": "rentbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир в Бат Яме",
+        "id": "198851813933632",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда без Маклера – граждане Бат Ям",
+        "id": "1903124356581754",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда и продажа квартир в Бат Ям",
+        "id": "RentBuySaleBatYam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Продажа и аренда квартир Холон и Бат-Ям",
+        "id": "holonandbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Бат-Ям – Объявления",
+        "id": "batyam.ad",
+        "ok": false,
+        "error": null
+      }
+    ]
+  },
+  {
+    "date": "2026-05-13T16:48:05",
+    "message_preview": "🏠 Looking for an apartment in Israel — or want to rent yours out?\n\nMeet FlatFinderIL — a Telegram bot connecting all rea",
+    "ok": true,
+    "sent": 0,
+    "failed": 2,
+    "total": 2,
+    "details": [
+      {
+        "name": "Tel Aviv – Housing, Rooms, Apartments",
+        "id": "250663073164312",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Apartment Rentals and House Purchasing",
+        "id": "LiveandWork",
+        "ok": false,
+        "error": null
+      }
+    ]
+  },
+  {
+    "date": "2026-05-13T16:46:44",
+    "message_preview": "🏠 מחפשים דירה בישראל? רוצים להשכיר את שלכם?\n\nהכירו את FlatFinderIL — בוט טלגרם שמחבר בין כל המשתתפים בשוק הנדל\"ן הישראלי",
+    "ok": true,
+    "sent": 0,
+    "failed": 48,
+    "total": 48,
+    "details": [
+      {
+        "name": "דירות מפה לאוזן בתל אביב",
+        "id": "101875683484689",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות בתל אביב",
+        "id": "295395253832427",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות בתל אביב ללא תיווך",
+        "id": "457465901082882",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "לוח דירות תל אביב-יפו",
+        "id": "tel.aviv.dirot",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות במרכז להשכרה/מכירה",
+        "id": "341195019300726",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בדרום תל אביב",
+        "id": "191591524188001",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בצפון תל אביב",
+        "id": "1485565508385836",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בתל אביב",
+        "id": "184920528370332",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה 2-3 חדרים בתל אביב",
+        "id": "365588344194085",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה במרכז עד 5000",
+        "id": "1664977427442936",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות מפה לאוזן בחיפה",
+        "id": "173351201739",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחיפה",
+        "id": "837431273097770",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בקריות ללא תיווך",
+        "id": "1591401697779759",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בקריות",
+        "id": "yad2k",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות לסטודנטים חיפה",
+        "id": "110907419268500",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחיפה – עם מחיר",
+        "id": "611703096084191",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחיפה (2)",
+        "id": "1896414753945570",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחיפה (3)",
+        "id": "783424098674651",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחיפה ללא תיווך",
+        "id": "131650282168271",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות מפה לאוזן בירושלים",
+        "id": "172544843294",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בירושלים",
+        "id": "325992450444",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בירושלים (2)",
+        "id": "344780799040537",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות בירושלים ללא תיווך",
+        "id": "apartmentsinjerusalem",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בראשון לציון",
+        "id": "555578950202434",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות מפה לאוזן בראשון לציון",
+        "id": "111163552234056",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה ללא תיווך ראשון לציון",
+        "id": "959597644173111",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה חולון בת ים ראשון לציון",
+        "id": "963153170558917",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה ראשון לציון חולון בת ים",
+        "id": "201105170260427",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בעיר חולון",
+        "id": "1354045801786047",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחולון",
+        "id": "801470026653021",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחולון בלבד",
+        "id": "266774507954665",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה חולון בת-ים ללא תיווך",
+        "id": "509654872819955",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בת ים חולון והסביבה",
+        "id": "dirot.batyam.holon",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות מפה לאוזן בנתניה",
+        "id": "554754367898974",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בנתניה / Аренда Нетания",
+        "id": "rentflatnetanya",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בנתניה ללא תיווך",
+        "id": "228387647805774",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בנתניה והסביבה ללא תיווך",
+        "id": "1153910968018350",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה באשדוד",
+        "id": "215752412333714",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה אשדוד / Аренда Ашдод",
+        "id": "rent.in.ashdod",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה ומכירה אשדוד והסביבה",
+        "id": "1624818081000281",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה באשדוד ללא תיווך",
+        "id": "1087635731246729",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה אשדוד אשקלון",
+        "id": "585483232340913",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות למכירה והשכרה ראש העין רבתי",
+        "id": "1777924022257391",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה ומכירה בראש העין",
+        "id": "1773509336205184",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "לוח הדירות של ראש העין ופסגות אפק",
+        "id": "1824690151020636",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה/מכירה – הפרלמנט ראש העין",
+        "id": "1797166367186177",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בראש העין",
+        "id": "509084853121039",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "הפרלמנט דירות להשכרה בראש העין ללא תיווך",
+        "id": "308216903043626",
+        "ok": false,
+        "error": null
+      }
+    ]
+  },
+  {
+    "date": "2026-05-13T13:57:55",
+    "message_preview": "🏠 Ищете квартиру в Израиле или хотите сдать свою?\n\nПредставляем FlatFinderIL — Telegram-бот, который объединяет всех уча",
+    "ok": true,
+    "sent": 0,
+    "failed": 16,
+    "total": 16,
+    "details": [
+      {
+        "name": "Аренда квартир в Израиле",
+        "id": "141464740539934",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир Израиль | דירות להשכרה",
+        "id": "819372811594662",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Квартиры без маклера",
+        "id": "1697329423753683",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Из рук в руки – Аренда жилья без маклера",
+        "id": "321202505245057",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Русскоязычный Израиль – жильё, услуги",
+        "id": "919120634860210",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Тель-Авив – Доска объявлений Израиля",
+        "id": "TelAvivBoard",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "ДОСКА ОБЪЯВЛЕНИЙ ИЗРАИЛЯ",
+        "id": "2lumi",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Объявления Израиля на русском",
+        "id": "adsisrael",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Весь Гуш-Дан",
+        "id": "2928147683954852",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда жилья Израиль – Бат Ям",
+        "id": "647964450757105",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "АРЕНДА БАТ ЯМ | השכרה בת ים",
+        "id": "rentbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир в Бат Яме",
+        "id": "198851813933632",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда без Маклера – граждане Бат Ям",
+        "id": "1903124356581754",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда и продажа квартир в Бат Ям",
+        "id": "RentBuySaleBatYam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Продажа и аренда квартир Холон и Бат-Ям",
+        "id": "holonandbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Бат-Ям – Объявления",
+        "id": "batyam.ad",
+        "ok": false,
+        "error": null
+      }
+    ]
+  },
+  {
+    "date": "2026-05-13T13:33:55",
+    "message_preview": "🏠 Ищете квартиру в Израиле или хотите сдать свою?\n\nПредставляем FlatFinderIL — Telegram-бот, который объединяет всех уча",
+    "ok": true,
+    "sent": 2,
+    "failed": 14,
+    "total": 16,
+    "details": [
+      {
+        "name": "Аренда квартир в Израиле",
+        "id": "141464740539934",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир Израиль | דירות להשכרה",
+        "id": "819372811594662",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Квартиры без маклера",
+        "id": "1697329423753683",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Из рук в руки – Аренда жилья без маклера",
+        "id": "321202505245057",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Русскоязычный Израиль – жильё, услуги",
+        "id": "919120634860210",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Тель-Авив – Доска объявлений Израиля",
+        "id": "TelAvivBoard",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "ДОСКА ОБЪЯВЛЕНИЙ ИЗРАИЛЯ",
+        "id": "2lumi",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Объявления Израиля на русском",
+        "id": "adsisrael",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Весь Гуш-Дан",
+        "id": "2928147683954852",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда жилья Израиль – Бат Ям",
+        "id": "647964450757105",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "АРЕНДА БАТ ЯМ | השכרה בת ים",
+        "id": "rentbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир в Бат Яме",
+        "id": "198851813933632",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда без Маклера – граждане Бат Ям",
+        "id": "1903124356581754",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда и продажа квартир в Бат Ям",
+        "id": "RentBuySaleBatYam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Продажа и аренда квартир Холон и Бат-Ям",
+        "id": "holonandbatyam",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "Бат-Ям – Объявления",
+        "id": "batyam.ad",
+        "ok": false,
+        "error": null
+      }
+    ]
+  },
+  {
+    "date": "2026-05-13T13:20:59",
+    "message_preview": "🏠 Looking for an apartment in Israel — or want to rent yours out?\n\nMeet FlatFinderIL — a Telegram bot connecting all rea",
+    "ok": true,
+    "sent": 2,
+    "failed": 0,
+    "skipped": 0,
+    "total": 2,
+    "details": [
+      {
+        "name": "Tel Aviv – Housing, Rooms, Apartments",
+        "id": "250663073164312",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "Apartment Rentals and House Purchasing",
+        "id": "LiveandWork",
+        "ok": true,
+        "error": null
+      }
+    ]
+  },
+  {
+    "date": "2026-05-13T13:19:13",
+    "message_preview": "🏠 מחפשים דירה בישראל? רוצים להשכיר את שלכם?\n\nהכירו את FlatFinderIL — בוט טלגרם שמחבר בין כל המשתתפים בשוק הנדל\"ן הישראלי",
+    "ok": true,
+    "sent": 43,
+    "failed": 5,
+    "skipped": 0,
+    "total": 48,
+    "details": [
+      {
+        "name": "דירות מפה לאוזן בתל אביב",
+        "id": "101875683484689",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות בתל אביב",
+        "id": "295395253832427",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות בתל אביב ללא תיווך",
+        "id": "457465901082882",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "לוח דירות תל אביב-יפו",
+        "id": "tel.aviv.dirot",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות במרכז להשכרה/מכירה",
+        "id": "341195019300726",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בדרום תל אביב",
+        "id": "191591524188001",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בצפון תל אביב",
+        "id": "1485565508385836",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בתל אביב",
+        "id": "184920528370332",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה 2-3 חדרים בתל אביב",
+        "id": "365588344194085",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה במרכז עד 5000",
+        "id": "1664977427442936",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות מפה לאוזן בחיפה",
+        "id": "173351201739",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחיפה",
+        "id": "837431273097770",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בקריות ללא תיווך",
+        "id": "1591401697779759",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בקריות",
+        "id": "yad2k",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות לסטודנטים חיפה",
+        "id": "110907419268500",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחיפה – עם מחיר",
+        "id": "611703096084191",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחיפה (2)",
+        "id": "1896414753945570",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחיפה (3)",
+        "id": "783424098674651",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחיפה ללא תיווך",
+        "id": "131650282168271",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות מפה לאוזן בירושלים",
+        "id": "172544843294",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בירושלים",
+        "id": "325992450444",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בירושלים (2)",
+        "id": "344780799040537",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "דירות בירושלים ללא תיווך",
+        "id": "apartmentsinjerusalem",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בראשון לציון",
+        "id": "555578950202434",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות מפה לאוזן בראשון לציון",
+        "id": "111163552234056",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה ללא תיווך ראשון לציון",
+        "id": "959597644173111",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה חולון בת ים ראשון לציון",
+        "id": "963153170558917",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה ראשון לציון חולון בת ים",
+        "id": "201105170260427",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בעיר חולון",
+        "id": "1354045801786047",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחולון",
+        "id": "801470026653021",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בחולון בלבד",
+        "id": "266774507954665",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה חולון בת-ים ללא תיווך",
+        "id": "509654872819955",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בת ים חולון והסביבה",
+        "id": "dirot.batyam.holon",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות מפה לאוזן בנתניה",
+        "id": "554754367898974",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בנתניה / Аренда Нетания",
+        "id": "rentflatnetanya",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בנתניה ללא תיווך",
+        "id": "228387647805774",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בנתניה והסביבה ללא תיווך",
+        "id": "1153910968018350",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה באשדוד",
+        "id": "215752412333714",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה אשדוד / Аренда Ашдод",
+        "id": "rent.in.ashdod",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה ומכירה אשדוד והסביבה",
+        "id": "1624818081000281",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה באשדוד ללא תיווך",
+        "id": "1087635731246729",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה אשדוד אשקלון",
+        "id": "585483232340913",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות למכירה והשכרה ראש העין רבתי",
+        "id": "1777924022257391",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה ומכירה בראש העין",
+        "id": "1773509336205184",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "לוח הדירות של ראש העין ופסגות אפק",
+        "id": "1824690151020636",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה/מכירה – הפרלמנט ראש העין",
+        "id": "1797166367186177",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "דירות להשכרה בראש העין",
+        "id": "509084853121039",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "הפרלמנט דירות להשכרה בראש העין ללא תיווך",
+        "id": "308216903043626",
+        "ok": true,
+        "error": null
+      }
+    ]
+  },
+  {
+    "date": "2026-05-13T12:40:31",
+    "message_preview": "🏠 Ищете квартиру в Израиле или хотите сдать свою?\n\nПредставляем FlatFinderIL — Telegram-бот, который объединяет всех уча",
+    "ok": true,
+    "sent": 11,
+    "failed": 5,
+    "skipped": 0,
+    "total": 16,
+    "details": [
+      {
+        "name": "Аренда квартир в Израиле",
+        "id": "141464740539934",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир Израиль | דירות להשכרה",
+        "id": "819372811594662",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "Квартиры без маклера",
+        "id": "1697329423753683",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "Из рук в руки – Аренда жилья без маклера",
+        "id": "321202505245057",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "Русскоязычный Израиль – жильё, услуги",
+        "id": "919120634860210",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Тель-Авив – Доска объявлений Израиля",
+        "id": "TelAvivBoard",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "ДОСКА ОБЪЯВЛЕНИЙ ИЗРАИЛЯ",
+        "id": "2lumi",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Объявления Израиля на русском",
+        "id": "adsisrael",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Весь Гуш-Дан",
+        "id": "2928147683954852",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "Аренда жилья Израиль – Бат Ям",
+        "id": "647964450757105",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "АРЕНДА БАТ ЯМ | השכרה בת ים",
+        "id": "rentbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир в Бат Яме",
+        "id": "198851813933632",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "Аренда без Маклера – граждане Бат Ям",
+        "id": "1903124356581754",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "Аренда и продажа квартир в Бат Ям",
+        "id": "RentBuySaleBatYam",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "Продажа и аренда квартир Холон и Бат-Ям",
+        "id": "holonandbatyam",
+        "ok": true,
+        "error": null
+      },
+      {
+        "name": "Бат-Ям – Объявления",
+        "id": "batyam.ad",
+        "ok": true,
+        "error": null
+      }
+    ]
+  },
+  {
+    "date": "2026-05-13T12:27:36",
+    "message_preview": "🏠 Ищете квартиру в Израиле или хотите сдать свою?\n\nПредставляем FlatFinderIL — Telegram-бот, который объединяет всех уча",
+    "ok": true,
+    "sent": 0,
+    "failed": 16,
+    "skipped": 0,
+    "total": 16,
+    "details": [
+      {
+        "name": "Аренда квартир в Израиле",
+        "id": "141464740539934",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир Израиль | דירות להשכרה",
+        "id": "819372811594662",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Квартиры без маклера",
+        "id": "1697329423753683",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Из рук в руки – Аренда жилья без маклера",
+        "id": "321202505245057",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Русскоязычный Израиль – жильё, услуги",
+        "id": "919120634860210",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Тель-Авив – Доска объявлений Израиля",
+        "id": "TelAvivBoard",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "ДОСКА ОБЪЯВЛЕНИЙ ИЗРАИЛЯ",
+        "id": "2lumi",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Объявления Израиля на русском",
+        "id": "adsisrael",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Весь Гуш-Дан",
+        "id": "2928147683954852",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда жилья Израиль – Бат Ям",
+        "id": "647964450757105",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "АРЕНДА БАТ ЯМ | השכרה בת ים",
+        "id": "rentbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир в Бат Яме",
+        "id": "198851813933632",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда без Маклера – граждане Бат Ям",
+        "id": "1903124356581754",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда и продажа квартир в Бат Ям",
+        "id": "RentBuySaleBatYam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Продажа и аренда квартир Холон и Бат-Ям",
+        "id": "holonandbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Бат-Ям – Объявления",
+        "id": "batyam.ad",
+        "ok": false,
+        "error": null
+      }
+    ]
+  },
+  {
+    "date": "2026-05-13T12:14:44",
+    "message_preview": "🏠 Ищете квартиру в Израиле или хотите сдать свою?\n\nПредставляем FlatFinderIL — Telegram-бот, который объединяет всех уча",
+    "ok": true,
+    "sent": 0,
+    "failed": 16,
+    "skipped": 0,
+    "total": 16,
+    "details": [
+      {
+        "name": "Аренда квартир в Израиле",
+        "id": "141464740539934",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир Израиль | דירות להשכרה",
+        "id": "819372811594662",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Квартиры без маклера",
+        "id": "1697329423753683",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Из рук в руки – Аренда жилья без маклера",
+        "id": "321202505245057",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Русскоязычный Израиль – жильё, услуги",
+        "id": "919120634860210",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Тель-Авив – Доска объявлений Израиля",
+        "id": "TelAvivBoard",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "ДОСКА ОБЪЯВЛЕНИЙ ИЗРАИЛЯ",
+        "id": "2lumi",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Объявления Израиля на русском",
+        "id": "adsisrael",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Весь Гуш-Дан",
+        "id": "2928147683954852",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда жилья Израиль – Бат Ям",
+        "id": "647964450757105",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "АРЕНДА БАТ ЯМ | השכרה בת ים",
+        "id": "rentbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир в Бат Яме",
+        "id": "198851813933632",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда без Маклера – граждане Бат Ям",
+        "id": "1903124356581754",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда и продажа квартир в Бат Ям",
+        "id": "RentBuySaleBatYam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Продажа и аренда квартир Холон и Бат-Ям",
+        "id": "holonandbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Бат-Ям – Объявления",
+        "id": "batyam.ad",
+        "ok": false,
+        "error": null
+      }
+    ]
+  },
+  {
+    "date": "2026-05-11T22:05:38",
+    "message_preview": "🏠 Ищете квартиру в Израиле или хотите сдать свою?\n\nПредставляем FlatFinderIL — Telegram-бот, который объединяет всех уча",
+    "ok": true,
+    "sent": 0,
+    "failed": 15,
+    "skipped": 0,
+    "total": 15,
+    "details": [
+      {
+        "name": "Аренда квартир в Израиле",
+        "id": "141464740539934",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир Израиль | דירות להשכרה",
+        "id": "819372811594662",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Квартиры без маклера",
+        "id": "1697329423753683",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Из рук в руки – Аренда жилья без маклера",
+        "id": "321202505245057",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Русскоязычный Израиль – жильё, услуги",
+        "id": "919120634860210",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Тель-Авив – Доска объявлений Израиля",
+        "id": "TelAvivBoard",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "ДОСКА ОБЪЯВЛЕНИЙ ИЗРАИЛЯ",
+        "id": "2lumi",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Объявления Израиля на русском",
+        "id": "adsisrael",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда жилья Израиль – Бат Ям",
+        "id": "647964450757105",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "АРЕНДА БАТ ЯМ | השכרה בת ים",
+        "id": "rentbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда квартир в Бат Яме",
+        "id": "198851813933632",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда без Маклера – граждане Бат Ям",
+        "id": "1903124356581754",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Аренда и продажа квартир в Бат Ям",
+        "id": "RentBuySaleBatYam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Продажа и аренда квартир Холон и Бат-Ям",
+        "id": "holonandbatyam",
+        "ok": false,
+        "error": null
+      },
+      {
+        "name": "Бат-Ям – Объявления",
+        "id": "batyam.ad",
+        "ok": false,
+        "error": null
+      }
+    ]
+  }
+]

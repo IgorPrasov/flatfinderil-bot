@@ -1,0 +1,41 @@
+diff --git a/bot-gateway/handlers.py b/bot-gateway/handlers.py
+index a279812..da9e058 100644
+--- a/bot-gateway/handlers.py
++++ b/bot-gateway/handlers.py
+@@ -93,6 +93,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+     user = update.effective_user
+     args = context.args or []
+ 
++    # context.user_data lives only in process memory (no PTB persistence is
++    # configured), so it's wiped on every bot restart/redeploy. Restore the
++    # bits we already persist in the DB before deciding what screen to show,
++    # otherwise every returning user gets sent back through join/language
++    # selection instead of the main menu after a restart.
++    if "lang" not in context.user_data:
++        try:
++            saved_lang = db.get_setting(f"user_lang_{user.id}")
++            if saved_lang:
++                context.user_data["lang"] = saved_lang
++        except Exception:
++            pass
++    if not context.user_data.get("joined"):
++        try:
++            if db.get_setting(f"user_joined_{user.id}") == "1":
++                context.user_data["joined"] = True
++        except Exception:
++            pass
++
+     # Save user to DB on every /start
+     try:
+         lang = context.user_data.get("lang", "ru")
+@@ -174,6 +193,10 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+     if data == "join":
+         user = update.effective_user
+         context.user_data["joined"] = True
++        try:
++            db.set_setting(f"user_joined_{user.id}", "1")
++        except Exception:
++            pass
+         track_member(user.id, first_name=user.first_name, last_name=user.last_name, username=user.username)
+         # Proceed to language selection or main menu
+         if "lang" not in context.user_data:

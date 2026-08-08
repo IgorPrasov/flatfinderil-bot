@@ -670,8 +670,25 @@ def main():
         if isinstance(cookies_data, dict):
             cookies_data = cookies_data.get("cookies", [])
     except Exception:
-        log.error("❌ Не удалось прочитать cookies.txt")
-        sys.exit(1)
+        # Netscape format: domain  flag  path  secure  expiry  name  value
+        cookies_data = []
+        for line in raw.splitlines():
+            if line.startswith("#") or not line.strip():
+                continue
+            parts = line.split("\t")
+            if len(parts) >= 7:
+                domain, _, path, secure, expiry, name, value = parts[:7]
+                cookies_data.append({
+                    "name": name,
+                    "value": value,
+                    "domain": domain,
+                    "path": path,
+                    "secure": secure.upper() == "TRUE",
+                    "expires": int(expiry) if expiry.isdigit() else -1,
+                })
+        if not cookies_data:
+            log.error("❌ Не удалось прочитать cookies.txt")
+            sys.exit(1)
 
     log.info(f"🍪 Загружено {len(cookies_data)} cookies")
     log.info(f"📄 Страница: {PAGE_URL}")
@@ -679,15 +696,29 @@ def main():
 
     results = {}
 
+    SESSION_DIR = os.path.join(os.path.dirname(__file__), "fb_session")
+    use_session = os.path.isdir(SESSION_DIR)
+
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=args.headless)
-        ctx = browser.new_context(
-            viewport={"width": 1280, "height": 900},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
-            locale="ru-RU",
-        )
-        ctx.add_cookies(cookies_data)
-        pg = ctx.new_page()
+        if use_session:
+            log.info(f"📁 Используем постоянную сессию из fb_session/")
+            ctx = pw.chromium.launch_persistent_context(
+                user_data_dir=SESSION_DIR,
+                headless=args.headless,
+                viewport={"width": 1280, "height": 900},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
+                locale="ru-RU",
+            )
+            pg = ctx.new_page() if not ctx.pages else ctx.pages[0]
+        else:
+            browser = pw.chromium.launch(headless=args.headless)
+            ctx = browser.new_context(
+                viewport={"width": 1280, "height": 900},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
+                locale="ru-RU",
+            )
+            ctx.add_cookies(cookies_data)
+            pg = ctx.new_page()
 
         if args.mode in ("listings", "all"):
             results["listings"] = run_listings_posts(pg, counts["listings"], args.dry_run)

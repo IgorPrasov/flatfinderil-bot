@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlatFinder IL — Бизнес-план 2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+
+  /* ── NAV ── */
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(15,23,42,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid #1e3a5f; display: flex; gap: 4px; padding: 10px 24px; overflow-x: auto; }
+  nav a { color: #94a3b8; text-decoration: none; font-size: 12px; padding: 5px 12px; border-radius: 6px; white-space: nowrap; transition: all .2s; }
+  nav a:hover, nav a.active { background: #1e40af; color: #fff; }
+
+  /* ── SECTIONS ── */
+  section { min-height: 100vh; padding: 90px 40px 60px; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; justify-content: center; }
+  section.wide { max-width: 1300px; }
+
+  /* ── HERO ── */
+  .hero-badge { display: inline-block; background: #1e3a5f; color: #60a5fa; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 1px; margin-bottom: 24px; }
+  .hero-title { font-size: clamp(40px, 6vw, 72px); font-weight: 800; line-height: 1.1; background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #34d399 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px; }
+  .hero-sub { font-size: 20px; color: #94a3b8; max-width: 640px; line-height: 1.6; margin-bottom: 40px; }
+  .hero-stats { display: flex; gap: 40px; flex-wrap: wrap; }
+  .hero-stat { text-align: center; }
+  .hero-stat .num { font-size: 36px; font-weight: 800; color: #60a5fa; }
+  .hero-stat .lbl { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+  /* ── SECTION TITLE ── */
+  .sec-title { font-size: 36px; font-weight: 800; margin-bottom: 10px; }
+  .sec-title span { color: #60a5fa; }
+  .sec-sub { color: #64748b; font-size: 15px; margin-bottom: 40px; }
+
+  /* ── CARDS GRID ── */
+  .grid { display: grid; gap: 16px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .g4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 24px; }
+  .card.blue  { border-color: #1e40af; background: #0f2744; }
+  .card.green { border-color: #065f46; background: #052e1c; }
+  .card.purple{ border-color: #4c1d95; background: #1e0a40; }
+  .card.gold  { border-color: #92400e; background: #1c0f02; }
+
+  .card-icon { font-size: 32px; margin-bottom: 12px; }
+  .card-title { font-size: 16px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+  .card-body  { font-size: 13px; color: #94a3b8; line-height: 1.7; }
+
+  /* ── PRICE TABLE ── */
+  .price-card { background: #1e293b; border: 1px solid #334155; border-radius: 14px; overflow: hidden; }
+  .price-card.featured { border-color: #2563eb; }
+  .price-header { padding: 20px 24px 16px; background: #0f172a; }
+  .price-header .tier { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 6px; }
+  .price-header .amount { font-size: 36px; font-weight: 800; color: #f1f5f9; }
+  .price-header .amount sup { font-size: 16px; color: #94a3b8; }
+  .price-header .period { font-size: 12px; color: #64748b; }
+  .price-header .desc { font-size: 13px; color: #94a3b8; margin-top: 8px; }
+  .price-body { padding: 16px 24px 20px; }
+  .price-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #1e293b; font-size: 13px; color: #94a3b8; }
+  .price-row .val { font-weight: 700; color: #60a5fa; }
+
+  /* ── REVENUE TABLE ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #0f172a; color: #64748b; text-align: left; padding: 10px 14px; font-weight: 600; font-size: 11px; letter-spacing: .5px; text-transform: uppercase; }
+  td { padding: 12px 14px; border-bottom: 1px solid #1e293b; color: #cbd5e1; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .tag-blue   { background: #1e40af; color: #93c5fd; }
+  .tag-green  { background: #065f46; color: #6ee7b7; }
+  .tag-purple { background: #4c1d95; color: #c4b5fd; }
+  .tag-gold   { background: #78350f; color: #fcd34d; }
+
+  /* ── BOT MAP ── */
+  .tree { font-family: 'Courier New', monospace; font-size: 13px; line-height: 2; color: #94a3b8; background: #0f172a; border-radius: 12px; padding: 28px 32px; border: 1px solid #1e293b; }
+  .tree .root { color: #60a5fa; font-weight: 700; font-size: 15px; }
+  .tree .lvl1 { color: #f1f5f9; font-weight: 600; }
+  .tree .lvl2 { color: #94a3b8; }
+  .tree .lvl3 { color: #64748b; }
+  .tree .new  { color: #34d399; font-weight: 700; }
+  .tree .hot  { color: #fb923c; font-weight: 700; }
+
+  /* ── FUNNEL ── */
+  .funnel { display: flex; flex-direction: column; gap: 0; max-width: 600px; margin: 0 auto; }
+  .funnel-step { padding: 18px 28px; text-align: center; position: relative; }
+  .funnel-step::after { content: '▼'; position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%); color: #334155; font-size: 18px; z-index: 1; }
+  .funnel-step:last-child::after { display: none; }
+  .funnel-step .f-title { font-weight: 700; font-size: 15px; }
+  .funnel-step .f-sub { font-size: 12px; margin-top: 4px; opacity: .7; }
+  .f1 { background: #1e3a5f; border-radius: 12px 12px 0 0; }
+  .f2 { background: #1e293b; width: 90%; margin: 0 auto; }
+  .f3 { background: #1a1f2e; width: 80%; margin: 0 auto; }
+  .f4 { background: #0f172a; width: 70%; margin: 0 auto; border-radius: 0 0 12px 12px; }
+
+  /* ── KPIS ── */
+  .kpi-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+  .kpi { flex: 1; min-width: 160px; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; text-align: center; }
+  .kpi .k-num { font-size: 28px; font-weight: 800; }
+  .kpi .k-lbl { font-size: 11px; color: #64748b; margin-top: 4px; }
+  .blue-num  { color: #60a5fa; }
+  .green-num { color: #34d399; }
+  .gold-num  { color: #fbbf24; }
+  .purple-num{ color: #a78bfa; }
+
+  /* ── MISC ── */
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, #1e3a5f, transparent); margin: 40px 0; }
+  .highlight { color: #34d399; font-weight: 700; }
+  .muted { color: #64748b; }
+  .pill { display: inline-block; background: #1e3a5f; color: #93c5fd; border-radius: 20px; padding: 4px 14px; font-size: 12px; font-weight: 600; margin: 2px; }
+  .row-split { display: flex; gap: 24px; flex-wrap: wrap; }
+  .row-split > * { flex: 1; min-width: 260px; }
+  .step-list { list-style: none; counter-reset: s; }
+  .step-list li { counter-increment: s; display: flex; align-items: flex-start; gap: 14px; padding: 12px 0; border-bottom: 1px solid #1e293b; font-size: 14px; color: #cbd5e1; }
+  .step-list li::before { content: counter(s); min-width: 28px; height: 28px; background: #1e40af; color: #93c5fd; font-weight: 700; font-size: 12px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .badge-new { background: #064e3b; color: #34d399; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+
+  @media(max-width:600px){ section{ padding: 80px 20px 40px; } .hero-stats{ gap: 20px; } nav{ padding: 8px 12px; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#hero" class="active">🏠 О проекте</a>
+  <a href="#product">📱 Продукт</a>
+  <a href="#bot-map">🗺 Структура бота</a>
+  <a href="#market">📊 Рынок</a>
+  <a href="#revenue">💰 Монетизация</a>
+  <a href="#funnel">🔄 Воронка</a>
+  <a href="#projections">📈 Прогноз</a>
+  <a href="#roadmap">🚀 Роадмап</a>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════ HERO -->
+<section id="hero">
+  <div class="hero-badge">БИЗНЕС-ПЛАН · МАЙ 2026</div>
+  <h1 class="hero-title">FlatFinder IL</h1>
+  <p class="hero-sub">Telegram-платформа поиска недвижимости в Израиле с маркетплейсом услуг — перевозки, клининг, упаковка. Автоматическая генерация лидов для B2B партнёров.</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="num">2 308</div><div class="lbl">Активных объявлений</div></div>
+    <div class="hero-stat"><div class="num">20</div><div class="lbl">Городов Израиля</div></div>
+    <div class="hero-stat"><div class="num">4</div><div class="lbl">Потока дохода</div></div>
+    <div class="hero-stat"><div class="num">3</div><div class="lbl">Языка интерфейса</div></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ PRODUCT -->
+<section id="product">
+  <div class="sec-title">Что такое <span>FlatFinder IL</span></div>
+  <p class="sec-sub">Единая экосистема для поиска жилья и заказа сопутствующих услуг в Израиле</p>
+
+  <div class="grid g2" style="margin-bottom:24px">
+    <div class="card blue">
+      <div class="card-icon">🔍</div>
+      <div class="card-title">Поиск недвижимости</div>
+      <div class="card-body">2 308 объявлений аренды и продажи. Фильтр по городу, типу, комнатам, цене, парковке, бассейну. Парсинг Telegram-каналов в 20 городах. Умные алерты — уведомление при появлении нового объявления по фильтру.</div>
+    </div>
+    <div class="card purple">
+      <div class="card-icon">🚚</div>
+      <div class="card-title">Маркетплейс услуг</div>
+      <div class="card-body">Перевозчики, клининг, упаковка — всё в одном боте. Провайдеры регистрируются и получают заявки от клиентов автоматически, в момент когда клиент снял/купил квартиру.</div>
+    </div>
+    <div class="card green">
+      <div class="card-icon">⚡</div>
+      <div class="card-title">Триггерная генерация лидов</div>
+      <div class="card-body">Клиент нажал «Я снял квартиру» → мгновенно получает предложение упаковочных коробок. Через 3 дня — предложение клининга. Лид создаётся автоматически, без участия команды.</div>
+    </div>
+    <div class="card gold">
+      <div class="card-icon">💼</div>
+      <div class="card-title">Кабинет агента</div>
+      <div class="card-body">Публикация объявлений, редактирование, закрытие сделок, CRM с клиентами. Агенты покупают пакеты слотов и размещают объявления без звонков менеджеру.</div>
+    </div>
+  </div>
+
+  <div class="grid g3">
+    <div class="card">
+      <div class="card-title">🌍 География</div>
+      <div class="card-body" style="margin-top:8px">
+        Тель-Авив · Хайфа · Бат-Ям · Иерусалим · Ашдод · Ашкелон · Нагария · Нетания · Рамат-Ган · Реховот · Беэр-Шева · Эйлат и ещё 8 городов
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🌐 Языки</div>
+      <div class="card-body" style="margin-top:8px">Русский · English · עברית<br><br>Весь интерфейс, кнопки и уведомления переведены на все три языка.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">📡 Источники данных</div>
+      <div class="card-body" style="margin-top:8px">Telegram-каналы (100% базы) · Ручные объявления агентов · Планируется: Yad2, Facebook</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ BOT MAP -->
+<section id="bot-map" class="wide">
+  <div class="sec-title">Структура <span>бота</span></div>
+  <p class="sec-sub">Полная карта навигации — все разделы и экраны</p>
+
+  <div class="row-split">
+    <div class="tree">
+<span class="root">📱 /start — Главное меню</span>
+│
+├── <span class="new">🔑 Аренда</span>  <span class="new">[НОВОЕ]</span>
+│   └── Поиск сразу с deal_type=rent
+│       ├── Тип недвижимости (мульти-выбор)
+│       ├── Район → Город
+│       ├── Комнаты от / до
+│       ├── Цена от / до
+│       ├── Парковка / Бассейн / Лифт
+│       └── Результаты → Листать · Избранное · Телефон
+│
+├── <span class="new">🏦 Купить</span>  <span class="new">[НОВОЕ]</span>
+│   └── Поиск сразу с deal_type=buy
+│       └── (те же шаги, без шага выбора типа сделки)
+│
+├── ⭐ Избранное
+│   └── Листать · Показать телефон · Написать
+│
+├── 🔔 Уведомления (Алерты)
+│   ├── ➕ Создать алерт
+│   │   ├── Тип сделки → Город
+│   │   ├── Комнаты → Цена → Сохранить
+│   ├── Список алертов
+│   └── Удалить алерт
+│
+├── 🏢 Коммерческая
+│   ├── Тип сделки → Тип объекта
+│   ├── Город → Цена от/до
+│   └── Результаты
+│
+├── 🚚 Услуги
+│   ├── 🚚 Перевозки → Список компаний по городу
+│   │   └── [Подписка: 70₪/мес база · 100₪/нед ТОП]
+│   ├── 📦 Упаковка → Список компаний
+│   │   └── <span class="hot">[Лид: 30₪/контакт, до 3 компаний]</span>
+│   ├── 🧹 Клининг → Список компаний
+│   │   └── <span class="hot">[Лид: 50₪/контакт, до 3 компаний]</span>
+│   ├── ➕ Разместить услугу (тип → регион → город → цена)
+│   ├── <span class="new">📋 Заявки клиентов</span>  <span class="new">[НОВОЕ]</span>
+│   │   ├── Список лидов с индикатором мест (🟡🔴)
+│   │   └── Купить контакт — X₪ → Телефон клиента
+│   └── <span class="new">🗂 Мои купленные лиды</span>  <span class="new">[НОВОЕ]</span>
+│       └── Список купленных контактов
+│
+├── 🏠 Мои объявления → Кабинет
+│   ├── Редактировать (цена, описание)
+│   ├── Вкл/Выкл активность
+│   ├── Удалить объявление
+│   └── ✅ Закрыть сделку
+│       ├── → Арендатор: 📦 Коробки?  <span class="new">[НОВОЕ]</span>
+│       └── → Арендатор: 🧹 Клининг через 3 дня  <span class="new">[НОВОЕ]</span>
+│
+├── ➕ Добавить объявление (12 шагов)
+│   ├── Тип продавца · Тип сделки · Тип жилья
+│   ├── Район → Город → Адрес
+│   ├── Комнаты · Этаж · Площадь
+│   ├── Цена (обязательна, 0 не проходит)  <span class="new">[ИСПРАВЛЕНО]</span>
+│   ├── Парковка · Бассейн · Укрытие · Лифт
+│   ├── Описание · Фото (до 5 шт)
+│   └── Оплата → Публикация
+│
+├── 📋 Все объявления → Листать
+├── ★ Подписка (Stars / Карта / Крипто)
+├── 📅 Мои подписки
+├── 🗂 Кабинет
+├── 🌐 Язык (RU · EN · HE)
+└── ✉️ Написать нам · 📸 Instagram
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card green">
+        <div class="card-title">⚡ Триггерная воронка лидов</div>
+        <div class="card-body" style="margin-top:10px;line-height:2">
+          Пользователь нажал «Я снял/купил»<br>
+          ↓ <span class="highlight">Мгновенно</span>: предложение упаковки<br>
+          ↓ <span class="highlight">Через 3 дня</span>: предложение клининга<br>
+          ↓ Провайдеры получают push + email<br>
+          ↓ До 3 компаний берут лид<br>
+          ↓ Каждая платит 30–50₪
+        </div>
+      </div>
+      <div class="card blue">
+        <div class="card-title">🧹 Визард клининга (6 шагов)</div>
+        <div class="card-body" style="margin-top:10px;line-height:1.9">
+          1. Тип уборки<br>
+          2. Комнаты + тип жилья<br>
+          3. Город<br>
+          4. Доп. услуги ☑️ (мульти-выбор)<br>
+          5. Срок (ASAP / неделя / позже)<br>
+          6. Статус квартиры + Телефон
+        </div>
+      </div>
+      <div class="card purple">
+        <div class="card-title">📦 Визард упаковки (3 шага)</div>
+        <div class="card-body" style="margin-top:10px;line-height:1.9">
+          1. Кол-во комнат<br>
+          2. Город<br>
+          3. Телефон
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔔 Фоновые процессы</div>
+        <div class="card-body" style="margin-top:10px;line-height:1.9">
+          • Парсер Telegram (каналы аренды)<br>
+          • Алерт-чекер (новые объявления)<br>
+          • Лид-чекер каждые 30 мин<br>
+          • Автоочистка лидов (72 ч)<br>
+          • Утренний дайджест (digest)<br>
+          • Аналитика / дашборд (порт 3000)
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ MARKET -->
+<section id="market">
+  <div class="sec-title">Рынок и <span>аудитория</span></div>
+  <p class="sec-sub">Израиль — один из самых активных рынков недвижимости на Ближнем Востоке</p>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="k-num blue-num">9.8M</div><div class="k-lbl">Население Израиля</div></div>
+    <div class="kpi"><div class="k-num green-num">~500K</div><div class="k-lbl">Переездов в год</div></div>
+    <div class="kpi"><div class="k-num gold-num">~1.5M</div><div class="k-lbl">Русскоязычных жителей</div></div>
+    <div class="kpi"><div class="k-num purple-num">85%</div><div class="k-lbl">Аренда vs продажа</div></div>
+  </div>
+
+  <div class="grid g2">
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">👥 Целевые сегменты — пользователи</div>
+        <div class="card-body" style="margin-top:10px;line-height:1.9">
+          <strong style="color:#f1f5f9">Репатрианты и мигранты</strong> — не знают рынка, нужна помощь со всем: жильё + услуги<br>
+          <strong style="color:#f1f5f9">Молодые семьи</strong> — снимают квартиры, переезжают раз в 1–3 года<br>
+          <strong style="color:#f1f5f9">Покупатели инвестиционной недвижимости</strong> — ищут объекты для сдачи в аренду
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏢 Целевые сегменты — B2B</div>
+        <div class="card-body" style="margin-top:10px;line-height:1.9">
+          <strong style="color:#f1f5f9">Агенты по недвижимости</strong> — покупают слоты для публикации объявлений<br>
+          <strong style="color:#f1f5f9">Компании-перевозчики</strong> — подписка + ТОП-позиция в городе<br>
+          <strong style="color:#f1f5f9">Клининговые компании</strong> — покупают лиды от клиентов, которые только заехали<br>
+          <strong style="color:#f1f5f9">Компании по упаковке</strong> — получают заявки в момент принятия решения о переезде
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🗺 Топ городов в базе сегодня</div>
+      <div style="margin-top:16px">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Тель-Авив</span><span class="highlight">662</span></div>
+            <div style="height:6px;background:#1e293b;border-radius:3px"><div style="height:100%;width:100%;background:linear-gradient(90deg,#2563eb,#60a5fa);border-radius:3px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Бат-Ям</span><span class="highlight">570</span></div>
+            <div style="height:6px;background:#1e293b;border-radius:3px"><div style="height:100%;width:86%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:3px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Хайфа</span><span class="highlight">524</span></div>
+            <div style="height:6px;background:#1e293b;border-radius:3px"><div style="height:100%;width:79%;background:linear-gradient(90deg,#065f46,#34d399);border-radius:3px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Нагария</span><span class="highlight">96</span></div>
+            <div style="height:6px;background:#1e293b;border-radius:3px"><div style="height:100%;width:14%;background:#60a5fa;border-radius:3px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Ашдод</span><span class="highlight">91</span></div>
+            <div style="height:6px;background:#1e293b;border-radius:3px"><div style="height:100%;width:13%;background:#60a5fa;border-radius:3px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Ашкелон</span><span class="highlight">85</span></div>
+            <div style="height:6px;background:#1e293b;border-radius:3px"><div style="height:100%;width:12%;background:#60a5fa;border-radius:3px"></div></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span>Рамат-Ган</span><span class="highlight">53</span></div>
+            <div style="height:6px;background:#1e293b;border-radius:3px"><div style="height:100%;width:8%;background:#60a5fa;border-radius:3px"></div></div>
+          </div>
+          <div style="padding-top:8px;font-size:12px;color:#64748b">+ Иерусалим, Реховот, Нетания, Беэр-Шева и ещё 10 городов</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ REVENUE -->
+<section id="revenue">
+  <div class="sec-title">Модель <span>монетизации</span></div>
+  <p class="sec-sub">4 независимых потока дохода — агенты, перевозчики, клининг, упаковка</p>
+
+  <div class="grid g2" style="margin-bottom:32px">
+
+    <!-- АГЕНТЫ -->
+    <div class="price-card featured">
+      <div class="price-header">
+        <div class="tier">🏢 Агенты по недвижимости</div>
+        <div class="amount">70 <sup>₪</sup></div>
+        <div class="period">за 1 объявление / месяц</div>
+        <div class="desc">Пакеты на 1–∞ объявлений. Оплата через Telegram Stars, карту или криптовалюту.</div>
+      </div>
+      <div class="price-body">
+        <div class="price-row"><span>1 объявление</span><span class="val">70 ₪/мес</span></div>
+        <div class="price-row"><span>5 объявлений</span><span class="val">300 ₪/мес <span style="color:#64748b;font-size:11px">= 60₪/шт</span></span></div>
+        <div class="price-row"><span>10 объявлений</span><span class="val">550 ₪/мес <span style="color:#64748b;font-size:11px">= 55₪/шт</span></span></div>
+        <div class="price-row"><span>20 объявлений</span><span class="val">1 000 ₪/мес <span style="color:#64748b;font-size:11px">= 50₪/шт</span></span></div>
+        <div class="price-row"><span>♾ Безлимит</span><span class="val">3 000 ₪/мес</span></div>
+      </div>
+    </div>
+
+    <!-- ПЕРЕВОЗЧИКИ -->
+    <div class="price-card">
+      <div class="price-header">
+        <div class="tier">🚚 Перевозчики</div>
+        <div class="amount">70 <sup>₪</sup></div>
+        <div class="period">базовая подписка / месяц</div>
+        <div class="desc">Присутствие в базе + опциональный ТОП в своём городе за отдельную плату.</div>
+      </div>
+      <div class="price-body">
+        <div class="price-row"><span>📋 База — в базе платформы</span><span class="val">70 ₪/мес</span></div>
+        <div class="price-row"><span>⭐ ТОП в городе (первые строчки)</span><span class="val">100 ₪/нед</span></div>
+        <div class="price-row"><span>База + ТОП на месяц</span><span class="val">~470 ₪/мес</span></div>
+      </div>
+    </div>
+
+    <!-- КЛИНИНГ -->
+    <div class="price-card">
+      <div class="price-header">
+        <div class="tier">🧹 Клининг — маркетплейс лидов</div>
+        <div class="amount">50 <sup>₪</sup></div>
+        <div class="period">за один лид (открытие контакта)</div>
+        <div class="desc">Лид = клиент, который только что снял/купил квартиру и запросил уборку. Регистрация бесплатна.</div>
+      </div>
+      <div class="price-body">
+        <div class="price-row"><span>Открыть контакт клиента</span><span class="val">50 ₪</span></div>
+        <div class="price-row"><span>Макс. компаний на 1 лид</span><span class="val" style="color:#34d399">3 компании</span></div>
+        <div class="price-row"><span>Максимальный доход с лида</span><span class="val" style="color:#34d399">150 ₪</span></div>
+        <div class="price-row"><span>Пополнение баланса</span><span class="val">100 / 200 / 500 ₪</span></div>
+      </div>
+    </div>
+
+    <!-- УПАКОВКА -->
+    <div class="price-card">
+      <div class="price-header">
+        <div class="tier">📦 Упаковка — маркетплейс лидов</div>
+        <div class="amount">30 <sup>₪</sup></div>
+        <div class="period">за один лид</div>
+        <div class="desc">Клиент нажал «Я снял/купил» — бот немедленно предлагает упаковочные коробки. Горячий лид.</div>
+      </div>
+      <div class="price-body">
+        <div class="price-row"><span>Открыть контакт клиента</span><span class="val">30 ₪</span></div>
+        <div class="price-row"><span>Макс. компаний на 1 лид</span><span class="val" style="color:#a78bfa">3 компании</span></div>
+        <div class="price-row"><span>Максимальный доход с лида</span><span class="val" style="color:#a78bfa">90 ₪</span></div>
+        <div class="price-row"><span>Задержка с момента события</span><span class="val">0 сек ⚡</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ПОЧЕМУ МУЛЬТИ-ЛИД -->
+  <div class="card green">
+    <div class="card-title">💡 Почему до 3 компаний на один лид?</div>
+    <div class="card-body" style="margin-top:10px;line-height:1.9">
+      <strong style="color:#f1f5f9">Для клиента:</strong> получает звонки от 2–3 компаний → выбирает лучшую цену. Воспринимается как сервис, а не как спам.<br>
+      <strong style="color:#f1f5f9">Для платформы:</strong> доход с одного лида умножается в 3× (50₪ × 3 = 150₪ за один лид по клинингу).<br>
+      <strong style="color:#f1f5f9">Для компаний:</strong> видят конкуренцию (🟡 «Мест: 1»), это создаёт срочность и стимул купить быстро.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ FUNNEL -->
+<section id="funnel">
+  <div class="sec-title">Воронка <span>продаж</span></div>
+  <p class="sec-sub">Путь пользователя от первого контакта до генерации дохода</p>
+
+  <div class="row-split">
+    <div>
+      <div class="funnel">
+        <div class="funnel-step f1">
+          <div class="f-title">👋 Пользователь открывает бот</div>
+          <div class="f-sub">Рекламный пост · Органика · Реферал</div>
+        </div>
+        <div class="funnel-step f2">
+          <div class="f-title">🔑 Ищет квартиру в аренду или покупку</div>
+          <div class="f-sub">Фильтрует по городу, цене, комнатам</div>
+        </div>
+        <div class="funnel-step f3">
+          <div class="f-title">🏠 Находит и снимает квартиру</div>
+          <div class="f-sub">Нажимает «Я снял/купил» → триггер</div>
+        </div>
+        <div class="funnel-step f4">
+          <div class="f-title">📦 🧹 Получает предложения услуг</div>
+          <div class="f-sub">Упаковка сразу · Клининг через 3 дня</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card blue">
+        <div class="card-title">🎯 Преимущество триггерного маркетинга</div>
+        <div class="card-body" style="margin-top:10px;line-height:1.9">
+          Обычный лид-магнет просит клиента самому заполнить форму. Мы знаем точный момент — человек только что принял решение о переезде.<br><br>
+          <span class="highlight">Конверсия горячего лида в 5–10× выше</span>, чем холодного. Клининговые компании готовы платить больше именно за такие лиды.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 Дополнительные триггерные точки</div>
+        <div class="card-body" style="margin-top:10px;line-height:1.9">
+          • Владелец закрыл сделку → арендатор получает триггеры<br>
+          • Агент подтвердил въезд → клиент получает услуги<br>
+          • Оба пути (tenant + owner) покрыты<br>
+          • Email-уведомление провайдерам при новом лиде
+        </div>
+      </div>
+      <div class="card green">
+        <div class="card-title">💰 Доход с одного переезда</div>
+        <div class="card-body" style="margin-top:10px;line-height:1.9">
+          Упаковка (3 компании): <span class="highlight">90 ₪</span><br>
+          Клининг (3 компании): <span class="highlight">150 ₪</span><br>
+          Агент (публикация): <span class="highlight">50–70 ₪</span><br>
+          <div style="border-top:1px solid #065f46;margin-top:12px;padding-top:12px;font-weight:700;color:#34d399;font-size:16px">Итого с одного переезда: до 310 ₪</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ PROJECTIONS -->
+<section id="projections">
+  <div class="sec-title">Финансовый <span>прогноз</span></div>
+  <p class="sec-sub">Консервативный сценарий по трём горизонтам</p>
+
+  <div style="overflow-x:auto;margin-bottom:32px">
+    <table>
+      <thead>
+        <tr>
+          <th>Метрика</th>
+          <th>Месяц 3</th>
+          <th>Месяц 6</th>
+          <th>Месяц 12</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:#f1f5f9">Активных пользователей</strong></td>
+          <td>500</td>
+          <td>2 000</td>
+          <td>8 000</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#f1f5f9">Агентов с подпиской</strong></td>
+          <td>10</td>
+          <td>40</td>
+          <td>120</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#f1f5f9">Компаний-перевозчиков</strong></td>
+          <td>5</td>
+          <td>20</td>
+          <td>60</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#f1f5f9">Клининг-компаний</strong></td>
+          <td>5</td>
+          <td>15</td>
+          <td>40</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#f1f5f9">Лидов по клинингу / мес</strong></td>
+          <td>30</td>
+          <td>100</td>
+          <td>350</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#f1f5f9">Лидов по упаковке / мес</strong></td>
+          <td>40</td>
+          <td>130</td>
+          <td>450</td>
+        </tr>
+        <tr style="background:#0f2744">
+          <td><strong style="color:#60a5fa">Доход: агенты</strong></td>
+          <td class="highlight">~1 000 ₪</td>
+          <td class="highlight">~4 000 ₪</td>
+          <td class="highlight">~12 000 ₪</td>
+        </tr>
+        <tr style="background:#0f2744">
+          <td><strong style="color:#60a5fa">Доход: перевозчики</strong></td>
+          <td class="highlight">~350 ₪</td>
+          <td class="highlight">~1 400 ₪</td>
+          <td class="highlight">~4 200 ₪</td>
+        </tr>
+        <tr style="background:#0f2744">
+          <td><strong style="color:#60a5fa">Доход: клининг-лиды</strong></td>
+          <td class="highlight">~4 500 ₪</td>
+          <td class="highlight">~15 000 ₪</td>
+          <td class="highlight">~52 500 ₪</td>
+        </tr>
+        <tr style="background:#0f2744">
+          <td><strong style="color:#60a5fa">Доход: упаковка-лиды</strong></td>
+          <td class="highlight">~3 600 ₪</td>
+          <td class="highlight">~11 700 ₪</td>
+          <td class="highlight">~40 500 ₪</td>
+        </tr>
+        <tr style="background:#052e1c">
+          <td><strong style="color:#34d399;font-size:15px">ИТОГО В МЕСЯЦ</strong></td>
+          <td style="color:#34d399;font-weight:800;font-size:15px">~9 450 ₪</td>
+          <td style="color:#34d399;font-weight:800;font-size:15px">~32 100 ₪</td>
+          <td style="color:#34d399;font-weight:800;font-size:15px">~109 200 ₪</td>
+        </tr>
+        <tr style="background:#052e1c">
+          <td><strong style="color:#34d399">В долларах (~3.7₪/$)</strong></td>
+          <td style="color:#34d399;font-weight:700">~$2 550</td>
+          <td style="color:#34d399;font-weight:700">~$8 700</td>
+          <td style="color:#34d399;font-weight:700">~$29 500</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card gold">
+    <div class="card-title">⚠️ Допущения прогноза</div>
+    <div class="card-body" style="margin-top:10px;line-height:1.9">
+      • Средний чек агента: ~100₪/мес (смешанные пакеты)<br>
+      • Клининг-лид: покупают 2,5 из 3 доступных мест → 125₪ за лид<br>
+      • Упаковка-лид: покупают 2 из 3 мест → 60₪ за лид<br>
+      • Конверсия «снял квартиру → оставил заявку на клининг»: 30%<br>
+      • Конверсия «снял квартиру → оставил заявку на упаковку»: 40%<br>
+      • CAC = 0 (органический рост через Telegram-каналы)
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ ROADMAP -->
+<section id="roadmap">
+  <div class="sec-title">Роадмап <span>2026</span></div>
+  <p class="sec-sub">Что уже сделано и что планируется</p>
+
+  <div class="row-split">
+    <div>
+      <div style="font-weight:700;color:#34d399;margin-bottom:16px;font-size:13px;letter-spacing:1px;text-transform:uppercase">✅ Уже реализовано</div>
+      <ul class="step-list">
+        <li>Поиск недвижимости — аренда и продажа, разделены в главном меню</li>
+        <li>2 308 объявлений из Telegram, без «Израиль» как города</li>
+        <li>Алерты — уведомления при появлении нового объявления по фильтру</li>
+        <li>Кабинет агента — редактирование, удаление, закрытие сделок</li>
+        <li>Маркетплейс услуг — перевозчики, клининг, упаковка</li>
+        <li>Триггерные лиды — автоматически после «Я снял/купил»</li>
+        <li>Визард клининга (6 шагов) + визард упаковки (3 шага)</li>
+        <li>Маркетплейс лидов — до 3 компаний на лид, баланс, история</li>
+        <li>Фоновый чекер — отправка триггеров каждые 30 мин</li>
+        <li>Аналитический дашборд — пользователи, объявления, доходы, лиды</li>
+        <li>Мультиязычность — RU / EN / HE, сохранение в БД</li>
+        <li>Коммерческая недвижимость — отдельный визард поиска</li>
+      </ul>
+    </div>
+    <div>
+      <div style="font-weight:700;color:#fbbf24;margin-bottom:16px;font-size:13px;letter-spacing:1px;text-transform:uppercase">🔜 Следующие шаги</div>
+      <ul class="step-list">
+        <li>Подключить Yad2 парсер — основной рынок продаж в Израиле</li>
+        <li>Facebook Groups парсер — частные объявления</li>
+        <li>Онлайн-оплата (PayPlus) — для пополнения баланса лидов</li>
+        <li>Реферальная программа для привлечения B2B</li>
+        <li>Рейтинги и отзывы на провайдеров услуг</li>
+        <li>WhatsApp-интеграция — дублирование уведомлений</li>
+        <li>Фото-объявления с AI-описанием (GPT)</li>
+        <li>Нотариусы и юристы — новый тип поставщиков услуг</li>
+        <li>Страхование квартиры — партнёрский продукт</li>
+        <li>Маркетинговая кампания в Telegram-каналах репатриантов</li>
+      </ul>
+
+      <div class="divider"></div>
+
+      <div class="card blue" style="margin-top:8px">
+        <div class="card-title">📣 Каналы привлечения</div>
+        <div class="card-body" style="margin-top:10px;line-height:1.9">
+          <strong style="color:#f1f5f9">B2C:</strong> Telegram-каналы репатриантов, SEO в Google (израильская аренда), Instagram @flatfinderil<br>
+          <strong style="color:#f1f5f9">B2B:</strong> Прямые переговоры с клининг-компаниями и перевозчиками, демо-доступ на первые 5 лидов бесплатно
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="card" style="text-align:center;padding:40px">
+    <div style="font-size:48px;margin-bottom:16px">🚀</div>
+    <div style="font-size:24px;font-weight:800;color:#f1f5f9;margin-bottom:12px">FlatFinder IL — платформа с умной воронкой</div>
+    <div style="color:#94a3b8;max-width:600px;margin:0 auto;line-height:1.7">
+      Мы не просто агрегатор объявлений. Мы знаем момент переезда — и монетизируем его через автоматическую отправку горячих лидов компаниям, которые платят за контакт.
+    </div>
+    <div style="margin-top:24px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+      <span class="pill">Telegram Bot</span>
+      <span class="pill">Lead Marketplace</span>
+      <span class="pill">Triggered Leads</span>
+      <span class="pill">B2B SaaS</span>
+      <span class="pill">Israel PropTech</span>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Active nav on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav a');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + e.target.id));
+      }
+    });
+  }, { threshold: 0.4 });
+  sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

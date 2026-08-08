@@ -1,5 +1,12 @@
-from telegram import Update
+import os
+import logging
+from telegram import Update, LabeledPrice
 from telegram.ext import ContextTypes
+
+logger = logging.getLogger(__name__)
+
+# Telegram Stars (XTR) — no provider token needed
+PAYMENT_PROVIDER_TOKEN = ""  # legacy, kept for reference
 from keyboards import (
     main_menu_keyboard, back_to_menu_keyboard,
     results_navigation_keyboard, language_keyboard, join_keyboard,
@@ -9,19 +16,115 @@ from keyboards import (
     close_deal_select_keyboard, deal_confirm_price_keyboard,
     tenant_deal_confirm_keyboard, owner_deal_confirm_keyboard,
     search_alert_confirm_keyboard,
+    crypto_plan_keyboard, crypto_asset_keyboard,
+    card_plan_keyboard,
 )
+import cryptopay
+import paypal_payment as morning_payment
 from formatters import format_welcome, format_listing_card
 from i18n import t, LANGUAGES, get_lang
-from subscription import has_access, activate_subscription, get_status_text, is_trial_active, PLANS
+from subscription import (
+    has_access, activate_subscription, get_status_text, is_trial_active, PLANS,
+    days_left_trial, get_trial_warning, TRIAL_WARNING_THRESHOLDS,
+)
 from analytics import track_user, track_subscription, track_member, get_member_count
 from display_utils import display_listing
 import database as db
 from datetime import datetime
+import re as _re
+
+
+def _build_cabinet_listing_text(listing: dict) -> str:
+    """Build the full listing card text for the cabinet (owner view)."""
+    active = listing.get("active", True)
+    status = "🟢 Активно" if active else "🔴 Снято с публикации"
+    avg_r, cnt = db.get_average_rating(listing.get("id", 0))
+    rating_str = f"⭐ {avg_r} ({cnt} отзывов)" if avg_r is not None else "⭐ —"
+
+    # Extract contact from field or from description
+    contact = listing.get("contact", "") or ""
+    if not contact:
+        phones = _re.findall(
+            r'(?:\+972[-\s]?|0)(?:5[0-9]|7[23])[-\s]?\d{3}[-\s]?\d{4}',
+            listing.get("description", "") or ""
+        )
+        if phones:
+            contact = " / ".join(dict.fromkeys(phones))
+    contact_line = f"\n📞 <b>Контакт:</b> {contact}" if contact else ""
+
+    deal_emoji = "🔑" if listing.get("deal_type") == "rent" else "🏷"
+    deal_label = {"rent": "Аренда", "buy": "Продажа"}.get(listing.get("deal_type", ""), "—")
+
+    # Clean Facebook metadata noise from description (author/timestamp header lines)
+    raw_desc = listing.get("description", "") or ""
+    desc_lines = raw_desc.split("\n")
+    clean_lines, skip_zone = [], True
+    for ln in desc_lines:
+        s = ln.strip()
+        if skip_zone and (not s
+                          or _re.match(r'^[\w\s]+ \d+ (ч|мин|дн|д)\.$', s)
+                          or s in ("и", "·")
+                          or _re.match(r'^\d+ (ч|мин|дн)\.?\s*·?$', s)):
+            continue
+        skip_zone = False
+        clean_lines.append(ln)
+    desc_clean = "\n".join(clean_lines).strip()[:800]
+    desc_line = f"\n\n📝 {desc_clean}" if desc_clean else ""
+
+    source_url = listing.get("source_url", "")
+    source_line = f'\n🔗 <a href="{source_url}">Исходный пост</a>' if source_url else ""
+
+    return (
+        f"{deal_emoji} <b>{deal_label}</b>\n"
+        f"<b>{(listing.get('title') or '—')[:200]}</b>\n\n"
+        f"💰 {listing.get('price', 0):,} ₪\n"
+        f"📍 {listing.get('city', '—')} · {listing.get('neighborhood', '—')}\n"
+        f"🛏 {listing.get('rooms', '—')} комн. · {listing.get('area_sqm', '—')} м²\n"
+        f"👁 {listing.get('views', 0)} просмотров · 📞 {listing.get('view_requests', 0)} запросов\n"
+        f"{rating_str}\n"
+        f"Статус: {status}"
+        f"{contact_line}"
+        f"{source_line}"
+        f"{desc_line}"
+    )[:4000]
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     args = context.args or []
+
+    # context.user_data lives only in process memory (no PTB persistence is
+    # configured), so it's wiped on every bot restart/redeploy. Restore the
+    # bits we already persist in the DB before deciding what screen to show,
+    # otherwise every returning user gets sent back through join/language
+    # selection instead of the main menu after a restart.
+    if "lang" not in context.user_data:
+        try:
+            saved_lang = db.get_setting(f"user_lang_{user.id}")
+            if saved_lang:
+                context.user_data["lang"] = saved_lang
+        except Exception:
+            logger.warning("[start] get_setting(user_lang) failed for user %s", user.id, exc_info=True)
+    if not context.user_data.get("joined"):
+        try:
+            if db.get_setting(f"user_joined_{user.id}") == "1":
+                context.user_data["joined"] = True
+        except Exception:
+            logger.warning("[start] get_setting(user_joined) failed for user %s", user.id, exc_info=True)
+
+    # Save user to DB on every /start
+    try:
+        lang = context.user_data.get("lang", "ru")
+        if hasattr(db, "upsert_bot_user"):
+            db.upsert_bot_user(
+                user_id=user.id,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                lang=lang,
+            )
+    except Exception:
+        logger.warning("[start] upsert_bot_user failed for user %s", user.id, exc_info=True)
 
     # Handle referral link: /start ref_USERID
     if args and args[0].startswith("ref_"):
@@ -57,9 +160,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     context.user_data.pop("search_filters", None)
     context.user_data.pop("results", None)
-    track_user(user.id, context.user_data.get("lang", "ru"))
+    track_user(user.id, context.user_data.get("lang", "ru"), first_name=user.first_name, last_name=user.last_name, username=user.username)
+
+    welcome_text = format_welcome(user.first_name, context)
+    # Баннер о скором окончании триала — только пока триал активен
+    try:
+        if is_trial_active():
+            days = days_left_trial()
+            if days <= max(TRIAL_WARNING_THRESHOLDS):
+                lang = context.user_data.get("lang", "ru")
+                from subscription import get_expiry
+                from datetime import datetime as _dt
+                paid = get_expiry(user.id, "main")
+                if not (paid and paid > _dt.now()):
+                    banner = get_trial_warning(lang, days)
+                    welcome_text = banner + "\n\n" + welcome_text
+    except Exception:
+        pass
+
     await update.message.reply_text(
-        format_welcome(user.first_name, context),
+        welcome_text,
         reply_markup=main_menu_keyboard(context),
         parse_mode="HTML"
     )
@@ -73,12 +193,16 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "join":
         user = update.effective_user
         context.user_data["joined"] = True
-        track_member(user.id)
+        try:
+            db.set_setting(f"user_joined_{user.id}", "1")
+        except Exception:
+            logger.warning("[handle_menu] set_setting(user_joined) failed for user %s", user.id, exc_info=True)
+        track_member(user.id, first_name=user.first_name, last_name=user.last_name, username=user.username)
         # Proceed to language selection or main menu
         if "lang" not in context.user_data:
             await query.edit_message_text(t("choose_language", context), reply_markup=language_keyboard())
         else:
-            track_user(user.id, context.user_data.get("lang", "ru"))
+            track_user(user.id, context.user_data.get("lang", "ru"), first_name=user.first_name, last_name=user.last_name, username=user.username)
             await query.edit_message_text(
                 format_welcome(user.first_name, context),
                 reply_markup=main_menu_keyboard(context),
@@ -95,6 +219,8 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if lang in LANGUAGES:
             context.user_data["lang"] = lang
             user = update.effective_user
+            db.set_setting(f"user_lang_{user.id}", lang)  # persist for delayed triggers
+            track_user(user.id, lang, first_name=user.first_name, last_name=user.last_name, username=user.username)
             await query.edit_message_text(
                 format_welcome(user.first_name, context),
                 reply_markup=main_menu_keyboard(context),
@@ -121,52 +247,180 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lang = get_lang(context)
         user_id = update.effective_user.id
         status = get_status_text(user_id, lang)
-        trial_text = t("sub_trial", context) if is_trial_active() else t("sub_choose", context)
-        text = (
-            f"<b>{t('sub_title', context)}</b>\n\n"
-            f"{status}\n\n"
-            f"{trial_text}\n\n"
-            f"{t('btn_sub_week', context)} \n"
-            f"{t('btn_sub_two_weeks', context)} \n"
-            f"{t('btn_sub_month', context)}"
-        )
+        from config import PLAN_PRICES_ILS
+        w = PLAN_PRICES_ILS.get("week", 19.9)
+        tw = PLAN_PRICES_ILS.get("two_weeks", 29.9)
+        m = PLAN_PRICES_ILS.get("month", 39.9)
+        descs = {
+            "ru": (
+                f"<b>{t('sub_title', context)}</b>\n\n"
+                f"{status}\n\n"
+                f"Выберите тариф — оплата через PayPal:\n\n"
+                f"• 1 неделя — <b>{w:.0f}₪</b>\n"
+                f"• 2 недели — <b>{tw:.0f}₪</b>\n"
+                f"• 1 месяц — <b>{m:.0f}₪</b>"
+            ),
+            "en": (
+                f"<b>{t('sub_title', context)}</b>\n\n"
+                f"{status}\n\n"
+                f"Choose a plan — payment via PayPal:\n\n"
+                f"• 1 week — <b>{w:.0f}₪</b>\n"
+                f"• 2 weeks — <b>{tw:.0f}₪</b>\n"
+                f"• 1 month — <b>{m:.0f}₪</b>"
+            ),
+            "he": (
+                f"<b>{t('sub_title', context)}</b>\n\n"
+                f"{status}\n\n"
+                f"בחרו תוכנית — תשלום דרך PayPal:\n\n"
+                f"• שבוע 1 — <b>{w:.0f}₪</b>\n"
+                f"• 2 שבועות — <b>{tw:.0f}₪</b>\n"
+                f"• חודש 1 — <b>{m:.0f}₪</b>"
+            ),
+        }
+        text = descs.get(lang, descs["ru"])
         await query.edit_message_text(
             text,
             reply_markup=subscription_keyboard(context),
             parse_mode="HTML"
         )
 
-    elif data.startswith("sub_"):
-        plan_key = data.replace("sub_", "")
-        if plan_key == "search_alert":
+    elif data.startswith("sub_") and not data.startswith("sub_crypto"):
+        # sub_search_alert and sub_search_alert_confirm are handled by handle_stars_invoice (group=-1)
+        # which runs before handle_menu. We skip them here to avoid double-handling.
+        pass
+
+    # ── Crypto payments ──────────────────────────────────────────────────
+    elif data == "sub_crypto":
+        if not cryptopay.is_enabled():
             await query.edit_message_text(
-                t("sub_search_alert_desc", context),
-                reply_markup=search_alert_confirm_keyboard(context),
+                "⚠️ Крипто-платежи пока не настроены. Используйте оплату картой.",
+                reply_markup=subscription_keyboard(context),
                 parse_mode="HTML",
             )
-        elif plan_key == "search_alert_confirm":
-            user_id = update.effective_user.id
-            expiry = activate_subscription(user_id, "search_alert")
-            lang = get_lang(context)
-            plan = PLANS["search_alert"]
-            plan_name = plan[f"name_{lang}"] if f"name_{lang}" in plan else plan["name_ru"]
-            expiry_str = expiry.strftime("%d.%m.%Y")
+        else:
+            from config import PLAN_PRICES_USD
             await query.edit_message_text(
-                t("sub_activated", context, plan=plan_name, expiry=expiry_str),
-                reply_markup=back_to_menu_keyboard(context),
+                "₿ <b>Оплата криптовалютой</b>\n\n"
+                "Выберите тариф:\n"
+                f"• Неделя — <b>${PLAN_PRICES_USD['week']}</b>\n"
+                f"• 2 недели — <b>${PLAN_PRICES_USD['two_weeks']}</b>\n"
+                f"• Месяц — <b>${PLAN_PRICES_USD['month']}</b>\n\n"
+                "💡 Оплата через @CryptoBot — внутри Telegram",
+                reply_markup=crypto_plan_keyboard(context),
                 parse_mode="HTML",
             )
-        elif plan_key in PLANS:
+
+    elif data.startswith("crypto_plan_"):
+        plan_key = data.replace("crypto_plan_", "")
+        await query.edit_message_text(
+            f"₿ <b>Выберите валюту</b>\n\nТариф: <b>{plan_key.replace('_', ' ')}</b>",
+            reply_markup=crypto_asset_keyboard(plan_key),
+            parse_mode="HTML",
+        )
+
+    elif data.startswith("crypto_pay_"):
+        parts = data.split("_", 3)  # crypto_pay_PLAN_ASSET
+        if len(parts) == 4:
+            _, _, plan_key, asset = parts
             user_id = update.effective_user.id
-            expiry = activate_subscription(user_id, plan_key)
-            lang = get_lang(context)
-            plan = PLANS[plan_key]
-            plan_name = plan[f"name_{lang}"] if f"name_{lang}" in plan else plan["name_ru"]
-            expiry_str = expiry.strftime("%d.%m.%Y")
+            await query.answer("Создаём счёт...", show_alert=False)
+            invoice = cryptopay.create_invoice(plan_key, user_id, asset)
+            if invoice:
+                from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+                pay_url = invoice.get("pay_url", "")
+                inv_id  = invoice.get("invoice_id", "?")
+                amount  = invoice.get("amount", "?")
+                plan = PLANS.get(plan_key, {})
+                lang = get_lang(context)
+                plan_name = plan.get(f"name_{lang}") or plan.get("name_ru", plan_key)
+                await query.edit_message_text(
+                    f"₿ <b>Счёт создан!</b>\n\n"
+                    f"Тариф: <b>{plan_name}</b>\n"
+                    f"Сумма: <b>{amount} {asset}</b>\n"
+                    f"ID счёта: <code>{inv_id}</code>\n\n"
+                    f"Нажмите кнопку ниже для оплаты через @CryptoBot.\n"
+                    f"Подписка активируется автоматически после оплаты.",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton(f"💳 Оплатить {amount} {asset}", url=pay_url)],
+                        [InlineKeyboardButton("◀ Назад", callback_data="sub_crypto")],
+                    ]),
+                    parse_mode="HTML",
+                )
+            else:
+                await query.edit_message_text(
+                    "❌ Не удалось создать счёт. Попробуйте позже.",
+                    reply_markup=subscription_keyboard(context),
+                    parse_mode="HTML",
+                )
+
+    # ── Morning card payments ─────────────────────────────────────────────
+    elif data == "sub_card":
+        if not morning_payment.is_enabled():
             await query.edit_message_text(
-                t("sub_activated", context, plan=plan_name, expiry=expiry_str),
-                reply_markup=back_to_menu_keyboard(context),
-                parse_mode="HTML"
+                "⚠️ Оплата картой временно недоступна. Используйте другой способ.",
+                reply_markup=subscription_keyboard(context),
+                parse_mode="HTML",
+            )
+        else:
+            lang = get_lang(context)
+            titles = {"ru": "💳 Оплата картой", "en": "💳 Card payment", "he": "💳 תשלום בכרטיס"}
+            descs  = {
+                "ru": "Выберите тариф — оплата через PayPal:",
+                "en": "Choose a plan — pay via PayPal:",
+                "he": "בחרו תוכנית — תשלום דרך PayPal:",
+            }
+            await query.edit_message_text(
+                f"<b>{titles.get(lang, titles['ru'])}</b>\n\n{descs.get(lang, descs['ru'])}",
+                reply_markup=card_plan_keyboard(context),
+                parse_mode="HTML",
+            )
+
+    elif data.startswith("card_plan_"):
+        plan_key = data.replace("card_plan_", "")
+        lang     = get_lang(context)
+        user_id  = update.effective_user.id
+
+        await query.answer("Создаём ссылку для оплаты...", show_alert=False)
+
+        result = morning_payment.create_payment_link(plan_key, user_id, lang)
+        if result and result.get("url"):
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            plan = PLANS.get(plan_key, {})
+            plan_name = plan.get(f"name_{lang}") or plan.get("name_ru", plan_key)
+            pay_url = result["url"]
+
+            pay_labels  = {"ru": f"💳 Оплатить — {plan_name}", "en": f"💳 Pay — {plan_name}", "he": f"💳 לתשלום — {plan_name}"}
+            back_labels = {"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}
+            msgs = {
+                "ru": (
+                    f"💳 <b>Оплата — {plan_name}</b>\n\n"
+                    "Нажмите кнопку ниже — откроется страница PayPal.\n\n"
+                    "✅ После оплаты подписка активируется автоматически."
+                ),
+                "en": (
+                    f"💳 <b>Payment — {plan_name}</b>\n\n"
+                    "Click below to open the PayPal payment page.\n\n"
+                    "✅ Your subscription will activate automatically after payment."
+                ),
+                "he": (
+                    f"💳 <b>תשלום — {plan_name}</b>\n\n"
+                    "לחצו על הכפתור למטה לדף תשלום של PayPal.\n\n"
+                    "✅ המנוי יופעל אוטומטית לאחר התשלום."
+                ),
+            }
+            await query.edit_message_text(
+                msgs.get(lang, msgs["ru"]),
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(pay_labels.get(lang, pay_labels["ru"]), url=pay_url)],
+                    [InlineKeyboardButton(back_labels.get(lang, back_labels["ru"]), callback_data="subscription")],
+                ]),
+                parse_mode="HTML",
+            )
+        else:
+            await query.edit_message_text(
+                "❌ Не удалось создать ссылку для оплаты. Попробуйте позже.",
+                reply_markup=subscription_keyboard(context),
+                parse_mode="HTML",
             )
 
     elif data == "favorites":
@@ -204,19 +458,71 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         current = int(data.split("_")[-1])
         new_index = min(current+1, len(results)-1) if "next" in data else max(current-1, 0)
-        await display_listing(query, context, results[new_index], new_index, len(results))
+        try:
+            await display_listing(query, context, results[new_index], new_index, len(results))
+        except Exception as _nav_err:
+            logger.error(f"[NAV] display_listing failed idx={new_index}: {_nav_err!r}", exc_info=True)
+            lang = get_lang(context)
+            err = {"ru": "⚠️ Не удалось загрузить объявление. Попробуйте следующее.", "en": "⚠️ Couldn't load listing. Try the next one.", "he": "⚠️ לא ניתן לטעון מודעה. נסה את הבאה."}.get(lang, "⚠️ Error loading listing.")
+            try:
+                await context.bot.send_message(chat_id=update.effective_chat.id, text=err)
+            except Exception:
+                pass
 
     elif data.startswith("fav_"):
         listing_id = int(data.split("_")[1])
         added = db.toggle_favorite(update.effective_user.id, listing_id)
         await query.answer(t("fav_added", context) if added else t("fav_removed", context))
 
+    elif data.startswith("show_phone_"):
+        listing_id = int(data.split("_")[2])
+        listing = db.get_listing(listing_id)
+        lang = get_lang(context)
+        if not listing:
+            await query.answer(t("contact_none", context), show_alert=True)
+            return
+        phone = listing.get("owner_phone", "") or ""
+        if not phone:
+            # Try extracting from description
+            import re
+            desc = listing.get("description", "") or ""
+            phones = _re.findall(r'(?:\+972[-\s]?|0)(?:5[0-9]|7[23])[-\s]?\d{3}[-\s]?\d{4}', desc)
+            phone = " / ".join(dict.fromkeys(phones)) if phones else ""
+        if not phone:
+            no_phone = {"ru": "Номер телефона не указан.", "en": "Phone number not provided.", "he": "מספר טלפון לא צוין."}.get(lang, "Phone not provided.")
+            await query.answer(no_phone, show_alert=True)
+        else:
+            phone_msg = {"ru": f"📞 Телефон: {phone}", "en": f"📞 Phone: {phone}", "he": f"📞 טלפון: {phone}"}.get(lang, f"📞 {phone}")
+            await query.answer(phone_msg[:200], show_alert=True)
+
     elif data.startswith("contact_"):
         listing_id = int(data.split("_")[1])
         listing = db.get_listing(listing_id)
-        if listing:
-            contact = listing.get("contact") or t("contact_none", context)
-            await query.answer(t("contact_info", context, contact=contact), show_alert=True)
+        if not listing:
+            await query.answer(t("contact_none", context), show_alert=True)
+            return
+        contact = listing.get("contact", "") or ""
+        # If contact field is empty, try to extract phone from description
+        if not contact:
+            import re
+            desc = listing.get("description", "") or ""
+            phones = re.findall(r'(?:\+972[-\s]?|0)(?:5[0-9]|7[23])[-\s]?\d{3}[-\s]?\d{4}', desc)
+            if phones:
+                contact = " / ".join(dict.fromkeys(phones))  # deduplicate, keep order
+        if not contact:
+            # Fallback: show source URL so user can visit original post
+            source_url = listing.get("source_url", "")
+            lang = get_lang(context)
+            if source_url:
+                no_contact_msg = {"ru": f"Контакт не указан. Исходный пост:\n{source_url}",
+                                  "en": f"No contact. Original post:\n{source_url}",
+                                  "he": f"אין פרטי קשר. פוסט מקורי:\n{source_url}"}.get(lang, source_url)
+                await query.answer(no_contact_msg[:200], show_alert=True)
+            else:
+                await query.answer(t("contact_none", context), show_alert=True)
+            return
+        msg = t("contact_info", context, contact=contact)[:200]
+        await query.answer(msg, show_alert=True)
 
     elif data == "my_listings":
         listings = db.get_user_listings(update.effective_user.id)
@@ -238,6 +544,10 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "noop":
         pass
+
+    # ── Mover subscription — handled in group=-1 by _handle_mover_subscribe ──
+    elif data.startswith("mover_subscribe_"):
+        pass  # already handled before handle_menu runs
 
     # ── Subscribe to search ────────────────────────────────────────────────
     elif data == "subscribe_search":
@@ -334,6 +644,19 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Can't reach owner, show contact
                 contact = listing.get("contact") or t("contact_none", context)
                 await query.answer(t("view_request_contact", context, contact=contact), show_alert=True)
+            # ── Email notification to owner ──────────────────────────────────
+            try:
+                owner_email = db.get_agent_email(owner_id)
+                if owner_email:
+                    from email_reporter import send_contact_request_email
+                    import threading
+                    threading.Thread(
+                        target=send_contact_request_email,
+                        args=(owner_email, title, username, user.id),
+                        daemon=True,
+                    ).start()
+            except Exception:
+                pass
         else:
             # External listing — show contact
             contact = listing.get("contact") or t("contact_none", context)
@@ -405,25 +728,12 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not listing:
             await query.edit_message_text("❌ Объявление не найдено.", reply_markup=back_to_menu_keyboard(context))
             return
-        lang = get_lang(context)
-        active = listing.get("active", True)
-        status = "🟢 Активно" if active else "🔴 Снято с публикации"
-        avg_r, cnt = db.get_average_rating(listing_id)
-        rating_str = f"⭐ {avg_r} ({cnt} отзывов)" if avg_r is not None else "⭐ —"
-        text = (
-            f"<b>{listing.get('title', '')}</b>\n\n"
-            f"💰 {listing.get('price', 0):,} ₪\n"
-            f"📍 {listing.get('city', '')} · {listing.get('neighborhood', '')}\n"
-            f"🛏 {listing.get('rooms', '')} комн. · {listing.get('area_sqm', '')} м²\n"
-            f"👁 {listing.get('views', 0)} просмотров · 📞 {listing.get('view_requests', 0)} запросов\n"
-            f"{rating_str}\n"
-            f"Статус: {status}"
-        )
         deal_closed = listing.get("deal_closed", False)
         await query.edit_message_text(
-            text,
-            reply_markup=cabinet_listing_manage_keyboard(context, listing_id, active, deal_closed),
-            parse_mode="HTML"
+            _build_cabinet_listing_text(listing),
+            reply_markup=cabinet_listing_manage_keyboard(context, listing_id, listing.get("active", True), deal_closed),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
         )
 
     # ── Edit listing: choose field ──────────────────────────────────────────
@@ -469,22 +779,15 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                "en": "🟢 Listing activated!" if new_active else "🔴 Listing deactivated.",
                "he": "🟢 המודעה פורסמה!" if new_active else "🔴 המודעה הוסרה."}.get(lang, "Done")
         await query.answer(msg, show_alert=True)
-        # Refresh the listing view
+        # Refresh listing and redraw
         listing["active"] = new_active
-        active = new_active
-        avg_r, cnt = db.get_average_rating(listing_id)
-        rating_str = f"⭐ {avg_r} ({cnt} отзывов)" if avg_r is not None else "⭐ —"
-        status = "🟢 Активно" if active else "🔴 Снято с публикации"
-        text = (
-            f"<b>{listing.get('title', '')}</b>\n\n"
-            f"💰 {listing.get('price', 0):,} ₪\n"
-            f"📍 {listing.get('city', '')} · {listing.get('neighborhood', '')}\n"
-            f"🛏 {listing.get('rooms', '')} комн. · {listing.get('area_sqm', '')} м²\n"
-            f"👁 {listing.get('views', 0)} просмотров · 📞 {listing.get('view_requests', 0)} запросов\n"
-            f"{rating_str}\n"
-            f"Статус: {status}"
+        deal_closed = listing.get("deal_closed", False)
+        await query.edit_message_text(
+            _build_cabinet_listing_text(listing),
+            reply_markup=cabinet_listing_manage_keyboard(context, listing_id, new_active, deal_closed),
+            parse_mode="HTML",
+            disable_web_page_preview=True,
         )
-        await query.edit_message_text(text, reply_markup=cabinet_listing_manage_keyboard(context, listing_id, active), parse_mode="HTML")
 
     # ── Confirm delete ──────────────────────────────────────────────────────
     elif data.startswith("confirm_delete_"):
@@ -601,6 +904,59 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
                 except Exception:
                     pass
+        # ── Email to owner/agent about closed deal ───────────────────────────
+        try:
+            owner_email = db.get_agent_email(owner_id)
+            if owner_email:
+                from email_reporter import send_deal_closed_email
+                tenant_info = next((r for r in requesters if r.get("user_id") == tenant_id), {})
+                tenant_name = tenant_info.get("username") or tenant_info.get("name") or f"ID {tenant_id}"
+                import threading
+                threading.Thread(
+                    target=send_deal_closed_email,
+                    args=(owner_email, title, final_price, listed_price,
+                          tenant_name, listing.get("deal_type", "rent")),
+                    daemon=True,
+                ).start()
+        except Exception:
+            pass
+
+        # ── Trigger packing offer to the tenant too ──────────────────────────
+        if tenant_id > 0:
+            try:
+                from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+                tenant_lang = db.get_setting(f"user_lang_{tenant_id}") or "ru"
+                _city = listing.get("city", "")
+                _pack_msg = {
+                    "ru": (
+                        "🎉 <b>Поздравляем с новой квартирой!</b>\n\n"
+                        "📦 <b>Нужны коробки и упаковка для переезда?</b>\n"
+                        "Нажмите кнопку — лучшие поставщики в вашем городе свяжутся с вами."
+                    ),
+                    "en": (
+                        "🎉 <b>Congrats on your new place!</b>\n\n"
+                        "📦 <b>Need packing boxes for the move?</b>\n"
+                        "Tap below — top suppliers in your city will reach out."
+                    ),
+                    "he": (
+                        "🎉 <b>מזל טוב על הדירה החדשה!</b>\n\n"
+                        "📦 <b>צריך קופסאות לעברה?</b>\n"
+                        "לחץ למטה — הספקים הטובים ביותר בעירך ייצרו קשר."
+                    ),
+                }.get(tenant_lang, "🎉 Congrats!\n\n📦 Need packing boxes?")
+                _pack_lbl = {"ru": "📦 Да, нужны коробки", "en": "📦 Yes, need boxes", "he": "📦 כן, צריך קופסאות"}.get(tenant_lang, "📦 Need boxes?")
+                _skip_lbl = {"ru": "Пропустить", "en": "Skip", "he": "דלג"}.get(tenant_lang, "Skip")
+                from telegram import InlineKeyboardButton as _IKB, InlineKeyboardMarkup as _IKM
+                await context.bot.send_message(
+                    chat_id=tenant_id,
+                    text=_pack_msg,
+                    reply_markup=_IKM([[_IKB(_pack_lbl, callback_data="request_packing")], [_IKB(_skip_lbl, callback_data="back_to_menu")]]),
+                    parse_mode="HTML",
+                )
+                _send_after = (_dt.now(_tz.utc) + _td(days=3)).isoformat()
+                db.add_pending_lead_trigger(tenant_id, "cleaning", _city, _send_after)
+            except Exception:
+                pass
 
     # ── Tenant: "I rented/bought this" button ──────────────────────────────
     elif data.startswith("irented_") and not data.startswith("irented_confirm_"):
@@ -646,6 +1002,85 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             except Exception:
                 pass
+
+        # ── Trigger packing offer immediately ─────────────────────────────
+        city = listing.get("city", "")
+        lang = get_lang(context)
+        packing_msg = {
+            "ru": (
+                "🎉 <b>Поздравляем с выбором квартиры!</b>\n\n"
+                "Переезд — это хлопотно, но мы поможем.\n\n"
+                "📦 <b>Вам понадобятся коробки и упаковка?</b>\n"
+                "Нажмите кнопку ниже — лучшие поставщики в вашем городе свяжутся с вами."
+            ),
+            "en": (
+                "🎉 <b>Congrats on your new apartment!</b>\n\n"
+                "Moving is a lot of work — let us help.\n\n"
+                "📦 <b>Need packing boxes and supplies?</b>\n"
+                "Tap the button below — top suppliers in your city will contact you."
+            ),
+            "he": (
+                "🎉 <b>מזל טוב על הדירה החדשה!</b>\n\n"
+                "מעבר דירה זה הרבה עבודה — נשמח לעזור.\n\n"
+                "📦 <b>צריך קופסאות ואריזה?</b>\n"
+                "לחץ על הכפתור — הספקים הטובים ביותר בעירך ייצרו קשר."
+            ),
+        }.get(lang, "🎉 Congrats! Need packing boxes?")
+
+        pack_btn_label = {"ru": "📦 Нужны коробки и упаковка", "en": "📦 Yes, I need packing boxes", "he": "📦 כן, אני צריך קופסאות"}.get(lang, "📦 Need boxes?")
+        skip_label = {"ru": "Пропустить", "en": "Skip", "he": "דלג"}.get(lang, "Skip")
+        pack_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton(pack_btn_label, callback_data="request_packing")],
+            [InlineKeyboardButton(skip_label, callback_data="back_to_menu")],
+        ])
+        try:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=packing_msg,
+                reply_markup=pack_kb,
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+        # ── Schedule cleaning offer in 3 days ─────────────────────────────
+        from datetime import datetime, timedelta, timezone
+        send_after = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
+        db.add_pending_lead_trigger(user.id, "cleaning", city, send_after)
+
+    else:
+        # ── Orphan-callback fallback ─────────────────────────────────────
+        # Stale inline buttons (sent before a deploy that changed callback_data)
+        # would otherwise hit no branch, leaving the user with an infinite
+        # spinner. Log it for ops visibility and bring the user back to the
+        # main menu in their language.
+        try:
+            user_id = update.effective_user.id if update.effective_user else "?"
+        except Exception:
+            user_id = "?"
+        logger.warning(
+            "[ORPHAN_CALLBACK] unhandled callback_data=%r user_id=%s",
+            data, user_id,
+        )
+        try:
+            user = update.effective_user
+            first = (user.first_name if user else "") or ""
+            # Replace the old message so the stale buttons don't linger.
+            try:
+                await query.edit_message_text(
+                    format_welcome(first, context),
+                    reply_markup=main_menu_keyboard(context),
+                    parse_mode="HTML",
+                )
+            except Exception:
+                if query.message:
+                    await query.message.reply_text(
+                        format_welcome(first, context),
+                        reply_markup=main_menu_keyboard(context),
+                        parse_mode="HTML",
+                    )
+        except Exception as _orphan_err:
+            logger.error("[ORPHAN_CALLBACK] failed to recover: %s", _orphan_err)
 
 
 async def my_listings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -780,6 +1215,69 @@ async def refer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def show_referral_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Callback: кнопка 🎁 Пригласить друга из главного меню."""
+    query = update.callback_query
+    await query.answer()
+    lang = get_lang(context)
+    user_id = update.effective_user.id
+    bot_username = (await context.bot.get_me()).username
+    link = f"https://t.me/{bot_username}?start=ref_{user_id}"
+    count = db.get_referral_count(user_id)
+    bonus_days = db.get_bonus_days(user_id)
+
+    invited_str = {
+        "ru": f"Приглашено друзей: <b>{count}</b>",
+        "en": f"Friends invited: <b>{count}</b>",
+        "he": f"חברים שהוזמנו: <b>{count}</b>",
+    }.get(lang, f"Invited: <b>{count}</b>")
+
+    bonus_str = ""
+    if bonus_days > 0:
+        bonus_str = {
+            "ru": f"\n🎁 Накоплено бонусных дней: <b>{bonus_days}</b>",
+            "en": f"\n🎁 Accumulated bonus days: <b>{bonus_days}</b>",
+            "he": f"\n🎁 ימי בונוס שנצברו: <b>{bonus_days}</b>",
+        }.get(lang, f"\n🎁 Bonus days: <b>{bonus_days}</b>")
+
+    text = {
+        "ru": (
+            "🎁 <b>Пригласи друга — получи +7 дней!</b>\n\n"
+            "За каждого друга, который зайдёт по твоей ссылке, "
+            "ты получаешь <b>+7 дней подписки</b> — и он тоже!\n\n"
+            f"🔗 Твоя ссылка:\n<code>{link}</code>\n\n"
+            f"📊 {invited_str}{bonus_str}"
+        ),
+        "en": (
+            "🎁 <b>Invite a friend — get +7 days!</b>\n\n"
+            "For each friend who joins via your link, "
+            "you both get <b>+7 days subscription!</b>\n\n"
+            f"🔗 Your link:\n<code>{link}</code>\n\n"
+            f"📊 {invited_str}{bonus_str}"
+        ),
+        "he": (
+            "🎁 <b>הזמן חבר — קבל +7 ימים!</b>\n\n"
+            "על כל חבר שמצטרף דרך הקישור שלך, "
+            "שניכם מקבלים <b>+7 ימי מנוי!</b>\n\n"
+            f"🔗 הקישור שלך:\n<code>{link}</code>\n\n"
+            f"📊 {invited_str}{bonus_str}"
+        ),
+    }.get(lang, "")
+
+    from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+    share_text = {"ru": "📤 Поделиться ссылкой", "en": "📤 Share link", "he": "📤 שתף קישור"}.get(lang, "📤 Share")
+    sub_text   = {"ru": "💳 Подписаться",         "en": "💳 Subscribe",  "he": "💳 הירשם"}.get(lang, "💳 Subscribe")
+    back_text  = {"ru": "◀ Назад",                "en": "◀ Back",        "he": "◀ חזרה"}.get(lang, "◀ Back")
+    share_url  = f"https://t.me/share/url?url={link}&text=FlatFinderIL%20—%20поиск%20жилья%20в%20Израиле"
+
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton(share_text, url=share_url)],
+        [InlineKeyboardButton(sub_text, callback_data="subscription")],
+        [InlineKeyboardButton(back_text, callback_data="back_to_menu")],
+    ])
+    await query.edit_message_text(text, reply_markup=kb, parse_mode="HTML")
+
+
 async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "lang" not in context.user_data:
         await update.message.reply_text(
@@ -791,3 +1289,355 @@ async def handle_unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
         t("unknown_cmd", context),
         reply_markup=back_to_menu_keyboard(context)
     )
+
+
+# ── Telegram Payments ─────────────────────────────────────────────────────────
+
+async def handle_pre_checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обязательный ответ на pre-checkout запрос в течение 10 секунд."""
+    query = update.pre_checkout_query
+    logger.info(f"[PAYMENT] pre_checkout_query uid={update.effective_user.id} payload={query.invoice_payload!r} amount={query.total_amount} currency={query.currency}")
+    # Always answer ok=True — never let a crash cause a timeout ("произошла ошибка")
+    try:
+        plan_key, uid_str = query.invoice_payload.split(":", 1)
+        if plan_key not in PLANS:
+            logger.warning(f"[PAYMENT] Unknown plan in payload: {plan_key!r} — approving anyway")
+        logger.info(f"[PAYMENT] pre_checkout answered ok=True for plan={plan_key}")
+    except Exception as e:
+        logger.error(f"[PAYMENT] pre_checkout parse error (still approving): {e}")
+    await query.answer(ok=True)
+
+
+def _send_payment_receipt(email: str, buyer_name: str, plan_name_he: str, amount_ils: float,
+                           days: int, expiry_str: str, charge_id: str):
+    """Отправляет квитанцию (קבלה) на иврите через Resend API."""
+    import requests as _req
+    resend_key = os.environ.get("RESEND_API_KEY", "")
+    if not resend_key or not email:
+        return
+    date_he = datetime.now().strftime("%d/%m/%Y")
+    amount_str = f"₪{amount_ils:.2f}"
+    html = f"""<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head><meta charset="UTF-8"><style>
+  body{{font-family:Arial,sans-serif;direction:rtl;background:#f5f5f0;margin:0;padding:20px}}
+  .wrap{{max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08)}}
+  .head{{background:#2AABEE;padding:28px 32px;text-align:center;color:#fff}}
+  .head h1{{margin:0;font-size:22px;letter-spacing:.5px}}
+  .head p{{margin:6px 0 0;font-size:13px;opacity:.85}}
+  .body{{padding:28px 32px}}
+  .label{{font-size:11px;color:#999;margin-bottom:2px;text-transform:uppercase}}
+  .value{{font-size:15px;color:#222;margin-bottom:18px;font-weight:500}}
+  .divider{{border:none;border-top:1px solid #eee;margin:20px 0}}
+  .total-row{{display:flex;justify-content:space-between;align-items:center;background:#f0faf5;padding:14px 18px;border-radius:8px;margin-top:8px}}
+  .total-label{{font-size:14px;color:#333;font-weight:600}}
+  .total-amount{{font-size:22px;font-weight:700;color:#4CAF8A}}
+  .footer{{background:#f8f8f4;padding:16px 32px;text-align:center;font-size:11px;color:#aaa}}
+  .badge{{display:inline-block;background:#4CAF8A22;color:#4CAF8A;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;margin-top:4px}}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>🏠 FlatFinderIL</h1>
+    <p>קבלה על תשלום</p>
+  </div>
+  <div class="body">
+    <div class="label">מספר קבלה</div>
+    <div class="value" style="font-family:monospace;font-size:13px;color:#888">{charge_id}</div>
+
+    <div class="label">תאריך</div>
+    <div class="value">{date_he}</div>
+
+    <div class="label">שם הלקוח</div>
+    <div class="value">{buyer_name or '—'}</div>
+
+    <div class="label">כתובת דואר אלקטרוני</div>
+    <div class="value" style="direction:ltr;text-align:right">{email}</div>
+
+    <hr class="divider">
+
+    <div class="label">שירות</div>
+    <div class="value">גישה ל-FlatFinderIL — {plan_name_he} ({days} ימים)</div>
+
+    <div class="label">תוקף המנוי עד</div>
+    <div class="value"><span class="badge">✅ {expiry_str}</span></div>
+
+    <div class="total-row">
+      <span class="total-label">סה"כ שולם</span>
+      <span class="total-amount">{amount_str}</span>
+    </div>
+  </div>
+  <div class="footer">FlatFinderIL · תשלום בוצע דרך Telegram Payments · תודה שבחרת בנו!</div>
+</div>
+</body></html>"""
+
+    from_addr = os.environ.get("RESEND_FROM", "FlatFinderIL <info@flatfinderil.com>")
+    try:
+        resp = _req.post(
+            "https://api.resend.com/emails",
+            json={
+                "from": from_addr,
+                "to": [email],
+                "subject": f"קבלה על תשלום — FlatFinderIL {date_he}",
+                "html": html,
+            },
+            headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"},
+            timeout=10,
+        )
+        import logging as _log
+        _log.getLogger(__name__).info(f"[EMAIL] Resend status={resp.status_code} body={resp.text[:200]}")
+    except Exception as e:
+        import logging as _log
+        _log.getLogger(__name__).error(f"[EMAIL] Resend error: {e}")
+
+
+async def handle_successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Активирует подписку после успешной оплаты."""
+    payment = update.message.successful_payment
+    user_id = update.effective_user.id
+    lang = context.user_data.get("lang", "ru")
+    logger.info(f"[PAYMENT] successful_payment uid={user_id} amount={payment.total_amount} currency={payment.currency} payload={payment.invoice_payload!r}")
+
+    try:
+        plan_key, _ = payment.invoice_payload.split(":", 1)
+        expiry = activate_subscription(user_id, plan_key)
+        track_subscription(user_id, plan_key)
+
+        plan = PLANS[plan_key]
+        plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
+        stars = plan.get("stars", 0)
+        expiry_str = expiry.strftime("%d.%m.%Y")
+        charge_id = payment.telegram_payment_charge_id or "—"
+        logger.info(f"[PAYMENT] Stars charge_id={charge_id} stars={stars} plan={plan_key} uid={user_id}")
+
+        msgs = {
+            "ru": f"✅ <b>Оплата прошла успешно!</b>\n\nПодписка <b>{plan_name}</b> активна до <b>{expiry_str}</b>.\n\n⭐ Списано {stars} Stars\n\nСпасибо! 🏠",
+            "en": f"✅ <b>Payment successful!</b>\n\n<b>{plan_name}</b> subscription active until <b>{expiry_str}</b>.\n\n⭐ {stars} Stars charged\n\nThank you! 🏠",
+            "he": f"✅ <b>התשלום בוצע בהצלחה!</b>\n\nמנוי <b>{plan_name}</b> פעיל עד <b>{expiry_str}</b>.\n\n⭐ {stars} Stars נגבו\n\nתודה! 🏠",
+        }
+        await update.message.reply_text(
+            msgs.get(lang, msgs["ru"]),
+            reply_markup=back_to_menu_keyboard(context),
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        # CRITICAL: оплата прошла, но активация подписки упала
+        charge_id = (payment.telegram_payment_charge_id if payment else None) or "—"
+        logger.error(
+            f"[PAYMENT][CRITICAL] activate_subscription FAILED after successful payment: "
+            f"uid={user_id} payload={payment.invoice_payload!r} "
+            f"amount={payment.total_amount} charge_id={charge_id} error={e!r}"
+        )
+        # Уведомляем админов
+        try:
+            for admin_username in ADMIN_USERNAMES:
+                pass  # username->id mapping unknown, fallback only via logs
+        except Exception:
+            pass
+        msgs = {
+            "ru": (
+                "⚠️ <b>Оплата получена, но не удалось активировать подписку.</b>\n\n"
+                f"Charge ID: <code>{charge_id}</code>\n"
+                "Сохраните это сообщение и напишите в поддержку — подписка будет активирована вручную в течение часа."
+            ),
+            "en": (
+                "⚠️ <b>Payment received but subscription activation failed.</b>\n\n"
+                f"Charge ID: <code>{charge_id}</code>\n"
+                "Save this message and contact support — subscription will be activated manually within an hour."
+            ),
+            "he": (
+                "⚠️ <b>התשלום התקבל אך הפעלת המנוי נכשלה.</b>\n\n"
+                f"Charge ID: <code>{charge_id}</code>\n"
+                "שמרו הודעה זו ופנו לתמיכה — המנוי יופעל ידנית תוך שעה."
+            ),
+        }
+        await update.message.reply_text(
+            msgs.get(lang, msgs["ru"]),
+            reply_markup=back_to_menu_keyboard(context),
+            parse_mode="HTML",
+        )
+
+
+# ── Admin test command ─────────────────────────────────────────────────────────
+
+ADMIN_USERNAMES = {"IgorPr", "IgorPrasov", "alinatsarenko"}  # only these users can run /testpay
+
+async def cmd_testpay(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Simulate a successful payment (admin only). Usage: /testpay [plan] [email]
+    Plans: week, two_weeks, month. Example: /testpay week test@example.com"""
+    user = update.effective_user
+    logger.info(f"[TESTPAY] called by uid={user.id if user else None} username={user.username if user else None!r}")
+    if not user or (user.username or "").lower() not in {u.lower() for u in ADMIN_USERNAMES}:
+        await update.message.reply_text(f"⛔ Нет доступа. Username: @{user.username if user else '?'}")
+        return
+
+    args = context.args or []
+    plan_key = args[0] if args else "week"
+    test_email = args[1] if len(args) > 1 else None
+
+    if plan_key not in PLANS:
+        await update.message.reply_text(f"❌ Неверный план. Варианты: {', '.join(PLANS.keys())}")
+        return
+
+    lang = context.user_data.get("lang", "ru")
+    expiry = activate_subscription(user.id, plan_key)
+    track_subscription(user.id, plan_key)
+
+    plan = PLANS[plan_key]
+    plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
+    plan_name_he = plan.get("name_he") or plan["name_ru"]
+    expiry_str = expiry.strftime("%d.%m.%Y")
+    amount_ils = plan.get("price", 0)
+    charge_id = f"TEST-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    buyer_name = " ".join(filter(None, [user.first_name, user.last_name])) or "Test User"
+
+    logger.info(f"[TESTPAY] uid={user.id} plan={plan_key} email={test_email} expiry={expiry_str}")
+
+    if test_email:
+        import threading
+        threading.Thread(
+            target=_send_payment_receipt,
+            args=(test_email, buyer_name, plan_name_he, amount_ils, plan.get("days", 7), expiry_str, charge_id),
+            daemon=True,
+        ).start()
+
+    await update.message.reply_text(
+        f"✅ <b>[TEST] Симуляция платежа</b>\n\n"
+        f"План: <b>{plan_name}</b>\n"
+        f"Активна до: <b>{expiry_str}</b>\n"
+        f"Charge ID: <code>{charge_id}</code>\n"
+        f"{'📧 Квитанция отправлена на ' + test_email if test_email else '📧 Email не указан — квитанция не отправлена'}\n\n"
+        f"Запись в дашборд добавлена ✓",
+        parse_mode="HTML",
+        reply_markup=back_to_menu_keyboard(context),
+    )
+
+
+async def cmd_grant(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Grant bonus days to a user by @username (admin only).
+    Usage: /grant @username [days]   — default 5 days.
+    Example: /grant @anastasiavaar 5
+    """
+    user = update.effective_user
+    if not user or (user.username or "").lower() not in {u.lower() for u in ADMIN_USERNAMES}:
+        await update.message.reply_text("⛔ Нет доступа.")
+        return
+
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(
+            "Использование: <code>/grant @username [days]</code>\n"
+            "Пример: <code>/grant @anastasiavaar 5</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    target_username = args[0].lstrip("@").strip()
+    try:
+        days = int(args[1]) if len(args) > 1 else 5
+    except ValueError:
+        days = 5
+
+    # Look up user_id by username in bot_users table
+    target_id = None
+    try:
+        users_list = db.get_all_bot_users(limit=5000)
+        for u in users_list:
+            if (u.get("username") or "").lower() == target_username.lower():
+                target_id = u["user_id"]
+                break
+    except Exception as e:
+        logger.error(f"[GRANT] Error looking up username: {e}")
+
+    if not target_id:
+        await update.message.reply_text(
+            f"❌ Пользователь @{target_username} не найден в базе.\n"
+            "Пользователь должен был хотя бы раз запустить бота (/start).",
+        )
+        return
+
+    try:
+        db.add_bonus_days(target_id, days)
+        from datetime import datetime, timedelta, timezone
+        expiry = (datetime.now(tz=timezone.utc) + timedelta(days=days)).strftime("%d.%m.%Y")
+        await update.message.reply_text(
+            f"✅ Пользователю @{target_username} (id={target_id}) добавлено <b>{days} дней</b> доступа.\n"
+            f"Действует до: <b>{expiry}</b>",
+            parse_mode="HTML",
+        )
+        logger.info(f"[GRANT] admin={user.username} → @{target_username}({target_id}) +{days}d")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
+        logger.error(f"[GRANT] Failed to add bonus days: {e}")
+
+
+# ── Card payment handler — registered at group=-1 (highest priority) ──────────
+# Runs BEFORE any ConversationHandler so it works even mid-conversation.
+
+PAYMENT_PROVIDER_TOKEN = os.environ.get("PAYMENT_PROVIDER_TOKEN", "")
+
+async def handle_stars_invoice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle sub_week / sub_two_weeks / sub_month / sub_search_alert callbacks.
+    Registered at group=-1 so ConversationHandlers can't swallow them."""
+    query = update.callback_query
+    data = query.data or ""
+    plan_key = data.replace("sub_", "", 1)
+
+    # Show description page for search_alert
+    if plan_key == "search_alert":
+        await query.answer()
+        from keyboards import search_alert_confirm_keyboard
+        await query.edit_message_text(
+            t("sub_search_alert_desc", context),
+            reply_markup=search_alert_confirm_keyboard(context),
+            parse_mode="HTML",
+        )
+        return
+
+    # Direct activate for search_alert_confirm
+    if plan_key == "search_alert_confirm":
+        await query.answer()
+        lang = get_lang(context)
+        expiry = activate_subscription(update.effective_user.id, "search_alert")
+        plan = PLANS["search_alert"]
+        plan_name = plan.get(f"name_{lang}") or plan["name_ru"]
+        await query.edit_message_text(
+            t("sub_activated", context, plan=plan_name, expiry=expiry.strftime("%d.%m.%Y")),
+            reply_markup=back_to_menu_keyboard(context),
+            parse_mode="HTML",
+        )
+        return
+
+    if plan_key not in PLANS:
+        await query.answer()
+        return
+
+    # Redirect old sub_* buttons to PayPal (same as card_plan_*)
+    await query.answer("Создаём ссылку для оплаты...", show_alert=False)
+    lang = get_lang(context)
+    user_id = update.effective_user.id
+    result = morning_payment.create_payment_link(plan_key, user_id, lang)
+    if result and result.get("url"):
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        plan = PLANS.get(plan_key, {})
+        plan_name = plan.get(f"name_{lang}") or plan.get("name_ru", plan_key)
+        pay_url = result["url"]
+        msgs = {
+            "ru": f"💳 <b>Оплата — {plan_name}</b>\n\nНажмите кнопку ниже — откроется страница PayPal.\n\n✅ После оплаты подписка активируется автоматически.",
+            "en": f"💳 <b>Payment — {plan_name}</b>\n\nClick below to open the PayPal payment page.\n\n✅ Your subscription will activate automatically after payment.",
+            "he": f"💳 <b>תשלום — {plan_name}</b>\n\nלחצו על הכפתור למטה לדף תשלום של PayPal.\n\n✅ המנוי יופעל אוטומטית לאחר התשלום.",
+        }
+        await query.edit_message_text(
+            msgs.get(lang, msgs["ru"]),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton({"ru": f"💳 Оплатить — {plan_name}", "en": f"💳 Pay — {plan_name}", "he": f"💳 לתשלום — {plan_name}"}.get(lang, f"💳 Pay — {plan_name}"), url=pay_url)],
+                [InlineKeyboardButton({"ru": "◀ Назад", "en": "◀ Back", "he": "◀ חזרה"}.get(lang, "◀ Back"), callback_data="subscription")],
+            ]),
+            parse_mode="HTML",
+        )
+    else:
+        await query.edit_message_text(
+            {"ru": "⚠️ Не удалось создать ссылку для оплаты. Попробуйте позже.", "en": "⚠️ Failed to create payment link. Try again later.", "he": "⚠️ לא ניתן ליצור קישור לתשלום. נסה שוב מאוחר יותר."}.get(lang, "⚠️ Payment error."),
+            reply_markup=subscription_keyboard(context),
+            parse_mode="HTML",
+        )

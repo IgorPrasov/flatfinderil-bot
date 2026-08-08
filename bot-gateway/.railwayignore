@@ -1,0 +1,14 @@
+# Don't upload local DB snapshots — Railway has its own live copies
+listings_db.json
+listings_db_*.json
+stats.json
+
+# Don't upload session files
+*.session
+*.session-journal
+cookies.txt
+
+# Don't upload local cache/temp
+__pycache__/
+*.pyc
+translations_cache.json
