@@ -1,0 +1,64 @@
+{\rtf1\ansi\ansicpg1251\cocoartf2870
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 #!/usr/bin/env python3\
+"""\
+\uc0\u1047 \u1072 \u1075 \u1088 \u1091 \u1079 \u1082 \u1072  \u1075 \u1086 \u1090 \u1086 \u1074 \u1099 \u1093  Facebook cookies \u1074  \u1073 \u1072 \u1079 \u1091  Railway\
+"""\
+import psycopg2\
+import json\
+\
+DB_URL = "postgresql://postgres:NOgPcBAEMFuWIwVhLDtOJvxscXeEhtgI@kodama.proxy.rlwy.net:38517/railway"\
+\
+COOKIES = [\
+  \{"domain": ".facebook.com", "expirationDate": 1820775294.229059, "hostOnly": False, "httpOnly": True, "name": "datr", "path": "/", "sameSite": "no_restriction", "secure": True, "session": False, "storeId": "0", "value": "fnt3asexf_NJ3t-76Yyn42bj"\},\
+  \{"domain": ".facebook.com", "expirationDate": 1820775426.943836, "hostOnly": False, "httpOnly": True, "name": "sb", "path": "/", "sameSite": "no_restriction", "secure": True, "session": False, "storeId": "0", "value": "kHt3agfR3AEr5JoHOSRu2FZO"\},\
+  \{"domain": ".facebook.com", "expirationDate": 1820775343.358376, "hostOnly": True, "httpOnly": True, "name": "ps_l", "path": "/", "sameSite": "lax", "secure": True, "session": False, "storeId": "0", "value": "1"\},\
+  \{"domain": ".facebook.com", "expirationDate": 1820775343.358549, "hostOnly": False, "httpOnly": True, "name": "ps_n", "path": "/", "sameSite": "no_restriction", "secure": True, "session": False, "storeId": "0", "value": "1"\},\
+  \{"domain": ".facebook.com", "expirationDate": 1786820212.9023, "hostOnly": False, "httpOnly": False, "name": "locale", "path": "/", "sameSite": "no_restriction", "secure": True, "session": False, "storeId": "0", "value": "ru_RU"\},\
+  \{"domain": ".facebook.com", "expirationDate": 1817755000.694685, "hostOnly": False, "httpOnly": False, "name": "c_user", "path": "/", "sameSite": "no_restriction", "secure": True, "session": False, "storeId": "0", "value": "1138688454"\},\
+  \{"domain": ".facebook.com", "expirationDate": 1793995000.694767, "hostOnly": False, "httpOnly": True, "name": "fr", "path": "/", "sameSite": "no_restriction", "secure": True, "session": False, "storeId": "0", "value": "1HyNzueFoaT82n8UD.AWdxEyfcjk7wub0PzfNqB9coKBHgIGViy_HNAmNwPtruhnu7j7Q.Bqd4n3..AAA.0.0.Bqd4n3.AWebSvGy7UQnRw_j3bhsONv-RqM"\},\
+  \{"domain": ".facebook.com", "expirationDate": 1817755000.694808, "hostOnly": False, "httpOnly": True, "name": "xs", "path": "/", "sameSite": "no_restriction", "secure": True, "session": False, "storeId": "0", "value": "15%3AZYEkSUzwebObXw%3A2%3A1786215425%3A-1%3A-1%3A%3AAcwxW_ZJDqOw_y_MCdW5DnzFiUBJ1YdhHdB4jVE4PQ"\},\
+  \{"domain": ".facebook.com", "hostOnly": False, "httpOnly": False, "name": "presence", "path": "/", "sameSite": "unspecified", "secure": True, "session": True, "storeId": "0", "value": "C%7B%22t3%22%3A%5B%5D%2C%22utc3%22%3A1786219001995%2C%22v%22%3A1%7D"\},\
+  \{"domain": ".facebook.com", "expirationDate": 1786823808, "hostOnly": False, "httpOnly": False, "name": "wd", "path": "/", "sameSite": "lax", "secure": True, "session": False, "storeId": "0", "value": "1081x743"\}\
+]\
+\
+print("\\n" + "=" * 70)\
+print("\uc0\u55357 \u56592  \u1047 \u1040 \u1043 \u1056 \u1059 \u1047 \u1050 \u1040  FACEBOOK COOKIES")\
+print("=" * 70 + "\\n")\
+\
+print(f"\uc0\u55357 \u56523  Cookies \u1082  \u1079 \u1072 \u1075 \u1088 \u1091 \u1079 \u1082 \u1077 : \{len(COOKIES)\} \u1096 \u1090 ")\
+\
+has_c_user = any(c["name"] == "c_user" for c in COOKIES)\
+has_xs = any(c["name"] == "xs" for c in COOKIES)\
+\
+print(f"   \uc0\u10003  c_user: \{'\u1076 \u1072 ' if has_c_user else '\u1085 \u1077 \u1090 '\}")\
+print(f"   \uc0\u10003  xs: \{'\u1076 \u1072 ' if has_xs else '\u1085 \u1077 \u1090 '\}")\
+\
+print("\\n\uc0\u55357 \u56548  \u1047 \u1072 \u1075 \u1088 \u1091 \u1078 \u1072 \u1102  \u1074  \u1073 \u1072 \u1079 \u1091  Railway...")\
+\
+try:\
+    conn = psycopg2.connect(DB_URL, connect_timeout=15)\
+    cur = conn.cursor()\
+\
+    cur.execute(\
+        "INSERT INTO app_settings(key, value) VALUES(%s, %s) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",\
+        ("fb_cookies_json", json.dumps(COOKIES))\
+    )\
+    conn.commit()\
+    conn.close()\
+\
+    print("   \uc0\u9989  Cookies \u1091 \u1089 \u1087 \u1077 \u1096 \u1085 \u1086  \u1079 \u1072 \u1075 \u1088 \u1091 \u1078 \u1077 \u1085 \u1099 !\\n")\
+    print("=" * 70)\
+    print("\uc0\u55356 \u57225  \u1043 \u1054 \u1058 \u1054 \u1042 \u1054 !")\
+    print("=" * 70)\
+    print("\\n\uc0\u55357 \u56960  Railway \u1087 \u1072 \u1088 \u1089 \u1077 \u1088  \u1085 \u1072 \u1095 \u1085 \u1077 \u1090  \u1089 \u1086 \u1073 \u1080 \u1088 \u1072 \u1090 \u1100  \u1086 \u1073 \u1098 \u1103 \u1074 \u1083 \u1077 \u1085 \u1080 \u1103  \u1079 \u1072  1-2 \u1084 \u1080 \u1085 \u1091 \u1090 \u1099 !\\n")\
+\
+except Exception as e:\
+    print(f"\\n\uc0\u10060  \u1054 \u1096 \u1080 \u1073 \u1082 \u1072 : \{e\}")\
+    import traceback\
+    traceback.print_exc()}

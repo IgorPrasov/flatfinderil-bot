@@ -1,0 +1,114 @@
+cat > facebook_login.py << 'ENDSCRIPT'
+#!/usr/bin/env python3
+import psycopg2
+import json
+import time
+from playwright.sync_api import sync_playwright
+
+DB_URL = "postgresql://postgres:NOgPcBAEMFuWIwVhLDtOJvxscXeEhtgI@kodama.proxy.rlwy.net:38517/railway"
+FB_EMAIL = "djigorprasov@gmail.com"
+FB_PASSWORD = "AgathaAlina0710."
+
+print("\n" + "=" * 70)
+print("🔐 FACEBOOK 2FA LOGIN")
+print("=" * 70 + "\n")
+
+browser = None
+try:
+    with sync_playwright() as pw:
+        print("📱 Открываю браузер...")
+        browser = pw.chromium.launch(headless=False, slow_mo=1000)
+
+        context = browser.new_context(
+            viewport={"width": 1280, "height": 900},
+            locale="ru-RU"
+        )
+        page = context.new_page()
+
+        print("🌐 Открываю Facebook...")
+        page.goto("https://www.facebook.com", wait_until="domcontentloaded", timeout=30000)
+        time.sleep(3)
+
+        print("📧 Вводю email...")
+        email_input = page.locator('input[name="email"]')
+        email_input.fill(FB_EMAIL)
+        time.sleep(1)
+
+        print("🔐 Вводю пароль...")
+        password_input = page.locator('input[name="pass"]')
+        password_input.fill(FB_PASSWORD)
+        time.sleep(1)
+
+        print("🔓 Нажимаю кнопку входа...")
+        login_button = page.locator('button[name="login"]')
+        login_button.click()
+        time.sleep(3)
+
+        print("\n" + "=" * 70)
+        print("⏳ ОЖИДАЮ 2FA КОД (макс 2 минуты)")
+        print("=" * 70 + "\n")
+
+        for i in range(24):
+            time.sleep(5)
+            elapsed = (i + 1) * 5
+            remaining = 120 - elapsed
+            print(f"⏱️  {elapsed:3d}с | {remaining:3d}с осталось")
+
+            if "facebook.com/" in page.url and "login" not in page.url.lower():
+                print("\n✅ Авторизация успешна!")
+                break
+
+        print("\n⏳ Жду 5 сек перед экспортом cookies...")
+        time.sleep(5)
+
+        print("💾 Экспортирую cookies...")
+        cookies = context.cookies()
+        print(f"   Найдено: {len(cookies)} cookies")
+
+        if cookies:
+            fb_cookies = [c for c in cookies if ".facebook.com" in c.get("domain", "")]
+            print(f"   Facebook cookies: {len(fb_cookies)}")
+
+            if fb_cookies:
+                print("\n📤 Сохраняю в базу Railway...")
+                try:
+                    conn = psycopg2.connect(DB_URL, connect_timeout=15)
+                    cur = conn.cursor()
+                    cur.execute(
+                        "INSERT INTO app_settings(key, value) VALUES(%s, %s) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",
+                        ("fb_cookies_json", json.dumps(fb_cookies))
+                    )
+                    conn.commit()
+                    conn.close()
+                    print("   ✅ Сохранено в базу!")
+                except Exception as db_error:
+                    print(f"   ❌ Ошибка БД: {db_error}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                print("   ⚠️  Facebook cookies не найдены")
+        else:
+            print("   ⚠️  Cookies не найдены вообще")
+
+        print("\n" + "=" * 70)
+        print("🎉 ЗАВЕРШЕНО!")
+        print("=" * 70)
+        print("\nНажми ENTER чтобы закрыть браузер...")
+        input()
+
+except Exception as e:
+    print(f"\n❌ ОШИБКА: {e}")
+    import traceback
+    traceback.print_exc()
+    print("\nНажми ENTER чтобы закрыть браузер...")
+    input()
+
+finally:
+    if browser:
+        print("⏹️  Закрываю браузер...")
+        try:
+            browser.close()
+        except:
+            pass
+        print("✅ Готово!")
+ENDSCRIPT
