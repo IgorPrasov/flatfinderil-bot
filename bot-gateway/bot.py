@@ -948,8 +948,7 @@ class WebHandler(BaseHTTPRequestHandler):
         # ── Audit log GET ──────────────────────────────────────────────────
         if resource == "audit-log" and method == "GET":
             from analytics import _load_stats
-            qs_p = parse_qs(parsed.query)
-            uid_filter = (qs_p.get("user_id") or [""])[0]
+            uid_filter = (query.get("user_id") or [""])[0]
             stats = _load_stats()
             log = stats.get("admin_audit_log", [])
             if uid_filter:
