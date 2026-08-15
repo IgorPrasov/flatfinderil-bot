@@ -1063,6 +1063,21 @@ canvas{max-width:100%}
         <div class="card-body" id="digest-hoods"></div>
       </div>
     </div>
+
+    <!-- 🏗 Developer news — nationwide + Judea & Samaria -->
+    <div class="grid11">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>🏗 Новости застройщиков — вся страна</span>
+          <button onclick="loadDeveloperNews()" style="padding:3px 10px;border:none;border-radius:6px;background:#2563EB;color:#fff;font-size:11px;cursor:pointer">↻</button>
+        </div>
+        <div class="card-body" id="dev-news-all" style="font-size:12px;max-height:420px;overflow-y:auto">Загрузка...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">🏗 Новости застройщиков — Иудея и Самария</div>
+        <div class="card-body" id="dev-news-ys" style="font-size:12px;max-height:420px;overflow-y:auto">Загрузка...</div>
+      </div>
+    </div>
   </div>
 
 </div><!-- end .main -->
@@ -2349,6 +2364,34 @@ function loadDigest(){
   });
 }
 
+function _renderNewsList(items) {
+  if (!items || !items.length) {
+    return `<div style="text-align:center;padding:20px;color:#999;font-size:12px">Новостей не найдено</div>`;
+  }
+  return items.map(it => `
+    <div style="padding:8px 0;border-bottom:1px solid #f0f0ea">
+      <a href="${it.url||'#'}" target="_blank" rel="noopener" style="color:#1a1a2e;text-decoration:none;font-weight:500;font-size:12px;line-height:1.4">${(it.title||'').replace(/</g,'&lt;')}</a>
+      <div style="margin-top:3px;font-size:10px;color:#999">${it.source||''} · ${it.date||''}</div>
+    </div>`).join("");
+}
+
+function loadDeveloperNews(){
+  const elAll = document.getElementById("dev-news-all");
+  const elYS  = document.getElementById("dev-news-ys");
+  if (elAll) elAll.innerHTML = "Загрузка...";
+  if (elYS)  elYS.innerHTML  = "Загрузка...";
+
+  fetch("/api/news?category=developer&limit=25")
+    .then(r => r.json())
+    .then(data => { if (elAll) elAll.innerHTML = _renderNewsList(data.items); })
+    .catch(e => { if (elAll) elAll.innerHTML = `<span style="color:red">Ошибка: ${e}</span>`; });
+
+  fetch("/api/news?region=judea_samaria&limit=25")
+    .then(r => r.json())
+    .then(data => { if (elYS) elYS.innerHTML = _renderNewsList(data.items); })
+    .catch(e => { if (elYS) elYS.innerHTML = `<span style="color:red">Ошибка: ${e}</span>`; });
+}
+
 function renderDigest(data){
   const s = data.stats || {};
   const fmt = v => v ? v.toLocaleString("ru-RU") + " ₪" : "—";
@@ -2441,7 +2484,7 @@ function showTab(name, btn){
   // Lazy-load new tabs
   if(name==="price")   loadPriceStats();
   if(name==="news")    loadNews();
-  if(name==="digest")  loadDigest();
+  if(name==="digest")  { loadDigest(); loadDeveloperNews(); }
   if(name==="parsers") render(); // re-render with current data
 }
 

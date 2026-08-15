@@ -82,6 +82,31 @@ RSS_SOURCES = [
         "category_hint": None,
         "force_relevant": False,
     },
+    # Google News — developers / new construction projects (nationwide)
+    {
+        "name": "Google News יזמים/פרויקטים",
+        "url": "https://news.google.com/rss/search?q=%D7%99%D7%96%D7%9D+%D7%A0%D7%93%D7%9C%22%D7%9F+%D7%A4%D7%A8%D7%95%D7%99%D7%A7%D7%98+%D7%91%D7%A0%D7%99%D7%99%D7%94&hl=he&gl=IL&ceid=IL:iw",
+        "lang": "he",
+        "category_hint": "developer",
+        "force_relevant": True,
+    },
+    # Google News — construction specifically in Judea and Samaria
+    {
+        "name": "Google News יהודה ושומרון",
+        "url": "https://news.google.com/rss/search?q=%D7%91%D7%A0%D7%99%D7%99%D7%94+%D7%99%D7%94%D7%95%D7%93%D7%94+%D7%95%D7%A9%D7%95%D7%9E%D7%A8%D7%95%D7%9F&hl=he&gl=IL&ceid=IL:iw",
+        "lang": "he",
+        "category_hint": "developer",
+        "force_relevant": True,
+        "region_hint": "judea_samaria",
+    },
+    # Arutz Sheva / Channel 7 — Hebrew general feed, strong Judea & Samaria coverage
+    {
+        "name": "ערוץ 7 (Arutz Sheva)",
+        "url": "https://www.inn.co.il/Rss.aspx",
+        "lang": "he",
+        "category_hint": None,
+        "force_relevant": False,
+    },
 ]
 
 # ── Relevance keywords (whole-phrase matching, not substring) ──────────────────
@@ -92,10 +117,22 @@ _RELEVANT_PHRASES = [
     "נדל\"ן", "נדל'ן", "דירה", "דירות", "שכירות", "בנייה", "משכנתא",
     "ריבית הפריים", "מחיר למשתכן", "דיור בר השגה", "פינוי בינוי",
     "התחדשות עירונית", "קבלן", "שכונה", "פרויקט נדל",
+    # Hebrew — developer-specific (real-estate terms only, NOT bare region/political terms —
+    # those go in _JUDEA_SAMARIA_PHRASES for tagging only, to avoid matching unrelated
+    # political/security news about the same region)
+    "יזם נדל", "יזמי נדל", "יחידות דיור", "היתרי בנייה", "היתר בנייה",
     # English — specific phrases
     "real estate", "apartment", "housing market", "home price", "property price",
     "mortgage rate", "interest rate", "homebuyer", "affordable housing",
     "construction project", "new development", "rental market",
+]
+
+# ── Judea & Samaria region detection (tags items regardless of source) ─────────
+_JUDEA_SAMARIA_PHRASES = [
+    "יהודה ושומרון", "יו\"ש", "התיישבות", "מתנחלים", "מאחז",
+    "אריאל", "מעלה אדומים", "ביתר עילית", "מודיעין עילית", "אפרת",
+    "קריית ארבע", "אלון מורה", "עפרה", "כפר אדומים", "גוש עציון",
+    "judea and samaria", "west bank", "settlement", "yesha",
 ]
 
 # ── Classification keywords ────────────────────────────────────────────────────
@@ -151,6 +188,12 @@ def _classify(text: str) -> str:
         if any(kw.lower() in t for kw in _CATEGORY_KW[cat]):
             return cat
     return "news"
+
+
+def _is_judea_samaria(text: str) -> bool:
+    """Detect whether an item is about Judea & Samaria, regardless of source."""
+    t = text.lower()
+    return any(phrase.lower() in t for phrase in _JUDEA_SAMARIA_PHRASES)
 
 
 def _parse_date(raw: str) -> str:
@@ -235,6 +278,7 @@ def _fetch_source(source: dict) -> list:
                 pass  # accept all from dedicated feeds
 
             cat = source.get("category_hint") or _classify(combined)
+            region = source.get("region_hint") or ("judea_samaria" if _is_judea_samaria(combined) else None)
 
             items.append({
                 "category": cat,
@@ -244,6 +288,7 @@ def _fetch_source(source: dict) -> list:
                 "source":   source["name"],
                 "url":      link,
                 "lang":     source["lang"],
+                "region":   region,
             })
 
         logger.info(f"[NEWS] {source['name']}: {len(items)} items from {source['url'][:60]}")
@@ -292,7 +337,7 @@ def fetch_all_news() -> dict:
     return result
 
 
-def get_news(category: str = None, lang: str = None, limit: int = 20) -> dict:
+def get_news(category: str = None, lang: str = None, region: str = None, limit: int = 20) -> dict:
     """Return cached news, refreshing if stale > REFRESH_INTERVAL min."""
     cached = None
     try:
@@ -313,6 +358,8 @@ def get_news(category: str = None, lang: str = None, limit: int = 20) -> dict:
         items = [i for i in items if i.get("category") == category]
     if lang:
         items = [i for i in items if i.get("lang") == lang]
+    if region:
+        items = [i for i in items if i.get("region") == region]
 
     return {
         "updated": cached.get("updated"),

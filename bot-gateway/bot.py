@@ -2454,8 +2454,9 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 qs = parse_qs(parsed.query)
                 category = (qs.get("category") or qs.get("cat") or [None])[0]
                 lang     = (qs.get("lang")     or [None])[0]
+                region   = (qs.get("region")   or [None])[0]
                 limit    = int((qs.get("limit") or qs.get("n") or ["20"])[0])
-                data = get_news(category=category, lang=lang, limit=limit)
+                data = get_news(category=category, lang=lang, region=region, limit=limit)
             except Exception as e:
                 data = {"error": str(e), "items": [], "ticker": []}
             self._send_json(data)
