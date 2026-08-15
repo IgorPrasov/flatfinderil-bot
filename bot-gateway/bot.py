@@ -954,6 +954,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 "fb_parser_run_finished_at", "fb_parser_cookie_count",
                 "fb_parser_progress", "fb_parser_run_summary",
                 "fb_parser_last_error", "fb_parser_error_at",
+                "fb_parser_blocked_count", "fb_parser_blocked_url",
             ]
             out = {k: db.get_setting(k) for k in keys}
             return self._send_json(out)

@@ -489,7 +489,9 @@ def scrape_group(page, group: dict) -> int:
     # Проверяем — не попали ли на страницу входа
     if "login" in page.url or "checkpoint" in page.url:
         log.warning("   Перенаправление на login — cookies устарели?")
-        return 0
+        _diag("fb_parser_blocked_url", page.url)
+        _diag("fb_parser_blocked_count", str(int(_diag_get("fb_parser_blocked_count") or 0) + 1))
+        raise RuntimeError(f"login/checkpoint redirect: {page.url}")
 
     saved = 0
     seen_globally: set[str] = set()  # Чтобы не дублировать при скроллинге
@@ -572,6 +574,14 @@ def _diag(key: str, value: str):
         pass
 
 
+def _diag_get(key: str):
+    try:
+        import database as _db
+        return _db.get_setting(key)
+    except Exception:
+        return None
+
+
 def run_once(groups: list[dict] | None = None, headful: bool = False) -> int:
     target = groups or GROUPS
     log.info("=" * 65)
@@ -579,6 +589,8 @@ def run_once(groups: list[dict] | None = None, headful: bool = False) -> int:
     log.info("=" * 65)
     _diag("fb_parser_run_started_at", datetime.now().isoformat())
     _diag("fb_parser_run_status", "starting")
+    _diag("fb_parser_blocked_count", "0")
+    _diag("fb_parser_blocked_url", "")
 
     _ensure_chromium()
 
