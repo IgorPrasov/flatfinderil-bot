@@ -187,6 +187,17 @@ def get_recent_deals(
 
     raw = _api_get(RESOURCES["apartments"], filters=filters, limit=limit)
 
+    # Surface upstream errors instead of silently returning "0 deals" —
+    # data.gov.il is undergoing an AWS migration (disruptions expected until
+    # ~2026-08-18); the hardcoded resource IDs may 404 during/after this.
+    if raw.get("error"):
+        return {
+            "city": city_ru, "city_he": city_he,
+            "total": 0, "api_total": 0, "deals": [],
+            "stats": _calc_stats([]),
+            "error": f"data.gov.il недоступен: {raw['error']}",
+        }
+
     deals = []
     for rec in raw.get("records", []):
         try:
@@ -277,6 +288,8 @@ def get_market_overview(city_ru: str, last_days: int = 90) -> dict:
         "by_rooms":    {k: _calc_stats(v) for k, v in sorted(by_rooms.items())},
         "overall":     raw["stats"],
     }
+    if raw.get("error"):
+        overview["error"] = raw["error"]
     return overview
 
 
