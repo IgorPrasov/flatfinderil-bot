@@ -109,6 +109,59 @@ def _listing_row(row) -> Optional[Dict]:
 # Schema initialisation
 # ---------------------------------------------------------------------------
 
+def _ensure_vehicle_table():
+    """
+    Create vehicle_listings (+ its indexes) if missing.
+
+    NOTE: production does NOT re-run the full schema.sql on every boot —
+    _init_db() below is only ever invoked manually (migrate_to_pg.py), so
+    editing schema.sql alone does not create new tables in prod. This is a
+    narrow, self-contained, idempotent bootstrap for the one new table the
+    Cars vertical needs, safe to call on every startup.
+    """
+    try:
+        with _conn() as c:
+            with c.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS vehicle_listings (
+                        id            SERIAL PRIMARY KEY,
+                        make          VARCHAR(50),
+                        model         TEXT,
+                        year          INTEGER,
+                        body_type     VARCHAR(30),
+                        mileage_km    INTEGER,
+                        transmission  VARCHAR(20),
+                        fuel_type     VARCHAR(20),
+                        hand          VARCHAR(10),
+                        color         TEXT,
+                        price         INTEGER DEFAULT 0,
+                        city          VARCHAR(100),
+                        description   TEXT,
+                        photos        JSONB DEFAULT '[]',
+                        contact       TEXT,
+                        poster_name   TEXT,
+                        poster_phone  TEXT,
+                        poster_username TEXT,
+                        source        VARCHAR(50) DEFAULT 'user',
+                        source_url    TEXT,
+                        date_added    DATE DEFAULT CURRENT_DATE,
+                        active        BOOLEAN DEFAULT TRUE,
+                        views         INTEGER DEFAULT 0,
+                        user_id       BIGINT,
+                        extra         JSONB DEFAULT '{}'
+                    )
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_vehicles_city ON vehicle_listings(city)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_vehicles_make ON vehicle_listings(make)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_vehicles_active ON vehicle_listings(active)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_vehicles_price ON vehicle_listings(price)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_vehicles_user_id ON vehicle_listings(user_id) WHERE user_id IS NOT NULL")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_vehicles_date_added ON vehicle_listings(date_added)")
+        log.info("[DB] vehicle_listings table ensured")
+    except Exception as e:
+        log.warning(f"[DB] Failed to ensure vehicle_listings table: {e}")
+
+
 def _init_db():
     """Execute schema.sql to create tables if they don't exist."""
     schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")

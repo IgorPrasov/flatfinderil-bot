@@ -86,6 +86,11 @@ if _USE_PG:
     )
     import logging as _logging
     _logging.getLogger(__name__).info("[DB] Using PostgreSQL backend")
+    try:
+        from database_pg import _ensure_vehicle_table
+        _ensure_vehicle_table()
+    except Exception:
+        pass
 else:
     from database_json import *        # noqa: F401, F403
     from database_json import (        # re-export private helpers (not picked up by *)
