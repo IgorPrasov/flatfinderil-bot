@@ -75,6 +75,7 @@ if _USE_PG:
         search_vehicles,
         get_user_vehicles,
         get_all_vehicles,
+        update_vehicle,
         increment_vehicle_views,
         set_vehicle_active,
         delete_vehicle,

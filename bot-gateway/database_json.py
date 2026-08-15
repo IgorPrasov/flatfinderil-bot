@@ -1856,6 +1856,25 @@ def increment_vehicle_views(vehicle_id: int):
             _save(db)
 
 
+_VEHICLE_EDITABLE_FIELDS = (
+    "make", "model", "year", "body_type", "mileage_km", "transmission",
+    "fuel_type", "hand", "color", "price", "city", "description",
+    "contact", "poster_name", "poster_phone", "active",
+)
+
+
+def update_vehicle(vehicle_id: int, fields: Dict) -> Optional[Dict]:
+    with _DB_LOCK:
+        db = _load()
+        v = db.get("vehicles", {}).get(str(vehicle_id))
+        if v:
+            for k in _VEHICLE_EDITABLE_FIELDS:
+                if k in fields:
+                    v[k] = fields[k]
+            _save(db)
+        return v
+
+
 def set_vehicle_active(vehicle_id: int, active: bool):
     with _DB_LOCK:
         db = _load()

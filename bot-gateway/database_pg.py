@@ -3030,6 +3030,32 @@ def increment_vehicle_views(vehicle_id: int):
             )
 
 
+_VEHICLE_EDITABLE_FIELDS = (
+    "make", "model", "year", "body_type", "mileage_km", "transmission",
+    "fuel_type", "hand", "color", "price", "city", "description",
+    "contact", "poster_name", "poster_phone", "active",
+)
+
+
+def update_vehicle(vehicle_id: int, fields: Dict) -> Optional[Dict]:
+    """Partial update of a vehicle listing. Ignores unknown/None-key fields. Returns the updated row."""
+    cols, params = [], []
+    for k in _VEHICLE_EDITABLE_FIELDS:
+        if k in fields:
+            cols.append(f"{k} = %s")
+            params.append(fields[k])
+    if not cols:
+        return get_vehicle(vehicle_id)
+    params.append(vehicle_id)
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                f"UPDATE vehicle_listings SET {', '.join(cols)} WHERE id = %s",
+                params,
+            )
+    return get_vehicle(vehicle_id)
+
+
 def set_vehicle_active(vehicle_id: int, active: bool):
     with _conn() as c:
         with c.cursor() as cur:

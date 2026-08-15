@@ -397,6 +397,7 @@ canvas{max-width:100%}
             <th style="padding:6px 8px;text-align:right">Просм.</th>
             <th style="padding:6px 8px;text-align:left">Статус</th>
             <th style="padding:6px 8px;text-align:left">Добавлено</th>
+            <th style="padding:6px 8px;text-align:left">Действия</th>
           </tr></thead>
           <tbody id="cars-body"></tbody>
         </table>
@@ -2730,7 +2731,155 @@ function renderCars(d){
       <td style="padding:6px 8px;text-align:right">${v.views || 0}</td>
       <td style="padding:6px 8px">${v.active ? "🟢 Активно" : "🔴 Снято"}</td>
       <td style="padding:6px 8px">${v.date_added || "—"}</td>
-    </tr>`).join("") || `<tr><td colspan="9" style="padding:12px;color:#aaa">Пока нет объявлений об авто</td></tr>`;
+      <td style="padding:6px 8px">
+        <button onclick="carOpenModal(${v.id})" title="Редактировать / фото / контакты"
+          style="padding:3px 7px;border:none;border-radius:5px;background:#2563EB;color:#fff;font-size:11px;cursor:pointer">✏️</button>
+      </td>
+    </tr>`).join("") || `<tr><td colspan="10" style="padding:12px;color:#aaa">Пока нет объявлений об авто</td></tr>`;
+}
+
+// ── Car edit / photos / contact modal ────────────────────────────────────
+async function carOpenModal(vid){
+  let v;
+  try {
+    const r = await fetch(`/api/admin/vehicles/${vid}`);
+    const d = await r.json();
+    v = d.vehicle || d;
+    if (!v || d.error) { cabToast("❌ Не удалось загрузить: " + (d.error||"?"), false); return; }
+  } catch(e) { cabToast("❌ " + e.message, false); return; }
+
+  const photos = v.photos || [];
+  const photosHtml = photos.length
+    ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${photos.map(fid =>
+        `<img src="/api/admin/vehicle-photo/${fid}" style="width:90px;height:70px;object-fit:cover;border-radius:6px;border:1px solid #eee" loading="lazy">`
+      ).join("")}</div>`
+    : `<div style="font-size:12px;color:#aaa;margin-top:6px">Фото не добавлены</div>`;
+
+  const esc = s => (s||"").toString().replace(/"/g,"&quot;");
+  const modal = document.createElement("div");
+  modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:20px;box-sizing:border-box";
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:24px;max-width:600px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <div style="font-size:16px;font-weight:700">✏️ Авто #${vid}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">${esc(v.make)} ${esc(v.model)}</div>
+        </div>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#888">✕</button>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:#666;margin-bottom:4px">📸 Фото</div>
+      ${photosHtml}
+
+      <div style="font-size:12px;font-weight:600;color:#666;margin:16px 0 4px">👤 Контакт владельца</div>
+      <div style="font-size:12px;background:#f7f7fa;border-radius:8px;padding:10px;line-height:1.7">
+        Имя: <b>${esc(v.poster_name) || "—"}</b><br>
+        Телефон/контакт: <b>${esc(v.contact) || "—"}</b><br>
+        Telegram: <b>${v.poster_username ? "@"+esc(v.poster_username) : "—"}</b><br>
+        user_id: <b>${v.user_id || "—"}</b>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:#666;margin:16px 0 4px">✏️ Редактировать</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600">Марка</label>
+          <input id="cv-make" value="${esc(v.make)}" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600">Модель</label>
+          <input id="cv-model" value="${esc(v.model)}" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600">Год</label>
+          <input id="cv-year" type="number" value="${v.year||''}" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600">Пробег (км)</label>
+          <input id="cv-mileage" type="number" value="${v.mileage_km||''}" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600">Цена (₪)</label>
+          <input id="cv-price" type="number" value="${v.price||''}" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600">Город</label>
+          <input id="cv-city" value="${esc(v.city)}" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600">Коробка</label>
+          <select id="cv-trans" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">
+            <option value="automatic" ${v.transmission==='automatic'?'selected':''}>АКПП</option>
+            <option value="manual" ${v.transmission==='manual'?'selected':''}>МКПП</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600">Топливо</label>
+          <select id="cv-fuel" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px">
+            <option value="petrol" ${v.fuel_type==='petrol'?'selected':''}>Бензин</option>
+            <option value="diesel" ${v.fuel_type==='diesel'?'selected':''}>Дизель</option>
+            <option value="hybrid" ${v.fuel_type==='hybrid'?'selected':''}>Гибрид</option>
+            <option value="electric" ${v.fuel_type==='electric'?'selected':''}>Электро</option>
+            <option value="gas" ${v.fuel_type==='gas'?'selected':''}>Газ</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600">Рука</label>
+          <input id="cv-hand" value="${esc(v.hand)}" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#666;font-weight:600">Контакт</label>
+          <input id="cv-contact" value="${esc(v.contact)}" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">
+        </div>
+        <div style="grid-column:span 2">
+          <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="checkbox" id="cv-active" ${v.active!==false?'checked':''}> ✅ Активно (видно в поиске)
+          </label>
+        </div>
+        <div style="grid-column:span 2">
+          <label style="font-size:11px;color:#666;font-weight:600">Описание</label>
+          <textarea id="cv-desc" rows="3" style="width:100%;margin-top:3px;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit">${v.description||''}</textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="carSaveEdit(${vid})" style="flex:1;padding:10px;border:none;border-radius:8px;background:#2563EB;color:#fff;font-size:13px;font-weight:600;cursor:pointer">💾 Сохранить</button>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="padding:10px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px;cursor:pointer">Отмена</button>
+      </div>
+      <div id="cv-save-status" style="font-size:12px;margin-top:8px;text-align:center;min-height:16px"></div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function carSaveEdit(vid){
+  const fields = {
+    make:         document.getElementById("cv-make")?.value.trim(),
+    model:        document.getElementById("cv-model")?.value.trim(),
+    year:         parseInt(document.getElementById("cv-year")?.value) || null,
+    mileage_km:   parseInt(document.getElementById("cv-mileage")?.value) || null,
+    price:        parseInt(document.getElementById("cv-price")?.value) || null,
+    city:         document.getElementById("cv-city")?.value.trim(),
+    transmission: document.getElementById("cv-trans")?.value,
+    fuel_type:    document.getElementById("cv-fuel")?.value,
+    hand:         document.getElementById("cv-hand")?.value.trim(),
+    contact:      document.getElementById("cv-contact")?.value.trim(),
+    description:  document.getElementById("cv-desc")?.value.trim(),
+    active:       document.getElementById("cv-active")?.checked,
+  };
+  const statusEl = document.getElementById("cv-save-status");
+  statusEl.textContent = "⏳ Сохраняем..."; statusEl.style.color = "#888";
+  try {
+    const r = await fetch(`/api/admin/vehicles/${vid}`, {
+      method: "PATCH", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(fields)
+    });
+    const d = await r.json();
+    if (d.ok) {
+      statusEl.textContent = "✅ Сохранено!"; statusEl.style.color = "#4CAF8A";
+      cabToast("✅ Авто обновлено");
+      loadCars();
+      setTimeout(() => document.querySelector("[style*='fixed'][style*='9999']")?.remove(), 800);
+    } else { statusEl.textContent = "❌ " + (d.error||"Ошибка"); statusEl.style.color = "#EF4444"; }
+  } catch(e) { statusEl.textContent = "❌ " + e.message; statusEl.style.color = "#EF4444"; }
 }
 
 // ── DATA.GOV.IL ─────────────────────────────────────────────────────────────

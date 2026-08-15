@@ -910,6 +910,47 @@ class WebHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send_json({"error": str(e), "total": 0, "items": []}, 500)
 
+        # ── Resolve a vehicle photo's Telegram file_id to a real image URL ───
+        # (photos are stored as Telegram file_ids, not URLs — dashboard <img>
+        # tags hit this, which redirects to Telegram's file CDN)
+        if resource == "vehicle-photo" and rid and method == "GET":
+            try:
+                import requests as _req
+                r = _req.get(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/getFile",
+                    params={"file_id": rid}, timeout=10,
+                )
+                data = r.json()
+                file_path = (data.get("result") or {}).get("file_path")
+                if not file_path:
+                    return self._send_json({"error": "file not found"}, 404)
+                self.send_response(302)
+                self.send_header("Location", f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}")
+                self.end_headers()
+                return
+            except Exception as e:
+                return self._send_json({"error": str(e)}, 500)
+
+        # ── GET single vehicle ──────────────────────────────────────────────
+        if resource == "vehicles" and rid and method == "GET":
+            try:
+                v = db.get_vehicle(int(rid))
+                if v:
+                    return self._send_json({"vehicle": v})
+                return self._send_json({"error": "Not found"}, 404)
+            except Exception as e:
+                return self._send_json({"error": str(e)}, 500)
+
+        # ── PATCH vehicle (edit fields) ─────────────────────────────────────
+        if resource == "vehicles" and rid and method == "PATCH":
+            try:
+                v = db.update_vehicle(int(rid), body or {})
+                if v:
+                    return self._send_json({"ok": True, "vehicle": v})
+                return self._send_json({"error": "Not found"}, 404)
+            except Exception as e:
+                return self._send_json({"error": str(e)}, 500)
+
         # ── GET single listing ────────────────────────────────────────────
         if resource == "listings" and rid and method == "GET":
             try:
