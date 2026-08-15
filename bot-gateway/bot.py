@@ -850,6 +850,19 @@ class WebHandler(BaseHTTPRequestHandler):
             self.wfile.write(content)
         except: self.send_response(500); self.end_headers()
 
+    async def _bot_notify(self, user_id: int, text: str):
+        """Send Telegram message to a user (fire-and-forget from backoffice)."""
+        try:
+            from config import BOT_TOKEN as _tok
+            import httpx
+            async with httpx.AsyncClient(timeout=8) as cl:
+                await cl.post(
+                    f"https://api.telegram.org/bot{_tok}/sendMessage",
+                    json={"chat_id": user_id, "text": text, "parse_mode": "HTML"},
+                )
+        except Exception as _e:
+            logger.debug(f"_bot_notify failed: {_e}")
+
     def _redirect(self, loc):
         self.send_response(302)
         self.send_header("Location", loc)
@@ -1253,11 +1266,137 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                     "total": len(users),
                     "items": [
                         {"user_id": uid, **udata}
-                        for uid, udata in list(users.items())[:500]
+                        for uid, udata in users.items()
                     ]
                 })
             except Exception as e:
                 return self._send_json({"error": str(e), "total": 0, "items": []})
+
+        # ── Accounts management ──────────────────────────────────────────────────
+        # POST /backoffice/api/accounts/grant  — issue subscription
+        if resource == "accounts" and rid == "grant" and method == "POST":
+            try:
+                uid = int(body.get("user_id", 0))
+                plan = body.get("plan", "month")
+                expiry_iso = body.get("expiry_iso")
+                days = int(body.get("days", 30))
+                if not uid or not expiry_iso:
+                    return self._send_json({"ok": False, "error": "user_id и expiry_iso обязательны"}, 400)
+                db.set_user_paid_subscription(uid, plan, expiry_iso)
+                # Notify user in Telegram
+                try:
+                    import asyncio as _aio
+                    exp_str = expiry_iso[:10]
+                    msg = f"🎁 <b>Подписка активирована администратором!</b>\n\nВаша подписка активна до <b>{exp_str}</b>.\nСпасибо!"
+                    _aio.run_coroutine_threadsafe(
+                        self._bot_notify(uid, msg),
+                        asyncio.get_event_loop()
+                    )
+                except Exception:
+                    pass
+                logger.info(f"[ACCOUNTS] Granted {plan} subscription to user {uid} until {expiry_iso}")
+                return self._send_json({"ok": True, "user_id": uid, "expiry_iso": expiry_iso})
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
+
+        # POST /backoffice/api/accounts/bonus  — add bonus days
+        if resource == "accounts" and rid == "bonus" and method == "POST":
+            try:
+                uid = int(body.get("user_id", 0))
+                days = int(body.get("days", 0))
+                if not uid or not days:
+                    return self._send_json({"ok": False, "error": "user_id и days обязательны"}, 400)
+                db.add_bonus_days(uid, days)
+                try:
+                    import asyncio as _aio
+                    msg = f"🎁 <b>Бонус от администратора!</b>\n\nВам начислено <b>+{days} дней</b> подписки."
+                    _aio.run_coroutine_threadsafe(self._bot_notify(uid, msg), asyncio.get_event_loop())
+                except Exception:
+                    pass
+                logger.info(f"[ACCOUNTS] +{days} bonus days to user {uid}")
+                return self._send_json({"ok": True})
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
+
+        # POST /backoffice/api/accounts/set-status
+        if resource == "accounts" and rid == "set-status" and method == "POST":
+            try:
+                uid = int(body.get("user_id", 0))
+                action = body.get("action", "")
+                subscribed = body.get("subscribed")
+                if not uid:
+                    return self._send_json({"ok": False, "error": "user_id обязателен"}, 400)
+                from analytics import _load_stats, _save_stats
+                stats = _load_stats()
+                u = stats.get("users", {}).get(str(uid))
+                if action == "blocked":
+                    if u: u["blocked"] = True
+                    msg = "🚫 Ваш аккаунт был заблокирован администратором."
+                elif action == "active":
+                    if u:
+                        u["blocked"] = False
+                        u["subscribed"] = True
+                    msg = "✅ Ваш аккаунт активирован администратором."
+                elif action == "reset":
+                    if u: u["subscribed"] = False
+                    msg = None
+                elif subscribed is not None:
+                    if u: u["subscribed"] = bool(subscribed)
+                    msg = None
+                else:
+                    msg = None
+                _save_stats(stats)
+                if msg:
+                    try:
+                        import asyncio as _aio
+                        _aio.run_coroutine_threadsafe(self._bot_notify(uid, msg), asyncio.get_event_loop())
+                    except Exception:
+                        pass
+                logger.info(f"[ACCOUNTS] set-status action={action} subscribed={subscribed} for user {uid}")
+                return self._send_json({"ok": True})
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
+
+        # ── Promo codes ───────────────────────────────────────────────────────────
+        if resource == "promo-codes":
+            from analytics import _load_stats, _save_stats
+            if method == "GET" and not rid:
+                stats = _load_stats()
+                items = list(stats.get("promo_codes", {}).values())
+                items.sort(key=lambda x: x.get("created", ""), reverse=True)
+                return self._send_json({"items": items})
+
+            if method == "POST":
+                code = (body.get("code") or "").strip().upper()
+                if not code:
+                    return self._send_json({"ok": False, "error": "Код обязателен"}, 400)
+                stats = _load_stats()
+                if "promo_codes" not in stats:
+                    stats["promo_codes"] = {}
+                if code in stats["promo_codes"]:
+                    return self._send_json({"ok": False, "error": "Такой код уже существует"}, 409)
+                stats["promo_codes"][code] = {
+                    "code":      code,
+                    "type":      body.get("type", "days"),
+                    "value":     int(body.get("value", 7)),
+                    "max_uses":  int(body.get("max_uses", 0)),
+                    "expiry":    body.get("expiry"),
+                    "used":      0,
+                    "created":   datetime.now().isoformat(),
+                    "active":    True,
+                }
+                _save_stats(stats)
+                logger.info(f"[PROMO] Created promo code {code}")
+                return self._send_json({"ok": True, "code": code})
+
+            if method == "DELETE" and rid:
+                stats = _load_stats()
+                code = rid.upper()
+                if code in stats.get("promo_codes", {}):
+                    del stats["promo_codes"][code]
+                    _save_stats(stats)
+                    logger.info(f"[PROMO] Deleted promo code {code}")
+                return self._send_json({"ok": True})
 
         # email subscribers
         if resource == "email-subscribers":

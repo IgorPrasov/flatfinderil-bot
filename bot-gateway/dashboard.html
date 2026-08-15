@@ -131,6 +131,7 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('price',this)" data-i18n="nav_price">📈 Цены</button>
     <button class="nav-btn" onclick="showTab('news',this)" data-i18n="nav_news">📰 Новости</button>
     <button class="nav-btn" onclick="showTab('digest',this)" data-i18n="nav_digest">🌅 Дайджест</button>
+    <button class="nav-btn" onclick="showTab('accounts',this)" style="background:#2563eb;color:#fff;font-weight:700">👤 Аккаунты</button>
     <select id="ui-lang" onchange="setUILang(this.value)" style="margin-left:8px;font-size:11px;border:1px solid #e0e0da;border-radius:6px;padding:3px 6px;background:#f8f8f4;cursor:pointer">
       <option value="ru">🇷🇺 RU</option>
       <option value="en">🇬🇧 EN</option>
@@ -806,6 +807,87 @@ canvas{max-width:100%}
   </div>
 
   <!-- DAILY DIGEST -->
+  <!-- ══════════════ ACCOUNTS TAB ══════════════ -->
+  <div class="tab" id="tab-accounts">
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+
+      <!-- LEFT: User search + list -->
+      <div style="flex:1;min-width:320px">
+        <div class="card">
+          <div class="card-title">🔍 Поиск пользователя</div>
+          <div class="card-body">
+            <div style="display:flex;gap:6px;margin-bottom:12px">
+              <input id="acc-search" type="text" placeholder="ID, @username или имя" style="flex:1;padding:7px 10px;border:1px solid #e0e0da;border-radius:6px;font-size:13px">
+              <button onclick="accSearch()" style="padding:7px 16px;border:none;border-radius:6px;background:#2563EB;color:#fff;font-size:13px;cursor:pointer;font-weight:600">Найти</button>
+            </div>
+            <div id="acc-list" style="font-size:12px;color:#666">Введите запрос для поиска</div>
+          </div>
+        </div>
+
+        <!-- Promo codes management -->
+        <div class="card" style="margin-top:12px">
+          <div class="card-title">🎟 Промокоды</div>
+          <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+              <input id="promo-code" type="text" placeholder="Код (напр. VIP30)" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px;text-transform:uppercase">
+              <select id="promo-type" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+                <option value="days">Дни подписки</option>
+                <option value="pct">Скидка %</option>
+              </select>
+              <input id="promo-value" type="number" placeholder="Значение (дни или %)" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+              <input id="promo-max-uses" type="number" placeholder="Макс. использ. (0=∞)" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+              <input id="promo-expiry" type="date" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px;grid-column:span 2">
+            </div>
+            <button onclick="createPromo()" style="width:100%;padding:7px;border:none;border-radius:6px;background:#4CAF8A;color:#fff;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:10px">➕ Создать промокод</button>
+            <div id="promo-list" style="font-size:12px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Selected user detail -->
+      <div style="flex:1;min-width:320px">
+        <div class="card" id="acc-detail-card" style="display:none">
+          <div class="card-title" id="acc-detail-title">👤 Пользователь</div>
+          <div class="card-body" id="acc-detail-body"></div>
+        </div>
+
+        <!-- Grant subscription panel -->
+        <div class="card" id="acc-grant-card" style="margin-top:12px;display:none">
+          <div class="card-title">🎁 Управление подпиской</div>
+          <div class="card-body">
+            <input type="hidden" id="grant-user-id">
+
+            <div style="margin-bottom:8px;font-size:12px;font-weight:600;color:#555">Выдать подписку:</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+              <select id="grant-plan" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+                <option value="week">1 неделя (19.90₪)</option>
+                <option value="two_weeks">2 недели (29.90₪)</option>
+                <option value="month" selected>1 месяц (39.90₪)</option>
+                <option value="custom">Произвольно (дни)</option>
+              </select>
+              <input id="grant-days" type="number" placeholder="Дней (для custom)" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+            </div>
+            <button onclick="grantSubscription()" style="width:100%;padding:7px;border:none;border-radius:6px;background:#2563EB;color:#fff;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:10px">✅ Выдать подписку</button>
+
+            <div style="margin-bottom:8px;font-size:12px;font-weight:600;color:#555">Бонусные дни:</div>
+            <div style="display:flex;gap:6px;margin-bottom:10px">
+              <input id="grant-bonus" type="number" placeholder="Кол-во дней" style="flex:1;padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+              <button onclick="grantBonusDays()" style="padding:6px 14px;border:none;border-radius:6px;background:#F59E0B;color:#fff;font-size:12px;font-weight:600;cursor:pointer">🎁 Начислить</button>
+            </div>
+
+            <div style="margin-bottom:8px;font-size:12px;font-weight:600;color:#555">Статус аккаунта:</div>
+            <div style="display:flex;gap:6px">
+              <button onclick="setAccountStatus('active')" style="flex:1;padding:6px;border:none;border-radius:6px;background:#4CAF8A;color:#fff;font-size:12px;cursor:pointer">✅ Активировать</button>
+              <button onclick="setAccountStatus('blocked')" style="flex:1;padding:6px;border:none;border-radius:6px;background:#EF4444;color:#fff;font-size:12px;cursor:pointer">🚫 Заблокировать</button>
+              <button onclick="setAccountStatus('reset')" style="flex:1;padding:6px;border:none;border-radius:6px;background:#94A3B8;color:#fff;font-size:12px;cursor:pointer">↺ Сбросить подписку</button>
+            </div>
+            <div id="grant-status" style="font-size:12px;margin-top:8px;color:#4CAF8A;min-height:18px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="tab" id="tab-digest">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
       <input id="digest-city" type="text" placeholder="Город (напр. Нетания)" style="border:1px solid #e0e0da;border-radius:6px;padding:5px 10px;font-size:12px;width:180px">
@@ -2438,7 +2520,252 @@ const _origShowTab = window.showTab;
 window.showTab = function(tab, btn) {
   _origShowTab && _origShowTab(tab, btn);
   if (tab === "crm") { crmShowTab("contacts"); }
+  if (tab === "accounts") { loadPromos(); }
 };
+
+// ══════════════════════════════════════════════════════════════════
+//  ACCOUNTS TAB
+// ══════════════════════════════════════════════════════════════════
+
+let _accSelected = null;
+
+// ── User search ───────────────────────────────────────────────────
+async function accSearch() {
+  const q = document.getElementById("acc-search").value.trim();
+  if (!q) return;
+  const el = document.getElementById("acc-list");
+  el.innerHTML = '<span style="color:#999">Поиск...</span>';
+  try {
+    // Search in analytics users (stats.json)
+    const r = await fetch("/analytics");
+    const d = await r.json();
+    const users = d.users?._raw || {};
+
+    // Fetch analytics-users from backoffice API for richer data
+    const r2 = await fetch("/backoffice/api/analytics-users");
+    const d2 = await r2.json();
+    const allUsers = d2.items || d2 || [];
+
+    const q_low = q.toLowerCase().replace("@", "");
+    const found = allUsers.filter(u => {
+      const id = String(u.user_id || u.id || "");
+      const uname = (u.username || "").toLowerCase();
+      const fname = (u.first_name || "").toLowerCase();
+      const lname = (u.last_name || "").toLowerCase();
+      return id.includes(q_low) || uname.includes(q_low) || fname.includes(q_low) || lname.includes(q_low);
+    }).slice(0, 30);
+
+    if (!found.length) {
+      el.innerHTML = '<span style="color:#999">Не найдено</span>';
+      return;
+    }
+    el.innerHTML = found.map(u => {
+      const name = [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
+      const uname = u.username ? `@${u.username}` : "";
+      const sub = u.subscribed ? '<span style="color:#4CAF8A;font-size:10px">● подписка</span>' : '<span style="color:#94A3B8;font-size:10px">○ нет</span>';
+      return `<div onclick="accSelect(${JSON.stringify(u).replace(/"/g,"&quot;")})"
+        style="padding:7px 10px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border:1px solid transparent"
+        onmouseover="this.style.background='#f0f4ff';this.style.borderColor='#2563EB'"
+        onmouseout="this.style.background='';this.style.borderColor='transparent'">
+        <div>
+          <b style="font-size:13px">${name}</b> ${uname ? `<span style="color:#888;font-size:11px">${uname}</span>` : ""}
+          <div style="color:#aaa;font-size:10px">ID: ${u.user_id || u.id}</div>
+        </div>
+        <div style="text-align:right">${sub}<div style="font-size:10px;color:#aaa">${u.first_seen||""}</div></div>
+      </div>`;
+    }).join('<div style="border-bottom:1px solid #f0f0ea;margin:2px 0"></div>');
+  } catch(e) {
+    el.innerHTML = `<span style="color:red">Ошибка: ${e.message}</span>`;
+  }
+}
+
+// ── User selected → show detail ───────────────────────────────────
+async function accSelect(u) {
+  _accSelected = u;
+  document.getElementById("grant-user-id").value = u.user_id || u.id;
+  const card = document.getElementById("acc-detail-card");
+  const grantCard = document.getElementById("acc-grant-card");
+  card.style.display = "";
+  grantCard.style.display = "";
+
+  const name = [u.first_name, u.last_name].filter(Boolean).join(" ") || "Без имени";
+  document.getElementById("acc-detail-title").textContent = `👤 ${name}`;
+
+  // Load subscription detail
+  let subInfo = "—";
+  try {
+    const r = await fetch(`/backoffice/api/users/${u.user_id || u.id}`);
+    const d = await r.json();
+    const p = d.profile || {};
+    const expiry = p.expiry_iso || p.bonus_expiry;
+    if (expiry) {
+      const exp = new Date(expiry);
+      const now = new Date();
+      const days = Math.ceil((exp - now) / 86400000);
+      subInfo = days > 0
+        ? `<span style="color:#4CAF8A;font-weight:600">Активна до ${exp.toLocaleDateString("ru")} (${days} дн.)</span>`
+        : `<span style="color:#EF4444">Истекла ${exp.toLocaleDateString("ru")}</span>`;
+    }
+  } catch (_) {}
+
+  const uid = u.user_id || u.id;
+  const subBadge = u.subscribed
+    ? '<span style="background:#4CAF8A;color:#fff;border-radius:12px;padding:2px 8px;font-size:11px">Подписан</span>'
+    : '<span style="background:#94A3B8;color:#fff;border-radius:12px;padding:2px 8px;font-size:11px">Нет подписки</span>';
+
+  document.getElementById("acc-detail-body").innerHTML = `
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <tr><td style="padding:4px 0;color:#888;width:120px">ID</td><td><code>${uid}</code></td></tr>
+      <tr><td style="padding:4px 0;color:#888">Username</td><td>${u.username ? `@${u.username}` : "—"}</td></tr>
+      <tr><td style="padding:4px 0;color:#888">Имя</td><td>${name}</td></tr>
+      <tr><td style="padding:4px 0;color:#888">Язык</td><td>${u.lang || "—"}</td></tr>
+      <tr><td style="padding:4px 0;color:#888">Первый вход</td><td>${u.first_seen || "—"}</td></tr>
+      <tr><td style="padding:4px 0;color:#888">Последний</td><td>${u.last_seen || "—"}</td></tr>
+      <tr><td style="padding:4px 0;color:#888">Поисков</td><td>${u.searches || 0}</td></tr>
+      <tr><td style="padding:4px 0;color:#888">Статус</td><td>${subBadge}</td></tr>
+      <tr><td style="padding:4px 0;color:#888">Подписка</td><td>${subInfo}</td></tr>
+    </table>`;
+  document.getElementById("grant-status").textContent = "";
+}
+
+// ── Grant subscription ────────────────────────────────────────────
+async function grantSubscription() {
+  const uid = document.getElementById("grant-user-id").value;
+  if (!uid) return;
+  const plan = document.getElementById("grant-plan").value;
+  const days = document.getElementById("grant-days").value;
+  const statusEl = document.getElementById("grant-status");
+
+  const planDays = { week: 7, two_weeks: 14, month: 30, custom: parseInt(days) || 7 };
+  const d = planDays[plan];
+  const expiry = new Date(Date.now() + d * 86400000).toISOString();
+
+  statusEl.textContent = "⏳ Выдаём...";
+  try {
+    const r = await fetch(`/backoffice/api/accounts/grant`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ user_id: uid, plan, days: d, expiry_iso: expiry })
+    });
+    const res = await r.json();
+    if (res.ok) {
+      statusEl.textContent = `✅ Подписка выдана до ${new Date(expiry).toLocaleDateString("ru")}`;
+      statusEl.style.color = "#4CAF8A";
+      // Update analytics flag
+      await fetch(`/backoffice/api/accounts/set-status`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({user_id: uid, subscribed: true})
+      });
+    } else {
+      statusEl.textContent = `❌ ${res.error || "Ошибка"}`;
+      statusEl.style.color = "#EF4444";
+    }
+  } catch(e) {
+    statusEl.textContent = `❌ ${e.message}`;
+    statusEl.style.color = "#EF4444";
+  }
+}
+
+// ── Grant bonus days ──────────────────────────────────────────────
+async function grantBonusDays() {
+  const uid = document.getElementById("grant-user-id").value;
+  const bonus = parseInt(document.getElementById("grant-bonus").value) || 0;
+  if (!uid || !bonus) return;
+  const statusEl = document.getElementById("grant-status");
+  statusEl.textContent = "⏳ Начисляем...";
+  try {
+    const r = await fetch(`/backoffice/api/accounts/bonus`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ user_id: uid, days: bonus })
+    });
+    const res = await r.json();
+    statusEl.textContent = res.ok ? `✅ +${bonus} бонусных дней начислено` : `❌ ${res.error}`;
+    statusEl.style.color = res.ok ? "#F59E0B" : "#EF4444";
+  } catch(e) {
+    statusEl.textContent = `❌ ${e.message}`;
+    statusEl.style.color = "#EF4444";
+  }
+}
+
+// ── Set account status ────────────────────────────────────────────
+async function setAccountStatus(action) {
+  const uid = document.getElementById("grant-user-id").value;
+  if (!uid) return;
+  const statusEl = document.getElementById("grant-status");
+  statusEl.textContent = "⏳...";
+  try {
+    const r = await fetch(`/backoffice/api/accounts/set-status`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ user_id: uid, action })
+    });
+    const res = await r.json();
+    const msgs = { active:"✅ Активирован", blocked:"🚫 Заблокирован", reset:"↺ Подписка сброшена" };
+    statusEl.textContent = res.ok ? msgs[action] : `❌ ${res.error}`;
+    statusEl.style.color = res.ok ? "#4CAF8A" : "#EF4444";
+  } catch(e) {
+    statusEl.textContent = `❌ ${e.message}`;
+    statusEl.style.color = "#EF4444";
+  }
+}
+
+// ── Promo codes ───────────────────────────────────────────────────
+async function loadPromos() {
+  try {
+    const r = await fetch("/backoffice/api/promo-codes");
+    const d = await r.json();
+    const promos = d.items || [];
+    const el = document.getElementById("promo-list");
+    if (!promos.length) { el.innerHTML = '<span style="color:#aaa">Промокодов нет</span>'; return; }
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
+      <tr style="color:#aaa;font-size:10px"><th style="text-align:left;padding:3px">Код</th><th>Тип</th><th>Значение</th><th>Исп.</th><th>Макс</th><th>До</th><th></th></tr>
+      ${promos.map(p => `
+      <tr style="border-top:1px solid #f0f0ea">
+        <td style="padding:4px 2px;font-weight:700;letter-spacing:.05em">${p.code}</td>
+        <td style="padding:4px 2px;color:#888">${p.type === "days" ? "дни" : "%"}</td>
+        <td style="padding:4px 2px;color:#2563EB;font-weight:600">${p.value}${p.type === "pct" ? "%" : " дн"}</td>
+        <td style="padding:4px 2px;text-align:center">${p.used || 0}</td>
+        <td style="padding:4px 2px;text-align:center">${p.max_uses || "∞"}</td>
+        <td style="padding:4px 2px;color:#aaa">${p.expiry ? new Date(p.expiry).toLocaleDateString("ru") : "—"}</td>
+        <td style="padding:4px 2px"><button onclick="deletePromo('${p.code}')" style="border:none;background:none;color:#EF4444;cursor:pointer;font-size:11px">✕</button></td>
+      </tr>`).join("")}
+    </table>`;
+  } catch(e) {
+    document.getElementById("promo-list").innerHTML = `<span style="color:red">${e.message}</span>`;
+  }
+}
+
+async function createPromo() {
+  const code = document.getElementById("promo-code").value.trim().toUpperCase();
+  const type = document.getElementById("promo-type").value;
+  const value = parseInt(document.getElementById("promo-value").value);
+  const maxUses = parseInt(document.getElementById("promo-max-uses").value) || 0;
+  const expiry = document.getElementById("promo-expiry").value;
+  if (!code || !value) { alert("Заполните код и значение"); return; }
+  try {
+    const r = await fetch("/backoffice/api/promo-codes", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ code, type, value, max_uses: maxUses, expiry: expiry || null })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      document.getElementById("promo-code").value = "";
+      document.getElementById("promo-value").value = "";
+      loadPromos();
+    } else { alert(d.error || "Ошибка"); }
+  } catch(e) { alert(e.message); }
+}
+
+async function deletePromo(code) {
+  if (!confirm(`Удалить промокод ${code}?`)) return;
+  await fetch(`/backoffice/api/promo-codes/${code}`, { method: "DELETE" });
+  loadPromos();
+}
+
+// Enter key on search
+document.getElementById("acc-search")?.addEventListener("keydown", e => { if(e.key === "Enter") accSearch(); });
 </script>
 </body>
 </html>
