@@ -169,4 +169,9 @@ def format_vehicle_info(info: dict) -> str:
         lines.append(f"🗓 Последний тех. осмотр: {info['last_test_date']}")
     if info.get("test_valid_until"):
         lines.append(f"✅ Тех. осмотр действителен до: {info['test_valid_until']}")
+    lines.append(
+        "\nℹ️ Эта проверка НЕ включает историю аварий и банковский залог (שעבוד) — "
+        "открытых госданных по ним нет. Залог можно проверить напрямую: "
+        "<a href=\"https://www.gov.il/he/service/pawn_perusal\">gov.il — עיון בשעבודים</a>."
+    )
     return "\n".join(lines)
