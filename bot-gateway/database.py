@@ -26,6 +26,7 @@ if _USE_PG:
         add_search_subscription,
         get_user_subscriptions,
         remove_search_subscription,
+        remove_all_subscriptions_for_user,
         get_all_subscriptions,
         update_subscription_last_checked,
         is_alert_active,

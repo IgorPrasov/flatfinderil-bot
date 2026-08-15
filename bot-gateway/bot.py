@@ -953,8 +953,7 @@ class WebHandler(BaseHTTPRequestHandler):
             stats = _load_stats()
             users_meta = stats.get("users", {})
             import subscription as sub
-            data = db._load()
-            all_subs = data.get("subscriptions", {})
+            all_subs = db.get_all_subscriptions()  # cross-backend: hits live PG table or JSON file
             out = []
             for uid, entries in all_subs.items():
                 u = users_meta.get(uid, {})

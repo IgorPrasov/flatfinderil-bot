@@ -890,9 +890,14 @@ def update_favorite_price(user_id: int, listing_id: int, new_price: int):
 # Search subscriptions
 # ---------------------------------------------------------------------------
 
-def add_search_subscription(user_id: int, filters: Dict) -> str:
-    """Save search filters as a subscription. Returns sub_id (UUID)."""
+def add_search_subscription(user_id: int, filters: Dict, reason: str = "", created_by: str = "") -> str:
+    """Save search filters as a subscription. Returns sub_id (UUID).
+    reason/created_by: audit metadata, stored inside the filters JSONB under
+    reserved keys (no schema migration needed)."""
     sub_id = str(uuid.uuid4())
+    stored_filters = dict(filters)
+    stored_filters["_reason"] = reason or "Оплачено 39.90₪"
+    stored_filters["_created_by"] = created_by or "self"
     with _conn() as c:
         with c.cursor() as cur:
             cur.execute(
@@ -901,9 +906,17 @@ def add_search_subscription(user_id: int, filters: Dict) -> str:
                     (id, user_id, filters, created_at, last_checked, last_result_ids, is_alert)
                 VALUES (%s, %s, %s, NOW(), NOW(), %s, FALSE)
                 """,
-                (sub_id, user_id, Json(filters), Json([])),
+                (sub_id, user_id, Json(stored_filters), Json([])),
             )
     return sub_id
+
+
+def _split_meta(filters: dict) -> tuple[dict, str, str]:
+    """Extract _reason/_created_by from a stored filters dict, return (clean_filters, reason, created_by)."""
+    f = dict(filters or {})
+    reason = f.pop("_reason", "")
+    created_by = f.pop("_created_by", "")
+    return f, reason, created_by
 
 
 def get_user_subscriptions(user_id: int) -> List[Dict]:
@@ -918,9 +931,12 @@ def get_user_subscriptions(user_id: int) -> List[Dict]:
             rows = cur.fetchall()
     result = []
     for i, r in enumerate(rows):
+        clean_filters, reason, created_by = _split_meta(r["filters"] or {})
         result.append({
             "id": str(r["id"]),
-            "filters": r["filters"] or {},
+            "filters": clean_filters,
+            "reason": reason,
+            "created_by": created_by,
             "created": r["created_at"].isoformat() if r["created_at"] else "",
             "last_checked": r["last_checked"].isoformat() if r["last_checked"] else "",
             "last_result_ids": r["last_result_ids"] or [],
@@ -942,6 +958,17 @@ def remove_search_subscription(user_id: int, sub_index: int):
                 )
 
 
+def remove_all_subscriptions_for_user(user_id: int) -> int:
+    """Delete ALL search-subscriptions (non-alert) for one user. Returns count removed."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                "DELETE FROM search_subscriptions WHERE user_id = %s AND is_alert = FALSE",
+                (user_id,),
+            )
+            return cur.rowcount
+
+
 def get_all_subscriptions() -> Dict:
     """Return {str(user_id): [sub_dicts]} for all users."""
     with _conn() as c:
@@ -957,9 +984,12 @@ def get_all_subscriptions() -> Dict:
         uid = str(r["user_id"])
         idx = user_idx.get(r["user_id"], 0)
         user_idx[r["user_id"]] = idx + 1
+        clean_filters, reason, created_by = _split_meta(r["filters"] or {})
         result.setdefault(uid, []).append({
             "id": str(r["id"]),
-            "filters": r["filters"] or {},
+            "filters": clean_filters,
+            "reason": reason,
+            "created_by": created_by,
             "created": r["created_at"].isoformat() if r["created_at"] else "",
             "last_checked": r["last_checked"].isoformat() if r["last_checked"] else "",
             "last_result_ids": r["last_result_ids"] or [],
