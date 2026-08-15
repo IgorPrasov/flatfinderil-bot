@@ -946,6 +946,152 @@ class WebHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send_json({"ok": False, "error": str(e)}, 500)
 
+        # ── Engagement: personal cards (referrals/favorites/reviews/bonus/price/subs) ─
+        # GET /api/admin/engagement-users — summary list, every user with ANY activity
+        if resource == "engagement-users" and not rid and method == "GET":
+            try:
+                from analytics import _load_stats
+                stats = _load_stats()
+                users_meta = stats.get("users", {})
+
+                favs   = db.get_all_favorites_bulk()          if hasattr(db, "get_all_favorites_bulk") else {}
+                revs   = db.get_all_reviews_bulk()             if hasattr(db, "get_all_reviews_bulk") else {}
+                refs   = db.get_all_referrals_bulk()           if hasattr(db, "get_all_referrals_bulk") else {}
+                bonus  = db.get_all_bonus_days_bulk()          if hasattr(db, "get_all_bonus_days_bulk") else {}
+                prices = db.get_all_favorites_with_prices()    if hasattr(db, "get_all_favorites_with_prices") else {}
+                subs   = db.get_all_subscriptions()
+
+                # Reviews are keyed by listing_id → invert to per-user counts
+                reviews_by_user: dict = {}
+                for lid, rv in revs.items():
+                    for r in rv:
+                        uid = str(r.get("user_id"))
+                        reviews_by_user.setdefault(uid, []).append(r)
+
+                # Price-tracking keys are "uid_lid" → group by uid
+                price_by_user: dict = {}
+                for key in prices.keys():
+                    uid = key.split("_")[0]
+                    price_by_user.setdefault(uid, []).append(key)
+
+                all_uids = set(favs) | set(reviews_by_user) | set(refs) | set(bonus) | set(price_by_user) | set(subs)
+
+                out = []
+                for uid in all_uids:
+                    u = users_meta.get(uid, {})
+                    name = " ".join(filter(None, [u.get("first_name"), u.get("last_name")])) or f"ID {uid}"
+                    out.append({
+                        "user_id": uid,
+                        "user_name": name,
+                        "username": u.get("username", ""),
+                        "favorites_count": len(favs.get(uid, [])),
+                        "reviews_count": len(reviews_by_user.get(uid, [])),
+                        "referrals_count": len(refs.get(uid, [])),
+                        "bonus_days": bonus.get(uid, 0),
+                        "price_tracked_count": len(price_by_user.get(uid, [])),
+                        "search_subs_count": len(subs.get(uid, [])),
+                    })
+                out.sort(key=lambda x: sum([
+                    x["favorites_count"], x["reviews_count"], x["referrals_count"],
+                    1 if x["bonus_days"] else 0, x["price_tracked_count"], x["search_subs_count"]
+                ]), reverse=True)
+                return self._send_json({"total": len(out), "items": out})
+            except Exception as e:
+                return self._send_json({"error": str(e), "total": 0, "items": []}, 500)
+
+        # GET /api/admin/engagement-users/<user_id> — full personal card
+        if resource == "engagement-users" and rid and method == "GET":
+            try:
+                uid = rid
+                from analytics import _load_stats
+                stats = _load_stats()
+                u = stats.get("users", {}).get(uid, {})
+                name = " ".join(filter(None, [u.get("first_name"), u.get("last_name")])) or f"ID {uid}"
+
+                listings_by_id = {str(l.get("id")): l for l in db.get_all_listings(limit=10000)}
+
+                # Favorites
+                favs = db.get_all_favorites_bulk() if hasattr(db, "get_all_favorites_bulk") else {}
+                fav_ids = favs.get(uid, [])
+                favorites = [{
+                    "listing_id": lid,
+                    "title": listings_by_id.get(str(lid), {}).get("title", "—")[:60],
+                    "city": listings_by_id.get(str(lid), {}).get("city", "—"),
+                    "price": listings_by_id.get(str(lid), {}).get("price", 0),
+                } for lid in fav_ids]
+
+                # Reviews written by this user
+                revs = db.get_all_reviews_bulk() if hasattr(db, "get_all_reviews_bulk") else {}
+                reviews = []
+                for lid, rv in revs.items():
+                    for r in rv:
+                        if str(r.get("user_id")) == uid:
+                            reviews.append({
+                                "listing_id": lid,
+                                "listing_title": listings_by_id.get(str(lid), {}).get("title", "—")[:60],
+                                "rating": r.get("rating"),
+                                "comment": r.get("comment", ""),
+                                "date": r.get("date", ""),
+                            })
+
+                # Referrals given by this user
+                refs = db.get_all_referrals_bulk() if hasattr(db, "get_all_referrals_bulk") else {}
+                referred_ids = refs.get(uid, [])
+                users_meta = stats.get("users", {})
+                referrals = [{
+                    "new_user_id": nid,
+                    "name": " ".join(filter(None, [
+                        users_meta.get(str(nid), {}).get("first_name"),
+                        users_meta.get(str(nid), {}).get("last_name"),
+                    ])) or f"ID {nid}",
+                } for nid in referred_ids]
+
+                # Bonus days
+                bonus = db.get_all_bonus_days_bulk() if hasattr(db, "get_all_bonus_days_bulk") else {}
+                bonus_days = bonus.get(uid, 0)
+
+                # Price tracking (favorites with a saved price, show current vs saved)
+                prices = db.get_all_favorites_with_prices() if hasattr(db, "get_all_favorites_with_prices") else {}
+                price_tracking = []
+                for key, saved_price in prices.items():
+                    if key.startswith(f"{uid}_"):
+                        lid = key.split("_", 1)[1]
+                        listing = listings_by_id.get(str(lid), {})
+                        current_price = listing.get("price", 0)
+                        price_tracking.append({
+                            "listing_id": lid,
+                            "title": listing.get("title", "—")[:60],
+                            "saved_price": saved_price,
+                            "current_price": current_price,
+                            "diff": (current_price - saved_price) if (current_price and saved_price) else 0,
+                        })
+
+                # Search subscriptions (reuse the same live source as /api/admin/search-subscriptions)
+                subs = db.get_all_subscriptions()
+                sub_entries = subs.get(uid, [])
+                is_active = db.is_alert_active(int(uid)) if uid.isdigit() else False
+                search_subscriptions = [{
+                    "sub_id": e.get("id"),
+                    "created": e.get("created"),
+                    "filters": e.get("filters", {}),
+                    "reason": e.get("reason", ""),
+                } for e in sub_entries]
+
+                return self._send_json({
+                    "user_id": uid,
+                    "user_name": name,
+                    "username": u.get("username", ""),
+                    "favorites": favorites,
+                    "reviews": reviews,
+                    "referrals": referrals,
+                    "bonus_days": bonus_days,
+                    "price_tracking": price_tracking,
+                    "search_subscriptions": search_subscriptions,
+                    "search_subs_active": is_active,
+                })
+            except Exception as e:
+                return self._send_json({"error": str(e)}, 500)
+
         # ── Search subscriptions (paid alerts, 39.90₪/wk) ────────────────────
         # GET /api/admin/search-subscriptions — full list with user info + status
         if resource == "search-subscriptions" and method == "GET":
