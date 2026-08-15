@@ -928,7 +928,10 @@ class WebHandler(BaseHTTPRequestHandler):
                 # plain sight in the client's network tab.
                 img = _req.get(f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}", timeout=15)
                 self.send_response(200)
-                self.send_header("Content-Type", img.headers.get("Content-Type", "image/jpeg"))
+                # Telegram's file server often replies with a generic
+                # application/octet-stream regardless of the actual file —
+                # bot-uploaded photos are always JPEG, so force it.
+                self.send_header("Content-Type", "image/jpeg")
                 self.send_header("Cache-Control", "private, max-age=3600")
                 self.send_header("Content-Length", str(len(img.content)))
                 self.end_headers()
