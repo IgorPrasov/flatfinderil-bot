@@ -609,6 +609,12 @@ def get_user_paid_subscriptions(user_id: int) -> dict:
     data = _load()
     return data.get("paid_subscriptions", {}).get(str(user_id), {})
 
+def get_all_paid_subscriptions_bulk() -> Dict:
+    """Return {user_id_str: {plan_type: expiry_iso}} for ALL users with a paid
+    subscription (analytics aggregation)."""
+    data = _load()
+    return data.get("paid_subscriptions", {})
+
 
 def set_user_paid_subscription(user_id: int, plan_type: str, expiry_iso: str):
     """Save paid subscription expiry for user. Raises on persistence failure."""

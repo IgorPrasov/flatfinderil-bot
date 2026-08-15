@@ -1366,6 +1366,21 @@ def get_user_paid_subscriptions(user_id: int) -> dict:
     return {r["plan_type"]: r["expiry_iso"].isoformat() for r in rows if r["expiry_iso"]}
 
 
+def get_all_paid_subscriptions_bulk() -> Dict:
+    """Return {user_id_str: {plan_type: expiry_iso}} for ALL users with a paid
+    subscription (any plan_type — main/week/month/custom/search_alert/premium_search),
+    including expired ones (analytics aggregation — caller checks expiry)."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("SELECT user_id, plan_type, expiry_iso FROM paid_subscriptions")
+            rows = cur.fetchall()
+    result: Dict[str, dict] = {}
+    for r in rows:
+        if r["expiry_iso"]:
+            result.setdefault(str(r["user_id"]), {})[r["plan_type"]] = r["expiry_iso"].isoformat()
+    return result
+
+
 def set_user_paid_subscription(user_id: int, plan_type: str, expiry_iso: str):
     """Upsert paid subscription. Raises on verification failure."""
     with _conn() as c:

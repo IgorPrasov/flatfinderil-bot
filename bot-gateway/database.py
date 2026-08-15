@@ -53,6 +53,7 @@ if _USE_PG:
         get_all_bonus_days_bulk,
         get_bonus_expiry,
         get_user_paid_subscriptions,
+        get_all_paid_subscriptions_bulk,
         set_user_paid_subscription,
         was_trial_warning_sent,
         mark_trial_warning_sent,

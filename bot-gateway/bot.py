@@ -960,6 +960,9 @@ class WebHandler(BaseHTTPRequestHandler):
                 bonus  = db.get_all_bonus_days_bulk()          if hasattr(db, "get_all_bonus_days_bulk") else {}
                 prices = db.get_all_favorites_with_prices()    if hasattr(db, "get_all_favorites_with_prices") else {}
                 subs   = db.get_all_subscriptions()
+                paid   = db.get_all_paid_subscriptions_bulk()  if hasattr(db, "get_all_paid_subscriptions_bulk") else {}
+
+                now_iso = datetime.now().isoformat()
 
                 # Reviews are keyed by listing_id → invert to per-user counts
                 reviews_by_user: dict = {}
@@ -974,12 +977,14 @@ class WebHandler(BaseHTTPRequestHandler):
                     uid = key.split("_")[0]
                     price_by_user.setdefault(uid, []).append(key)
 
-                all_uids = set(favs) | set(reviews_by_user) | set(refs) | set(bonus) | set(price_by_user) | set(subs)
+                all_uids = set(favs) | set(reviews_by_user) | set(refs) | set(bonus) | set(price_by_user) | set(subs) | set(paid)
 
                 out = []
                 for uid in all_uids:
                     u = users_meta.get(uid, {})
                     name = " ".join(filter(None, [u.get("first_name"), u.get("last_name")])) or f"ID {uid}"
+                    plans = paid.get(uid, {})
+                    active_plans = [p for p, exp in plans.items() if exp > now_iso]
                     out.append({
                         "user_id": uid,
                         "user_name": name,
@@ -990,10 +995,13 @@ class WebHandler(BaseHTTPRequestHandler):
                         "bonus_days": bonus.get(uid, 0),
                         "price_tracked_count": len(price_by_user.get(uid, [])),
                         "search_subs_count": len(subs.get(uid, [])),
+                        "paid_plans": list(plans.keys()),
+                        "paid_active": len(active_plans) > 0,
                     })
                 out.sort(key=lambda x: sum([
                     x["favorites_count"], x["reviews_count"], x["referrals_count"],
-                    1 if x["bonus_days"] else 0, x["price_tracked_count"], x["search_subs_count"]
+                    1 if x["bonus_days"] else 0, x["price_tracked_count"], x["search_subs_count"],
+                    1 if x["paid_active"] else 0,
                 ]), reverse=True)
                 return self._send_json({"total": len(out), "items": out})
             except Exception as e:
@@ -1077,6 +1085,16 @@ class WebHandler(BaseHTTPRequestHandler):
                     "reason": e.get("reason", ""),
                 } for e in sub_entries]
 
+                # Paid app subscription (main plan / custom grants — separate from search alerts)
+                paid_all = db.get_all_paid_subscriptions_bulk() if hasattr(db, "get_all_paid_subscriptions_bulk") else {}
+                plans = paid_all.get(uid, {})
+                now_iso = datetime.now().isoformat()
+                paid_subscription = [{
+                    "plan_type": p,
+                    "expiry": exp,
+                    "active": exp > now_iso,
+                } for p, exp in plans.items()]
+
                 return self._send_json({
                     "user_id": uid,
                     "user_name": name,
@@ -1088,6 +1106,7 @@ class WebHandler(BaseHTTPRequestHandler):
                     "price_tracking": price_tracking,
                     "search_subscriptions": search_subscriptions,
                     "search_subs_active": is_active,
+                    "paid_subscription": paid_subscription,
                 })
             except Exception as e:
                 return self._send_json({"error": str(e)}, 500)
