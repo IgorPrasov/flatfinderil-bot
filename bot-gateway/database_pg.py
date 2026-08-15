@@ -865,6 +865,18 @@ def get_favorites(user_id: int) -> List[Dict]:
             return [_listing_row(r) for r in cur.fetchall()]
 
 
+def get_all_favorites_bulk() -> Dict:
+    """Return {user_id_str: [listing_id, ...]} for ALL favorites (for analytics aggregation)."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("SELECT user_id, listing_id FROM favorites ORDER BY user_id")
+            rows = cur.fetchall()
+    result: Dict[str, list] = {}
+    for r in rows:
+        result.setdefault(str(r["user_id"]), []).append(r["listing_id"])
+    return result
+
+
 def get_all_favorites_with_prices() -> Dict:
     """Return {uid_lid: saved_price} for all favorites."""
     with _conn() as c:
@@ -1216,6 +1228,26 @@ def user_has_reviewed(listing_id: int, user_id: int) -> bool:
             return cur.fetchone() is not None
 
 
+def get_all_reviews_bulk() -> Dict:
+    """Return {listing_id_str: [review_dicts]} for ALL reviews (for analytics aggregation)."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                "SELECT listing_id, user_id, rating, comment, created_at "
+                "FROM reviews ORDER BY listing_id, created_at"
+            )
+            rows = cur.fetchall()
+    result: Dict[str, list] = {}
+    for r in rows:
+        result.setdefault(str(r["listing_id"]), []).append({
+            "user_id": str(r["user_id"]),
+            "rating": r["rating"],
+            "comment": r["comment"] or "",
+            "date": r["created_at"].strftime("%Y-%m-%d") if r["created_at"] else "",
+        })
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Referrals
 # ---------------------------------------------------------------------------
@@ -1242,6 +1274,35 @@ def get_referral_count(user_id: int) -> int:
             )
             row = cur.fetchone()
     return int(row["cnt"]) if row else 0
+
+
+def get_all_referrals_bulk() -> Dict:
+    """Return {referrer_id_str: [new_user_id, ...]} for ALL referrals (for analytics aggregation)."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("SELECT referrer_id, new_user_id FROM referrals ORDER BY referrer_id")
+            rows = cur.fetchall()
+    result: Dict[str, list] = {}
+    for r in rows:
+        result.setdefault(str(r["referrer_id"]), []).append(r["new_user_id"])
+    return result
+
+
+def get_all_bonus_days_bulk() -> Dict:
+    """Return {user_id_str: remaining_bonus_days_int} for users with active (non-expired) bonus."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("SELECT user_id, bonus_expiry FROM user_meta WHERE bonus_expiry IS NOT NULL")
+            rows = cur.fetchall()
+    result: Dict[str, int] = {}
+    for r in rows:
+        exp = r["bonus_expiry"]
+        if exp:
+            now = datetime.now(exp.tzinfo) if exp.tzinfo else datetime.now()
+            remaining = (exp - now).days
+            if remaining > 0:
+                result[str(r["user_id"])] = remaining
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -2151,6 +2212,51 @@ def get_all_agent_emails() -> List[Dict]:
                 "SELECT user_id, email FROM agent_profiles WHERE email IS NOT NULL AND email != ''"
             )
             return [{"user_id": r["user_id"], "email": r["email"]} for r in cur.fetchall()]
+
+
+def get_all_agent_profiles_bulk() -> Dict:
+    """Return {user_id_str: {email, owner_name, lang}} for ALL agent profiles with an email
+    (for analytics aggregation — mirrors legacy JSON db_data['agent_profiles'] shape)."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                "SELECT user_id, email, owner_name, lang FROM agent_profiles "
+                "WHERE email IS NOT NULL AND email != ''"
+            )
+            rows = cur.fetchall()
+    return {
+        str(r["user_id"]): {
+            "email": r["email"],
+            "owner_name": r["owner_name"] or "",
+            "lang": r["lang"] or "ru",
+        }
+        for r in rows
+    }
+
+
+def get_all_service_profiles_bulk() -> Dict:
+    """Return {user_id_str: {email}} for ALL service profiles with an email
+    (for analytics aggregation — mirrors legacy JSON db_data['service_profiles'] shape)."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                "SELECT user_id, email FROM service_profiles WHERE email IS NOT NULL AND email != ''"
+            )
+            rows = cur.fetchall()
+    return {str(r["user_id"]): {"email": r["email"]} for r in rows}
+
+
+def get_all_user_listings_bulk() -> Dict:
+    """Return {user_id_str: [listing_id, ...]} for ALL user-submitted listings
+    (for analytics aggregation — mirrors legacy JSON db_data['user_listings'] shape)."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("SELECT user_id, listing_id FROM user_listings ORDER BY user_id")
+            rows = cur.fetchall()
+    result: Dict[str, list] = {}
+    for r in rows:
+        result.setdefault(str(r["user_id"]), []).append(r["listing_id"])
+    return result
 
 
 def get_agent_report_data(user_id: int) -> Dict:

@@ -322,6 +322,11 @@ def get_favorites(user_id: int) -> List[Dict]:
     ids = data["favorites"].get(str(user_id), [])
     return [data["listings"][str(i)] for i in ids if str(i) in data["listings"]]
 
+def get_all_favorites_bulk() -> Dict:
+    """Return {user_id_str: [listing_id, ...]} for ALL favorites (analytics aggregation)."""
+    data = _load()
+    return data.get("favorites", {})
+
 def get_all_listings(limit: int = None) -> List[Dict]:
     data = _load()
     active = [l for l in data["listings"].values() if l.get("active")]
@@ -538,6 +543,11 @@ def user_has_reviewed(listing_id: int, user_id: int) -> bool:
     reviews = get_reviews(listing_id)
     return any(str(r.get("user_id")) == str(user_id) for r in reviews)
 
+def get_all_reviews_bulk() -> Dict:
+    """Return {listing_id_str: [review_dicts]} for ALL reviews (analytics aggregation)."""
+    data = _load()
+    return data.get("reviews", {})
+
 # ── Referrals ─────────────────────────────────────────────────────────────────
 
 def add_referral(referrer_id: int, new_user_id: int) -> bool:
@@ -571,6 +581,16 @@ def add_bonus_days(user_id: int, days: int):
 def get_bonus_days(user_id: int) -> int:
     data = _load()
     return data.get("referral_bonuses", {}).get(str(user_id), 0)
+
+def get_all_referrals_bulk() -> Dict:
+    """Return {referrer_id_str: [new_user_id, ...]} for ALL referrals (analytics aggregation)."""
+    data = _load()
+    return data.get("referrals", {})
+
+def get_all_bonus_days_bulk() -> Dict:
+    """Return {user_id_str: bonus_days_int} for ALL users with bonus days (analytics aggregation)."""
+    data = _load()
+    return data.get("referral_bonuses", {})
 
 
 def get_bonus_expiry(user_id: int):
@@ -1348,6 +1368,16 @@ def get_all_agent_emails() -> List[Dict]:
             result.append({"user_id": int(uid), "email": profile["email"]})
     return result
 
+def get_all_agent_profiles_bulk() -> Dict:
+    """Return {user_id_str: {email, owner_name, lang}} for ALL agent profiles (analytics aggregation)."""
+    data = _load()
+    return data.get("agent_profiles", {})
+
+def get_all_user_listings_bulk() -> Dict:
+    """Return {user_id_str: [listing_id, ...]} for ALL user-submitted listings (analytics aggregation)."""
+    data = _load()
+    return data.get("user_listings", {})
+
 def get_agent_report_data(user_id: int) -> Dict:
     """Collect weekly stats for a single agent."""
     import datetime
@@ -1429,6 +1459,11 @@ def get_all_service_emails() -> List[Dict]:
                 "lang": latest.get("lang", "ru"),
             })
     return result
+
+def get_all_service_profiles_bulk() -> Dict:
+    """Return {user_id_str: {email}} for ALL service profiles (analytics aggregation)."""
+    data = _load()
+    return data.get("service_profiles", {})
 
 
 def get_service_report_data(user_id: int) -> Dict:

@@ -514,22 +514,26 @@ def get_analytics(date_from: str = None, date_to: str = None):
         key=lambda x: x.get("views", 0), reverse=True
     )[:8]
 
+    # Lookup map by listing id — built from the CORRECTLY-loaded listings_all
+    # (not db_data, which is a stale JSON snapshot under the PG backend)
+    listings_by_id = {str(l.get("id")): l for l in listings_all}
+
     # Reviews
-    reviews_db = db_data.get("reviews", {})
+    reviews_db = db.get_all_reviews_bulk() if hasattr(db, "get_all_reviews_bulk") else db_data.get("reviews", {})
     all_reviews = [r for rv in reviews_db.values() for r in rv]
     total_reviews = len(all_reviews)
     avg_rating = round(sum(r.get("rating", 0) for r in all_reviews) / total_reviews, 2) if total_reviews else 0
     top_by_rating = []
     for lid, revs in reviews_db.items():
         if revs:
-            listing = db_data["listings"].get(str(lid))
+            listing = listings_by_id.get(str(lid))
             if listing:
                 avg = round(sum(r.get("rating", 0) for r in revs) / len(revs), 1)
                 top_by_rating.append({"title": listing.get("title", "")[:28], "rating": avg, "count": len(revs)})
     top_by_rating.sort(key=lambda x: x["rating"], reverse=True)
 
-    # Search subscriptions
-    search_subs_db = db_data.get("subscriptions", {})
+    # Search subscriptions (live — same source used by /api/admin/search-subscriptions)
+    search_subs_db = db.get_all_subscriptions()
     total_search_subs = sum(len(v) for v in search_subs_db.values())
     # cities in subscriptions
     sub_city_counter = Counter()
@@ -539,23 +543,23 @@ def get_analytics(date_from: str = None, date_to: str = None):
                 if c: sub_city_counter[c] += 1
 
     # Favorites
-    fav_db = db_data.get("favorites", {})
+    fav_db = db.get_all_favorites_bulk() if hasattr(db, "get_all_favorites_bulk") else db_data.get("favorites", {})
     total_favorites = sum(len(v) for v in fav_db.values())
     fav_listing_counter = Counter(str(lid) for v in fav_db.values() for lid in v)
     top_favorites = []
     for lid, cnt in fav_listing_counter.most_common(5):
-        listing = db_data["listings"].get(str(lid))
+        listing = listings_by_id.get(str(lid))
         if listing:
             top_favorites.append({"title": listing.get("title", "")[:28], "count": cnt})
 
     # Referrals & bonuses
-    referrals_db = db_data.get("referrals", {})
+    referrals_db = db.get_all_referrals_bulk() if hasattr(db, "get_all_referrals_bulk") else db_data.get("referrals", {})
     total_referrals = sum(len(v) for v in referrals_db.values())
-    bonus_db = db_data.get("referral_bonuses", {})
+    bonus_db = db.get_all_bonus_days_bulk() if hasattr(db, "get_all_bonus_days_bulk") else db_data.get("referral_bonuses", {})
     total_bonus_days = sum(v for v in bonus_db.values())
 
     # Favorites prices (price drops)
-    fav_prices = db_data.get("favorites_prices", {})
+    fav_prices = db.get_all_favorites_with_prices() if hasattr(db, "get_all_favorites_with_prices") else db_data.get("favorites_prices", {})
     total_price_tracked = len(fav_prices)
 
     members = data.get("members", {})
@@ -654,13 +658,13 @@ def get_analytics(date_from: str = None, date_to: str = None):
     )
 
     # ── User cabinets & user-added listings ───────────────────────────────
-    user_listings_db = db_data.get("user_listings", {})
+    user_listings_db = db.get_all_user_listings_bulk() if hasattr(db, "get_all_user_listings_bulk") else db_data.get("user_listings", {})
     user_added = []
     cabinets = []
     for uid, lid_list in user_listings_db.items():
         cab_listings = []
         for lid in lid_list:
-            listing = db_data["listings"].get(str(lid))
+            listing = listings_by_id.get(str(lid))
             if listing:
                 entry = {
                     "id": lid,
@@ -697,9 +701,9 @@ def get_analytics(date_from: str = None, date_to: str = None):
     cabinets.sort(key=lambda x: x["last_date"], reverse=True)
 
     # ── Email subscribers ──────────────────────────────────────────────────
-    agent_profiles   = db_data.get("agent_profiles", {})
-    service_profiles = db_data.get("service_profiles", {})
-    services_dict    = db_data.get("services", {})
+    agent_profiles   = db.get_all_agent_profiles_bulk() if hasattr(db, "get_all_agent_profiles_bulk") else db_data.get("agent_profiles", {})
+    service_profiles = db.get_all_service_profiles_bulk() if hasattr(db, "get_all_service_profiles_bulk") else db_data.get("service_profiles", {})
+    # services_all was already fetched correctly above (PG-aware, via _f_svcs)
 
     # Agents with email
     email_agents = []
@@ -707,9 +711,9 @@ def get_analytics(date_from: str = None, date_to: str = None):
         if not prof.get("email"):
             continue
         # get their listings
-        lids = db_data.get("user_listings", {}).get(uid, [])
-        active_count = sum(1 for lid in lids if db_data["listings"].get(str(lid), {}).get("active"))
-        total_views  = sum(db_data["listings"].get(str(lid), {}).get("views", 0) for lid in lids)
+        lids = user_listings_db.get(uid, [])
+        active_count = sum(1 for lid in lids if listings_by_id.get(str(lid), {}).get("active"))
+        total_views  = sum(listings_by_id.get(str(lid), {}).get("views", 0) for lid in lids)
         email_agents.append({
             "user_id":    uid,
             "name":       prof.get("owner_name") or f"Агент #{uid}",
@@ -726,7 +730,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
     for uid, prof in service_profiles.items():
         if not prof.get("email"):
             continue
-        user_svcs = [s for s in services_dict.values()
+        user_svcs = [s for s in services_all
                      if str(s.get("user_id","")) == uid
                      and s.get("service_type") in ("moving","packing")
                      and s.get("active", True)]
@@ -757,7 +761,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
     # Reliable set of user-submitted listing IDs (from user_listings registry)
     _user_listing_ids = set(
         str(lid)
-        for lids in db_data.get("user_listings", {}).values()
+        for lids in user_listings_db.values()
         for lid in lids
     )
     # Include listings that are in user_listings registry OR explicitly source=="user"
