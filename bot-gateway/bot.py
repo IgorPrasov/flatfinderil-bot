@@ -852,6 +852,7 @@ class WebHandler(BaseHTTPRequestHandler):
 
     def _handle_admin_api(self, method: str, path: str, body: dict, query: dict = None):
         """Internal admin API — no session required (dashboard-only, not public)."""
+        import database as db
         # Strip /api/admin/ prefix and split into resource + optional id + action
         parts = path.lstrip("/").split("/")  # ['api', 'admin', resource, id?, action?]
         resource = parts[2] if len(parts) > 2 else ""
