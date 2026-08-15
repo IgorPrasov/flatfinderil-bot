@@ -2637,7 +2637,7 @@ async function grantSubscription() {
 
   statusEl.textContent = "⏳ Выдаём...";
   try {
-    const r = await fetch(`/backoffice/api/accounts/grant`, {
+    const r = await fetch(`/api/admin/accounts/grant`, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ user_id: uid, plan, days: d, expiry_iso: expiry })
@@ -2647,7 +2647,7 @@ async function grantSubscription() {
       statusEl.textContent = `✅ Подписка выдана до ${new Date(expiry).toLocaleDateString("ru")}`;
       statusEl.style.color = "#4CAF8A";
       // Update analytics flag
-      await fetch(`/backoffice/api/accounts/set-status`, {
+      await fetch(`/api/admin/accounts/set-status`, {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({user_id: uid, subscribed: true})
       });
@@ -2669,7 +2669,7 @@ async function grantBonusDays() {
   const statusEl = document.getElementById("grant-status");
   statusEl.textContent = "⏳ Начисляем...";
   try {
-    const r = await fetch(`/backoffice/api/accounts/bonus`, {
+    const r = await fetch(`/api/admin/accounts/bonus`, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ user_id: uid, days: bonus })
@@ -2690,7 +2690,7 @@ async function setAccountStatus(action) {
   const statusEl = document.getElementById("grant-status");
   statusEl.textContent = "⏳...";
   try {
-    const r = await fetch(`/backoffice/api/accounts/set-status`, {
+    const r = await fetch(`/api/admin/accounts/set-status`, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ user_id: uid, action })
@@ -2708,7 +2708,7 @@ async function setAccountStatus(action) {
 // ── Promo codes ───────────────────────────────────────────────────
 async function loadPromos() {
   try {
-    const r = await fetch("/backoffice/api/promo-codes");
+    const r = await fetch("/api/admin/promo-codes");
     const d = await r.json();
     const promos = d.items || [];
     const el = document.getElementById("promo-list");
@@ -2739,7 +2739,7 @@ async function createPromo() {
   const expiry = document.getElementById("promo-expiry").value;
   if (!code || !value) { alert("Заполните код и значение"); return; }
   try {
-    const r = await fetch("/backoffice/api/promo-codes", {
+    const r = await fetch("/api/admin/promo-codes", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({ code, type, value, max_uses: maxUses, expiry: expiry || null })
@@ -2755,7 +2755,7 @@ async function createPromo() {
 
 async function deletePromo(code) {
   if (!confirm(`Удалить промокод ${code}?`)) return;
-  await fetch(`/backoffice/api/promo-codes/${code}`, { method: "DELETE" });
+  await fetch(`/api/admin/promo-codes/${code}`, { method: "DELETE" });
   loadPromos();
 }
 

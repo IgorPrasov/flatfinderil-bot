@@ -850,6 +850,133 @@ class WebHandler(BaseHTTPRequestHandler):
             self.wfile.write(content)
         except: self.send_response(500); self.end_headers()
 
+    def _handle_admin_api(self, method: str, path: str, body: dict):
+        """Internal admin API — no session required (dashboard-only, not public)."""
+        # Strip /api/admin/ prefix and split into resource + optional id
+        parts = path.lstrip("/").split("/")  # ['api', 'admin', resource, id?]
+        resource = parts[2] if len(parts) > 2 else ""
+        rid = parts[3] if len(parts) > 3 else ""
+
+        # ── Grant subscription ──────────────────────────────────────────────
+        if resource == "accounts" and rid == "grant" and method == "POST":
+            try:
+                uid = int(body.get("user_id", 0))
+                plan = body.get("plan", "month")
+                expiry_iso = body.get("expiry_iso")
+                days = int(body.get("days", 30))
+                if not uid or not expiry_iso:
+                    return self._send_json({"ok": False, "error": "user_id и expiry_iso обязательны"}, 400)
+                db.set_user_paid_subscription(uid, plan, expiry_iso)
+                # Mark subscribed in stats.json
+                try:
+                    from analytics import _load_stats, _save_stats
+                    s = _load_stats(); u = s.get("users", {}).get(str(uid))
+                    if u: u["subscribed"] = True
+                    _save_stats(s)
+                except Exception: pass
+                # Telegram notify
+                self._send_tg_notify(uid,
+                    f"🎁 <b>Подписка активирована администратором!</b>\n\n"
+                    f"Активна до <b>{expiry_iso[:10]}</b>. Спасибо!")
+                logger.info(f"[ADMIN] Granted {plan} to user {uid} until {expiry_iso}")
+                return self._send_json({"ok": True, "expiry_iso": expiry_iso})
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
+
+        # ── Bonus days ─────────────────────────────────────────────────────
+        if resource == "accounts" and rid == "bonus" and method == "POST":
+            try:
+                uid = int(body.get("user_id", 0))
+                days = int(body.get("days", 0))
+                if not uid or not days:
+                    return self._send_json({"ok": False, "error": "user_id и days обязательны"}, 400)
+                db.add_bonus_days(uid, days)
+                self._send_tg_notify(uid,
+                    f"🎁 <b>Бонус от администратора!</b>\n\nНачислено <b>+{days} дней</b> подписки.")
+                logger.info(f"[ADMIN] +{days} bonus days to user {uid}")
+                return self._send_json({"ok": True})
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
+
+        # ── Set account status ─────────────────────────────────────────────
+        if resource == "accounts" and rid == "set-status" and method == "POST":
+            try:
+                uid = int(body.get("user_id", 0))
+                action = body.get("action", "")
+                subscribed = body.get("subscribed")
+                if not uid:
+                    return self._send_json({"ok": False, "error": "user_id обязателен"}, 400)
+                from analytics import _load_stats, _save_stats
+                stats = _load_stats()
+                u = stats.get("users", {}).get(str(uid))
+                msg = None
+                if action == "blocked":
+                    if u: u["blocked"] = True
+                    msg = "🚫 Ваш аккаунт заблокирован администратором."
+                elif action == "active":
+                    if u: u["blocked"] = False; u["subscribed"] = True
+                    msg = "✅ Ваш аккаунт активирован администратором."
+                elif action == "reset":
+                    if u: u["subscribed"] = False
+                elif subscribed is not None:
+                    if u: u["subscribed"] = bool(subscribed)
+                _save_stats(stats)
+                if msg: self._send_tg_notify(uid, msg)
+                logger.info(f"[ADMIN] set-status action={action!r} for user {uid}")
+                return self._send_json({"ok": True})
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
+
+        # ── Promo codes ────────────────────────────────────────────────────
+        if resource == "promo-codes":
+            from analytics import _load_stats, _save_stats
+            if method == "GET":
+                stats = _load_stats()
+                items = sorted(stats.get("promo_codes", {}).values(),
+                               key=lambda x: x.get("created", ""), reverse=True)
+                return self._send_json({"items": list(items)})
+            if method == "POST":
+                code = (body.get("code") or "").strip().upper()
+                if not code:
+                    return self._send_json({"ok": False, "error": "Код обязателен"}, 400)
+                stats = _load_stats()
+                pcs = stats.setdefault("promo_codes", {})
+                if code in pcs:
+                    return self._send_json({"ok": False, "error": "Код уже существует"}, 409)
+                pcs[code] = {
+                    "code": code, "type": body.get("type", "days"),
+                    "value": int(body.get("value", 7)),
+                    "max_uses": int(body.get("max_uses", 0)),
+                    "expiry": body.get("expiry"), "used": 0,
+                    "created": datetime.now().isoformat(), "active": True,
+                }
+                _save_stats(stats)
+                logger.info(f"[ADMIN] Created promo {code}")
+                return self._send_json({"ok": True, "code": code})
+            if method == "DELETE" and rid:
+                stats = _load_stats()
+                code = rid.upper()
+                stats.get("promo_codes", {}).pop(code, None)
+                _save_stats(stats)
+                logger.info(f"[ADMIN] Deleted promo {code}")
+                return self._send_json({"ok": True})
+
+        return self._send_json({"error": "Not found"}, 404)
+
+    def _send_tg_notify(self, user_id: int, text: str):
+        """Fire-and-forget Telegram message via requests (sync, from HTTP handler thread)."""
+        try:
+            from config import BOT_TOKEN as _tok
+            import urllib.request as _ur, json as _j
+            data = _j.dumps({"chat_id": user_id, "text": text, "parse_mode": "HTML"}).encode()
+            req = _ur.Request(
+                f"https://api.telegram.org/bot{_tok}/sendMessage",
+                data=data, headers={"Content-Type": "application/json"}
+            )
+            _ur.urlopen(req, timeout=8)
+        except Exception as _e:
+            logger.debug(f"_send_tg_notify failed: {_e}")
+
     async def _bot_notify(self, user_id: int, text: str):
         """Send Telegram message to a user (fire-and-forget from backoffice)."""
         try:
@@ -2212,6 +2339,10 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 self.end_headers()
                 self.wfile.write(body)
 
+        elif path.startswith("/api/admin/") and path != "/api/admin/users":
+            # Other admin GET routes (e.g. promo-codes list)
+            return self._handle_admin_api("GET", path, {})
+
         elif path == "/api/admin/users":
             # Internal dashboard: search users from stats.json (no backoffice session required)
             try:
@@ -2272,6 +2403,15 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
     def do_POST(self):
         path = urlparse(self.path).path
+
+        # ── Internal admin API (no session required — dashboard at / is internal) ──
+        if path.startswith("/api/admin/"):
+            content_len = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(content_len) if content_len else b"{}"
+            try: body = json_module.loads(raw)
+            except Exception: body = {}
+            return self._handle_admin_api("POST", path, body)
+
         if path.startswith("/api/crm"):
             return self._handle_crm_api("POST", path)
         if path.startswith("/backoffice"):
@@ -2480,6 +2620,8 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
     def do_DELETE(self):
         parsed = urlparse(self.path)
         path = parsed.path
+        if path.startswith("/api/admin/"):
+            return self._handle_admin_api("DELETE", path, {})
         if path.startswith("/api/crm"):
             return self._handle_crm_api("DELETE", path)
         if path.startswith("/backoffice/api/"):
