@@ -2212,6 +2212,29 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 self.end_headers()
                 self.wfile.write(body)
 
+        elif path == "/api/admin/users":
+            # Internal dashboard: search users from stats.json (no backoffice session required)
+            try:
+                from analytics import _load_stats
+                qs_params = parse_qs(parsed.query)
+                q = (qs_params.get("q") or [""])[0].strip().lower().lstrip("@")
+                stats = _load_stats()
+                users = stats.get("users", {})
+                items = [{"user_id": uid, **udata} for uid, udata in users.items()]
+                if q:
+                    def _match(u):
+                        return (
+                            q in str(u.get("user_id", "")).lower() or
+                            q in (u.get("username") or "").lower() or
+                            q in (u.get("first_name") or "").lower() or
+                            q in (u.get("last_name") or "").lower()
+                        )
+                    items = [u for u in items if _match(u)]
+                items.sort(key=lambda u: u.get("last_seen", ""), reverse=True)
+                self._send_json({"total": len(items), "items": items[:100]})
+            except Exception as e:
+                self._send_json({"error": str(e), "total": 0, "items": []}, 500)
+
         elif path in ("/miniapp", "/app", "/miniapp/"):
             # Telegram Mini App (opened via bot button)
             self._send_html(MINIAPP_FILE)

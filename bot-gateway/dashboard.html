@@ -2536,47 +2536,42 @@ async function accSearch() {
   const el = document.getElementById("acc-list");
   el.innerHTML = '<span style="color:#999">Поиск...</span>';
   try {
-    // Search in analytics users (stats.json)
-    const r = await fetch("/analytics");
+    const r = await fetch(`/api/admin/users?q=${encodeURIComponent(q)}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
-    const users = d.users?._raw || {};
-
-    // Fetch analytics-users from backoffice API for richer data
-    const r2 = await fetch("/backoffice/api/analytics-users");
-    const d2 = await r2.json();
-    const allUsers = d2.items || d2 || [];
-
-    const q_low = q.toLowerCase().replace("@", "");
-    const found = allUsers.filter(u => {
-      const id = String(u.user_id || u.id || "");
-      const uname = (u.username || "").toLowerCase();
-      const fname = (u.first_name || "").toLowerCase();
-      const lname = (u.last_name || "").toLowerCase();
-      return id.includes(q_low) || uname.includes(q_low) || fname.includes(q_low) || lname.includes(q_low);
-    }).slice(0, 30);
+    const found = d.items || [];
 
     if (!found.length) {
-      el.innerHTML = '<span style="color:#999">Не найдено</span>';
+      el.innerHTML = '<span style="color:#999">Не найдено. Проверьте ID или имя.</span>';
       return;
     }
     el.innerHTML = found.map(u => {
       const name = [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
       const uname = u.username ? `@${u.username}` : "";
-      const sub = u.subscribed ? '<span style="color:#4CAF8A;font-size:10px">● подписка</span>' : '<span style="color:#94A3B8;font-size:10px">○ нет</span>';
-      return `<div onclick="accSelect(${JSON.stringify(u).replace(/"/g,"&quot;")})"
-        style="padding:7px 10px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border:1px solid transparent"
+      const sub = u.subscribed
+        ? '<span style="color:#4CAF8A;font-size:10px">● подписка</span>'
+        : '<span style="color:#94A3B8;font-size:10px">○ нет подписки</span>';
+      const uid = u.user_id || u.id;
+      const safeU = encodeURIComponent(JSON.stringify(u));
+      return `<div onclick="accSelectEncoded('${safeU}')"
+        style="padding:8px 10px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border:1px solid #eee;margin-bottom:4px;background:#fafafa"
         onmouseover="this.style.background='#f0f4ff';this.style.borderColor='#2563EB'"
-        onmouseout="this.style.background='';this.style.borderColor='transparent'">
+        onmouseout="this.style.background='#fafafa';this.style.borderColor='#eee'">
         <div>
-          <b style="font-size:13px">${name}</b> ${uname ? `<span style="color:#888;font-size:11px">${uname}</span>` : ""}
-          <div style="color:#aaa;font-size:10px">ID: ${u.user_id || u.id}</div>
+          <b style="font-size:13px">${name}</b>
+          ${uname ? `<span style="color:#888;font-size:11px;margin-left:4px">${uname}</span>` : ""}
+          <div style="color:#aaa;font-size:10px;margin-top:2px">ID: ${uid} · ${u.lang||"?"} · поисков: ${u.searches||0}</div>
         </div>
-        <div style="text-align:right">${sub}<div style="font-size:10px;color:#aaa">${u.first_seen||""}</div></div>
+        <div style="text-align:right;flex-shrink:0">${sub}<div style="font-size:10px;color:#aaa;margin-top:2px">${u.first_seen||""}</div></div>
       </div>`;
-    }).join('<div style="border-bottom:1px solid #f0f0ea;margin:2px 0"></div>');
+    }).join("");
   } catch(e) {
     el.innerHTML = `<span style="color:red">Ошибка: ${e.message}</span>`;
   }
+}
+
+function accSelectEncoded(encoded) {
+  try { accSelect(JSON.parse(decodeURIComponent(encoded))); } catch(_) {}
 }
 
 // ── User selected → show detail ───────────────────────────────────
