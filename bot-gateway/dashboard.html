@@ -3169,12 +3169,12 @@ function closeModal() {
 
 async function modalConfirm() {
   if (!_pendingAction) return;
+  const a = _pendingAction;   // capture BEFORE closeModal() nulls it out
   closeModal();
   const statusEl = document.getElementById("grant-status");
   statusEl.style.color = "#888";
   statusEl.textContent = "⏳ Применяем...";
 
-  const a = _pendingAction;
   try {
     let r, res;
     if (a.type === "subscription") {
@@ -3241,6 +3241,13 @@ function grantBonusDays() { openGrantModal("trial"); }
 function setAccountStatus(a) { openGrantModal(a === "active" ? "activate" : a === "blocked" ? "block" : "reset"); }
 
 // ── Promo codes ───────────────────────────────────────────────────
+const PROMO_CATEGORY_LABELS = {
+  trial:          "⏳ Триал",
+  premium_search: "⭐ Премиум",
+  subscription:   "💳 Подписка",
+  discount:       "🏷 Скидка",
+};
+
 async function loadPromos() {
   try {
     const r = await fetch("/api/admin/promo-codes");
@@ -3249,17 +3256,21 @@ async function loadPromos() {
     const el = document.getElementById("promo-list");
     if (!promos.length) { el.innerHTML = '<span style="color:#aaa">Промокодов нет</span>'; return; }
     el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:11px">
-      <tr style="color:#aaa;font-size:10px"><th style="text-align:left;padding:3px">Код</th><th>Тип</th><th>Значение</th><th>Исп.</th><th>Макс</th><th>До</th><th></th></tr>
-      ${promos.map(p => `
-      <tr style="border-top:1px solid #f0f0ea">
+      <tr style="color:#aaa;font-size:10px"><th style="text-align:left;padding:3px">Код</th><th>Категория</th><th>Значение</th><th>Исп.</th><th>Макс</th><th>До</th><th></th></tr>
+      ${promos.map(p => {
+        const cat = p.category || p.type || "";
+        const label = PROMO_CATEGORY_LABELS[cat] || cat || "—";
+        const isPct = cat === "discount";
+        return `
+      <tr style="border-top:1px solid #f0f0ea" title="${(p.reason||'').replace(/"/g,'&quot;')}">
         <td style="padding:4px 2px;font-weight:700;letter-spacing:.05em">${p.code}</td>
-        <td style="padding:4px 2px;color:#888">${p.type === "days" ? "дни" : "%"}</td>
-        <td style="padding:4px 2px;color:#2563EB;font-weight:600">${p.value}${p.type === "pct" ? "%" : " дн"}</td>
+        <td style="padding:4px 2px;color:#888;white-space:nowrap">${label}</td>
+        <td style="padding:4px 2px;color:#2563EB;font-weight:600">${p.value}${isPct ? "%" : " дн"}</td>
         <td style="padding:4px 2px;text-align:center">${p.used || 0}</td>
         <td style="padding:4px 2px;text-align:center">${p.max_uses || "∞"}</td>
         <td style="padding:4px 2px;color:#aaa">${p.expiry ? new Date(p.expiry).toLocaleDateString("ru") : "—"}</td>
         <td style="padding:4px 2px"><button onclick="deletePromo('${p.code}')" style="border:none;background:none;color:#EF4444;cursor:pointer;font-size:11px">✕</button></td>
-      </tr>`).join("")}
+      </tr>`;}).join("")}
     </table>`;
   } catch(e) {
     document.getElementById("promo-list").innerHTML = `<span style="color:red">${e.message}</span>`;
@@ -3267,23 +3278,38 @@ async function loadPromos() {
 }
 
 async function createPromo() {
-  const code = document.getElementById("promo-code").value.trim().toUpperCase();
-  const type = document.getElementById("promo-type").value;
-  const value = parseInt(document.getElementById("promo-value").value);
-  const maxUses = parseInt(document.getElementById("promo-max-uses").value) || 0;
-  const expiry = document.getElementById("promo-expiry").value;
+  const code        = document.getElementById("promo-code").value.trim().toUpperCase();
+  const category     = document.getElementById("promo-category").value;
+  const value        = parseInt(document.getElementById("promo-value").value);
+  const maxUses      = parseInt(document.getElementById("promo-max-uses").value) || 0;
+  const expiry       = document.getElementById("promo-expiry").value;
+  const description  = document.getElementById("promo-description").value.trim();
   if (!code || !value) { alert("Заполните код и значение"); return; }
+  if (!description) {
+    const f = document.getElementById("promo-description");
+    f.style.borderColor = "#EF4444"; f.focus();
+    alert("⚠️ Укажите причину / описание — обязательное поле для аудита");
+    return;
+  }
   try {
     const r = await fetch("/api/admin/promo-codes", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ code, type, value, max_uses: maxUses, expiry: expiry || null })
+      body: JSON.stringify({
+        code, category,
+        type: category === "discount" ? "pct" : "days",   // backward-compat field
+        value, max_uses: maxUses, expiry: expiry || null,
+        reason: description,
+      })
     });
     const d = await r.json();
     if (d.ok) {
       document.getElementById("promo-code").value = "";
       document.getElementById("promo-value").value = "";
+      document.getElementById("promo-description").value = "";
+      document.getElementById("promo-description").style.borderColor = "#F59E0B";
       loadPromos();
+      cabToast("✅ Промокод создан");
     } else { alert(d.error || "Ошибка"); }
   } catch(e) { alert(e.message); }
 }

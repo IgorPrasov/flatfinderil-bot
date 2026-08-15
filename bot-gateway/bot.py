@@ -1061,21 +1061,33 @@ class WebHandler(BaseHTTPRequestHandler):
                 return self._send_json({"items": list(items)})
             if method == "POST":
                 code = (body.get("code") or "").strip().upper()
+                reason = (body.get("reason") or "").strip()
                 if not code:
                     return self._send_json({"ok": False, "error": "Код обязателен"}, 400)
+                if not reason:
+                    return self._send_json({"ok": False, "error": "Причина/описание обязательны"}, 400)
                 stats = _load_stats()
                 pcs = stats.setdefault("promo_codes", {})
                 if code in pcs:
                     return self._send_json({"ok": False, "error": "Код уже существует"}, 409)
+                category = body.get("category", "subscription")
                 pcs[code] = {
-                    "code": code, "type": body.get("type", "days"),
+                    "code": code,
+                    "category": category,
+                    "type": body.get("type", "days"),   # legacy field, kept for old readers
                     "value": int(body.get("value", 7)),
                     "max_uses": int(body.get("max_uses", 0)),
                     "expiry": body.get("expiry"), "used": 0,
+                    "reason": reason,
                     "created": datetime.now().isoformat(), "active": True,
                 }
+                stats.setdefault("admin_audit_log", []).append({
+                    "user_id": "", "action": "create_promo",
+                    "action_label": f"Создан промокод {code} ({category})",
+                    "reason": reason, "ts": datetime.now().isoformat()
+                })
                 _save_stats(stats)
-                logger.info(f"[ADMIN] Created promo {code}")
+                logger.info(f"[ADMIN] Created promo {code} ({category}) | reason: {reason}")
                 return self._send_json({"ok": True, "code": code})
             if method == "DELETE" and rid:
                 stats = _load_stats()
