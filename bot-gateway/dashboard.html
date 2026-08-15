@@ -119,6 +119,7 @@ canvas{max-width:100%}
     <button class="nav-btn" onclick="showTab('searches',this)" data-i18n="nav_searches">🔍 Поиски</button>
     <button class="nav-btn" onclick="showTab('listings',this)" data-i18n="nav_listings">🏠 Объявления</button>
     <button class="nav-btn" onclick="showTab('parsers',this)" data-i18n="nav_parsers">🤖 Парсеры</button>
+    <button class="nav-btn" onclick="showTab('cars',this)">🚗 Авто</button>
     <button class="nav-btn" onclick="showTab('commercial',this)" data-i18n="nav_commercial">🏢 Коммерческая</button>
     <button class="nav-btn" onclick="showTab('services',this)" data-i18n="nav_services">🚚 Услуги</button>
     <button class="nav-btn" onclick="showTab('cabinets',this)" data-i18n="nav_cabinets">🗂 Кабинеты</button>
@@ -370,6 +371,34 @@ canvas{max-width:100%}
             <th style="padding:6px 8px;text-align:right">Просм.</th>
           </tr></thead>
           <tbody id="providers-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARS (CarsFinderIL vertical) -->
+  <div class="tab" id="tab-cars">
+    <div class="kpi-row" id="kpi-cars"></div>
+    <div class="card">
+      <div class="card-title">🚗 Объявления об авто</div>
+      <div class="card-body">
+        <div style="margin-bottom:10px;display:flex;gap:8px">
+          <input id="cars-search" type="text" placeholder="Поиск: марка, модель, город..." style="flex:1;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px" onkeydown="if(event.key==='Enter')loadCars()">
+          <button onclick="loadCars()" style="padding:8px 16px;border:none;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:13px">Найти</button>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px" id="cars-table">
+          <thead><tr style="color:#aaa;border-bottom:1px solid #eee">
+            <th style="padding:6px 8px;text-align:left">№</th>
+            <th style="padding:6px 8px;text-align:left">Марка / Модель</th>
+            <th style="padding:6px 8px;text-align:left">Год</th>
+            <th style="padding:6px 8px;text-align:left">Пробег</th>
+            <th style="padding:6px 8px;text-align:left">Город</th>
+            <th style="padding:6px 8px;text-align:right">Цена</th>
+            <th style="padding:6px 8px;text-align:right">Просм.</th>
+            <th style="padding:6px 8px;text-align:left">Статус</th>
+            <th style="padding:6px 8px;text-align:left">Добавлено</th>
+          </tr></thead>
+          <tbody id="cars-body"></tbody>
         </table>
       </div>
     </div>
@@ -2665,6 +2694,43 @@ function showTab(name, btn){
   if(name==="digest")  { loadDigest(); loadDeveloperNews(); }
   if(name==="engage")  loadEngagementUsers();
   if(name==="parsers") render(); // re-render with current data
+  if(name==="cars")    loadCars();
+}
+
+// ── CARS (CarsFinderIL vertical) ─────────────────────────────────────────────
+function loadCars(){
+  const q = (document.getElementById("cars-search")?.value || "").trim();
+  fetch(`/api/admin/vehicles${q ? "?q=" + encodeURIComponent(q) : ""}`)
+    .then(r=>r.json())
+    .then(d=>renderCars(d))
+    .catch(e=>{
+      document.getElementById("cars-body").innerHTML =
+        `<tr><td colspan="9" style="padding:12px;color:#E24B4A">Ошибка: ${e}</td></tr>`;
+    });
+}
+
+function renderCars(d){
+  const items = d.items || [];
+  document.getElementById("kpi-cars").innerHTML = `
+    <div class="kpi" style="border-top:3px solid #2563eb">
+      <div class="kpi-title">Всего авто</div><div class="kpi-value">${d.total ?? items.length}</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid #16a34a">
+      <div class="kpi-title">Активных</div><div class="kpi-value">${d.active ?? items.filter(v=>v.active).length}</div>
+    </div>`;
+  const fmt = v => (v || 0).toLocaleString("ru-RU");
+  document.getElementById("cars-body").innerHTML = items.map(v => `
+    <tr style="border-bottom:1px solid #f3f3f3">
+      <td style="padding:6px 8px">${v.id}</td>
+      <td style="padding:6px 8px">${v.make || ""} ${v.model || ""}</td>
+      <td style="padding:6px 8px">${v.year || "—"}</td>
+      <td style="padding:6px 8px">${fmt(v.mileage_km)} км</td>
+      <td style="padding:6px 8px">${v.city || "—"}</td>
+      <td style="padding:6px 8px;text-align:right">${fmt(v.price)} ₪</td>
+      <td style="padding:6px 8px;text-align:right">${v.views || 0}</td>
+      <td style="padding:6px 8px">${v.active ? "🟢 Активно" : "🔴 Снято"}</td>
+      <td style="padding:6px 8px">${v.date_added || "—"}</td>
+    </tr>`).join("") || `<tr><td colspan="9" style="padding:12px;color:#aaa">Пока нет объявлений об авто</td></tr>`;
 }
 
 // ── DATA.GOV.IL ─────────────────────────────────────────────────────────────

@@ -203,3 +203,59 @@ COMMERCIAL_TYPES = {
 }
 
 COMMERCIAL_DEAL, COMMERCIAL_TYPE, COMMERCIAL_CITY, COMMERCIAL_PRICE_MIN, COMMERCIAL_PRICE_MAX, COMMERCIAL_CONFIRM = range(28, 34)
+
+# ─── Cars vertical (CarsFinderIL hub) ────────────────────────────────────────
+CAR_MAKES = [
+    "Toyota", "Hyundai", "Kia", "Mazda", "Skoda", "Suzuki", "Mitsubishi",
+    "Nissan", "Honda", "Ford", "Chevrolet", "Renault", "Peugeot", "Citroen",
+    "Volkswagen", "BMW", "Mercedes-Benz", "Audi", "Seat", "Opel", "Другая",
+]
+
+CAR_BODY_TYPES = {
+    "sedan": "🚗 Седан",
+    "suv": "🚙 Внедорожник/SUV",
+    "hatchback": "🚘 Хэтчбек",
+    "crossover": "🚐 Кроссовер",
+    "minivan": "🚌 Минивэн",
+    "pickup": "🛻 Пикап",
+    "coupe": "🏎 Купе",
+    "other_body": "🚗 Другой",
+}
+
+CAR_TRANSMISSION = {
+    "automatic": "АКПП (автомат)",
+    "manual": "МКПП (механика)",
+}
+
+CAR_FUEL = {
+    "petrol": "⛽ Бензин",
+    "diesel": "⛽ Дизель",
+    "hybrid": "🔋 Гибрид",
+    "electric": "🔌 Электро",
+    "gas": "⛽ Газ",
+}
+
+CAR_HAND_OPTIONS = [
+    ("1", "1-я рука (с завода)"),
+    ("2", "2-я рука"),
+    ("3", "3-я рука"),
+    ("4+", "4-я рука и более"),
+]
+
+CAR_PRICE_OPTIONS = [
+    ("0", "Любая"), ("20000", "до 20 000 ₪"), ("40000", "до 40 000 ₪"),
+    ("60000", "до 60 000 ₪"), ("80000", "до 80 000 ₪"), ("120000", "до 120 000 ₪"),
+    ("160000", "до 160 000 ₪"), ("999999999", "без лимита"),
+]
+
+CAR_YEAR_OPTIONS = [
+    ("0", "Любой"), ("2023", "2023+"), ("2020", "2020+"), ("2017", "2017+"),
+    ("2014", "2014+"), ("2010", "2010+"), ("2005", "2005+"),
+]
+
+(
+    CAR_MENU, CAR_SEARCH_BODY, CAR_SEARCH_CITY, CAR_SEARCH_PRICE_MIN, CAR_SEARCH_PRICE_MAX, CAR_SEARCH_YEAR,
+    CAR_ADD_MAKE, CAR_ADD_MODEL, CAR_ADD_YEAR, CAR_ADD_MILEAGE, CAR_ADD_TRANSMISSION,
+    CAR_ADD_FUEL, CAR_ADD_HAND, CAR_ADD_BODY, CAR_ADD_PRICE, CAR_ADD_CITY,
+    CAR_ADD_DESCRIPTION, CAR_ADD_CONTACT, CAR_ADD_CONFIRM,
+) = range(34, 53)

@@ -275,3 +275,38 @@ CREATE TABLE IF NOT EXISTS bot_users (
     last_seen  TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_bot_users_last_seen ON bot_users(last_seen);
+
+-- ─── Cars vertical (CarsFinderIL hub) ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS vehicle_listings (
+    id            SERIAL PRIMARY KEY,
+    make          VARCHAR(50),
+    model         TEXT,
+    year          INTEGER,
+    body_type     VARCHAR(30),
+    mileage_km    INTEGER,
+    transmission  VARCHAR(20),
+    fuel_type     VARCHAR(20),
+    hand          VARCHAR(10),
+    color         TEXT,
+    price         INTEGER DEFAULT 0,
+    city          VARCHAR(100),
+    description   TEXT,
+    photos        JSONB DEFAULT '[]',
+    contact       TEXT,
+    poster_name   TEXT,
+    poster_phone  TEXT,
+    poster_username TEXT,
+    source        VARCHAR(50) DEFAULT 'user',
+    source_url    TEXT,
+    date_added    DATE DEFAULT CURRENT_DATE,
+    active        BOOLEAN DEFAULT TRUE,
+    views         INTEGER DEFAULT 0,
+    user_id       BIGINT,
+    extra         JSONB DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_vehicles_city ON vehicle_listings(city);
+CREATE INDEX IF NOT EXISTS idx_vehicles_make ON vehicle_listings(make);
+CREATE INDEX IF NOT EXISTS idx_vehicles_active ON vehicle_listings(active);
+CREATE INDEX IF NOT EXISTS idx_vehicles_price ON vehicle_listings(price);
+CREATE INDEX IF NOT EXISTS idx_vehicles_user_id ON vehicle_listings(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_vehicles_date_added ON vehicle_listings(date_added);

@@ -2848,6 +2848,150 @@ def get_sources_stats() -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Vehicles (Cars vertical)
+# ---------------------------------------------------------------------------
+
+def _vehicle_row(row) -> Optional[Dict]:
+    if row is None:
+        return None
+    d = dict(row)
+    if not isinstance(d.get("photos"), list):
+        d["photos"] = []
+    if not isinstance(d.get("extra"), dict):
+        d["extra"] = {}
+    if d.get("date_added") is not None:
+        d["date_added"] = str(d["date_added"])
+    return d
+
+
+def add_vehicle(data: Dict) -> int:
+    """Insert a new vehicle listing. Returns the assigned id."""
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO vehicle_listings
+                    (make, model, year, body_type, mileage_km, transmission,
+                     fuel_type, hand, color, price, city, description, photos,
+                     contact, poster_name, poster_phone, poster_username,
+                     source, source_url, user_id, extra)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                RETURNING id
+                """,
+                (
+                    data.get("make"), data.get("model"), data.get("year"),
+                    data.get("body_type"), data.get("mileage_km"), data.get("transmission"),
+                    data.get("fuel_type"), data.get("hand"), data.get("color"),
+                    int(data.get("price") or 0), data.get("city"), data.get("description"),
+                    Json(data.get("photos") or []),
+                    data.get("contact"), data.get("poster_name"), data.get("poster_phone"),
+                    data.get("poster_username"), data.get("source", "user"),
+                    data.get("source_url"), data.get("user_id"),
+                    Json(data.get("extra") or {}),
+                ),
+            )
+            new_id = cur.fetchone()["id"]
+    return new_id
+
+
+def get_vehicle(vehicle_id: int) -> Optional[Dict]:
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("SELECT * FROM vehicle_listings WHERE id = %s", (vehicle_id,))
+            return _vehicle_row(cur.fetchone())
+
+
+def search_vehicles(filters: Dict, limit: int = 200) -> List[Dict]:
+    clauses: List[str] = ["active = TRUE"]
+    params: List = []
+
+    makes = filters.get("makes") or []
+    if makes:
+        clauses.append("make = ANY(%s)")
+        params.append(makes)
+
+    body_types = filters.get("body_types") or []
+    if body_types:
+        clauses.append("body_type = ANY(%s)")
+        params.append(body_types)
+
+    cities = filters.get("cities") or []
+    if cities:
+        clauses.append("city = ANY(%s)")
+        params.append(cities)
+    elif filters.get("city"):
+        clauses.append("city = %s")
+        params.append(filters["city"])
+
+    price_min = filters.get("price_min")
+    if price_min is not None:
+        clauses.append("price > 0 AND price >= %s")
+        params.append(int(price_min))
+
+    price_max = filters.get("price_max")
+    if price_max is not None:
+        clauses.append("price <= %s")
+        params.append(int(price_max))
+
+    year_min = filters.get("year_min")
+    if year_min is not None:
+        clauses.append("year >= %s")
+        params.append(int(year_min))
+
+    where = " AND ".join(clauses)
+    sql = f"SELECT * FROM vehicle_listings WHERE {where} ORDER BY id DESC LIMIT %s"
+    params.append(limit)
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+    return [_vehicle_row(r) for r in rows]
+
+
+def get_user_vehicles(user_id: int) -> List[Dict]:
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM vehicle_listings WHERE user_id = %s ORDER BY id DESC",
+                (user_id,),
+            )
+            rows = cur.fetchall()
+    return [_vehicle_row(r) for r in rows]
+
+
+def get_all_vehicles() -> List[Dict]:
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("SELECT * FROM vehicle_listings ORDER BY id DESC")
+            rows = cur.fetchall()
+    return [_vehicle_row(r) for r in rows]
+
+
+def increment_vehicle_views(vehicle_id: int):
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                "UPDATE vehicle_listings SET views = views + 1 WHERE id = %s",
+                (vehicle_id,),
+            )
+
+
+def set_vehicle_active(vehicle_id: int, active: bool):
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute(
+                "UPDATE vehicle_listings SET active = %s WHERE id = %s",
+                (active, vehicle_id),
+            )
+
+
+def delete_vehicle(vehicle_id: int):
+    with _conn() as c:
+        with c.cursor() as cur:
+            cur.execute("DELETE FROM vehicle_listings WHERE id = %s", (vehicle_id,))
+
+
 def _load() -> dict:
     """
     Backward-compatibility shim: read listings_db.json from volume.

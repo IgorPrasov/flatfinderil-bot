@@ -54,6 +54,7 @@ _DEFAULTS = [
     ("crm_deals", {}), ("crm_deal_next_id", 1), ("crm_notes", {}),
     ("paid_subscriptions", {}), ("agent_profiles", {}), ("service_profiles", {}),
     ("listing_credits", {}), ("listing_free_used", {}), ("service_subscriptions", {}),
+    ("vehicles", {}), ("vehicles_next_id", 1),
 ]
 
 def _apply_defaults(data):
@@ -1768,3 +1769,104 @@ def pop_due_lead_triggers() -> list:
         if due:
             _save(data)
         return due
+
+
+# ---------------------------------------------------------------------------
+# Vehicles (Cars vertical)
+# ---------------------------------------------------------------------------
+
+def add_vehicle(data: Dict) -> int:
+    with _DB_LOCK:
+        db = _load()
+        vid = db.get("vehicles_next_id", 1)
+        record = dict(data)
+        record["id"] = vid
+        record.setdefault("photos", [])
+        record.setdefault("extra", {})
+        record.setdefault("source", "user")
+        record.setdefault("active", True)
+        record.setdefault("views", 0)
+        record.setdefault("date_added", datetime.now().strftime("%Y-%m-%d"))
+        record["price"] = int(record.get("price") or 0)
+        db.setdefault("vehicles", {})[str(vid)] = record
+        db["vehicles_next_id"] = vid + 1
+        _save(db)
+        return vid
+
+
+def get_vehicle(vehicle_id: int) -> Optional[Dict]:
+    db = _load()
+    return db.get("vehicles", {}).get(str(vehicle_id))
+
+
+def search_vehicles(filters: Dict, limit: int = 200) -> List[Dict]:
+    db = _load()
+    items = [v for v in db.get("vehicles", {}).values() if v.get("active", True)]
+
+    makes = filters.get("makes") or []
+    if makes:
+        items = [v for v in items if v.get("make") in makes]
+
+    body_types = filters.get("body_types") or []
+    if body_types:
+        items = [v for v in items if v.get("body_type") in body_types]
+
+    cities = filters.get("cities") or []
+    if cities:
+        items = [v for v in items if v.get("city") in cities]
+    elif filters.get("city"):
+        items = [v for v in items if v.get("city") == filters["city"]]
+
+    price_min = filters.get("price_min")
+    if price_min is not None:
+        items = [v for v in items if (v.get("price") or 0) >= int(price_min) and (v.get("price") or 0) > 0]
+
+    price_max = filters.get("price_max")
+    if price_max is not None:
+        items = [v for v in items if (v.get("price") or 0) <= int(price_max)]
+
+    year_min = filters.get("year_min")
+    if year_min is not None:
+        items = [v for v in items if (v.get("year") or 0) >= int(year_min)]
+
+    items.sort(key=lambda v: v.get("id", 0), reverse=True)
+    return items[:limit]
+
+
+def get_user_vehicles(user_id: int) -> List[Dict]:
+    db = _load()
+    items = [v for v in db.get("vehicles", {}).values() if v.get("user_id") == user_id]
+    items.sort(key=lambda v: v.get("id", 0), reverse=True)
+    return items
+
+
+def get_all_vehicles() -> List[Dict]:
+    db = _load()
+    items = list(db.get("vehicles", {}).values())
+    items.sort(key=lambda v: v.get("id", 0), reverse=True)
+    return items
+
+
+def increment_vehicle_views(vehicle_id: int):
+    with _DB_LOCK:
+        db = _load()
+        v = db.get("vehicles", {}).get(str(vehicle_id))
+        if v:
+            v["views"] = v.get("views", 0) + 1
+            _save(db)
+
+
+def set_vehicle_active(vehicle_id: int, active: bool):
+    with _DB_LOCK:
+        db = _load()
+        v = db.get("vehicles", {}).get(str(vehicle_id))
+        if v:
+            v["active"] = active
+            _save(db)
+
+
+def delete_vehicle(vehicle_id: int):
+    with _DB_LOCK:
+        db = _load()
+        db.get("vehicles", {}).pop(str(vehicle_id), None)
+        _save(db)

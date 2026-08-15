@@ -36,8 +36,10 @@ def main_menu_keyboard(ctx):
     sublet_label = {"ru": "🔄 Саблет", "en": "🔄 Sublet", "he": "🔄 סאבלט",   "fr": "🔄 Sous-loc"}.get(lang, "🔄 Саблет")
     buy_label    = {"ru": "🏦 Купить", "en": "🏦 Buy",    "he": "🏦 קנייה",   "fr": "🏦 Acheter"}.get(lang, "🏦 Купить")
     refer_label = {"ru": "🎁 Пригласить друга", "en": "🎁 Invite friend", "he": "🎁 הזמן חבר", "fr": "🎁 Inviter un ami"}.get(lang, "🎁 Пригласить друга")
+    cars_label = {"ru": "🚗 Авто", "en": "🚗 Cars", "he": "🚗 רכבים", "fr": "🚗 Voitures"}.get(lang, "🚗 Авто")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(rent_label, callback_data="search_rent"), InlineKeyboardButton(sublet_label, callback_data="search_sublet"), InlineKeyboardButton(buy_label, callback_data="search_buy")],
+        [InlineKeyboardButton(cars_label, callback_data="car_menu")],
         [InlineKeyboardButton(t("btn_favorites", ctx), callback_data="favorites"), InlineKeyboardButton(alerts_label, callback_data="alerts_menu")],
         [InlineKeyboardButton(t("btn_commercial", ctx), callback_data="commercial"), InlineKeyboardButton(svc_label, callback_data="services")],
         [InlineKeyboardButton(t("btn_my_listings", ctx), callback_data="my_listings"), InlineKeyboardButton(t("btn_add_listing", ctx), callback_data="add_listing")],
@@ -607,6 +609,142 @@ def commercial_price_keyboard(ctx, prefix, deal_type):
     rows = [[InlineKeyboardButton(label, callback_data=f"{prefix}_{val}")] for val, label in opts]
     rows.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="comm_back")])
     return InlineKeyboardMarkup(rows)
+
+
+# ── Cars vertical keyboards ───────────────────────────────────────────────────
+
+def car_menu_keyboard(ctx):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔍 Поиск авто", callback_data="car_search_start")],
+        [InlineKeyboardButton("➕ Разместить авто", callback_data="car_add_start")],
+        [InlineKeyboardButton("📋 Мои авто", callback_data="car_my_listings")],
+        [InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")],
+    ])
+
+
+def car_body_keyboard(ctx, selected=None, prefix="car_body"):
+    from config import CAR_BODY_TYPES
+    if selected is None:
+        selected = []
+    rows = []
+    for key, label in CAR_BODY_TYPES.items():
+        check = "✅ " if key in selected else ""
+        rows.append([InlineKeyboardButton(check + label, callback_data=f"{prefix}_{key}")])
+    rows.append([
+        InlineKeyboardButton(t("btn_skip", ctx), callback_data=f"{prefix}_all"),
+        InlineKeyboardButton(t("btn_back", ctx), callback_data="car_back"),
+    ])
+    return InlineKeyboardMarkup(rows)
+
+
+def car_make_keyboard(ctx, prefix="car_make"):
+    from config import CAR_MAKES
+    rows = []
+    for i in range(0, len(CAR_MAKES), 2):
+        row = [InlineKeyboardButton(CAR_MAKES[i], callback_data=f"{prefix}_{CAR_MAKES[i]}")]
+        if i + 1 < len(CAR_MAKES):
+            row.append(InlineKeyboardButton(CAR_MAKES[i + 1], callback_data=f"{prefix}_{CAR_MAKES[i + 1]}"))
+        rows.append(row)
+    rows.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="car_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def car_city_keyboard(ctx, prefix="car_city"):
+    rows = []
+    for i in range(0, len(ALL_CITIES), 2):
+        row = [InlineKeyboardButton(ALL_CITIES[i], callback_data=f"{prefix}_{ALL_CITIES[i]}")]
+        if i + 1 < len(ALL_CITIES):
+            row.append(InlineKeyboardButton(ALL_CITIES[i + 1], callback_data=f"{prefix}_{ALL_CITIES[i + 1]}"))
+        rows.append(row)
+    rows.append([
+        InlineKeyboardButton("🌍 Весь Израиль", callback_data=f"{prefix}_all"),
+        InlineKeyboardButton(t("btn_back", ctx), callback_data="car_back"),
+    ])
+    return InlineKeyboardMarkup(rows)
+
+
+def car_price_keyboard(ctx, prefix):
+    from config import CAR_PRICE_OPTIONS
+    rows = [[InlineKeyboardButton(label, callback_data=f"{prefix}_{val}")] for val, label in CAR_PRICE_OPTIONS]
+    rows.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="car_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def car_year_keyboard(ctx, prefix):
+    from config import CAR_YEAR_OPTIONS
+    rows = [[InlineKeyboardButton(label, callback_data=f"{prefix}_{val}")] for val, label in CAR_YEAR_OPTIONS]
+    rows.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="car_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def car_transmission_keyboard(ctx, prefix="car_trans"):
+    from config import CAR_TRANSMISSION
+    rows = [[InlineKeyboardButton(label, callback_data=f"{prefix}_{key}")] for key, label in CAR_TRANSMISSION.items()]
+    rows.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="car_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def car_fuel_keyboard(ctx, prefix="car_fuel"):
+    from config import CAR_FUEL
+    rows = []
+    items = list(CAR_FUEL.items())
+    for i in range(0, len(items), 2):
+        row = [InlineKeyboardButton(items[i][1], callback_data=f"{prefix}_{items[i][0]}")]
+        if i + 1 < len(items):
+            row.append(InlineKeyboardButton(items[i + 1][1], callback_data=f"{prefix}_{items[i + 1][0]}"))
+        rows.append(row)
+    rows.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="car_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def car_hand_keyboard(ctx, prefix="car_hand"):
+    from config import CAR_HAND_OPTIONS
+    rows = [[InlineKeyboardButton(label, callback_data=f"{prefix}_{val}")] for val, label in CAR_HAND_OPTIONS]
+    rows.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="car_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def car_body_single_keyboard(ctx, prefix="car_addbody"):
+    from config import CAR_BODY_TYPES
+    rows = []
+    items = list(CAR_BODY_TYPES.items())
+    for i in range(0, len(items), 2):
+        row = [InlineKeyboardButton(items[i][1], callback_data=f"{prefix}_{items[i][0]}")]
+        if i + 1 < len(items):
+            row.append(InlineKeyboardButton(items[i + 1][1], callback_data=f"{prefix}_{items[i + 1][0]}"))
+        rows.append(row)
+    rows.append([InlineKeyboardButton(t("btn_back", ctx), callback_data="car_back")])
+    return InlineKeyboardMarkup(rows)
+
+
+def car_confirm_keyboard(ctx):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Опубликовать", callback_data="car_publish")],
+        [InlineKeyboardButton("❌ Отмена", callback_data="back_to_menu")],
+    ])
+
+
+def car_skip_keyboard(ctx, callback):
+    return InlineKeyboardMarkup([[InlineKeyboardButton(t("btn_skip", ctx), callback_data=callback)]])
+
+
+def car_cabinet_keyboard(ctx, vehicles: list):
+    rows = []
+    for v in vehicles:
+        title = f"{v.get('make','')} {v.get('model','')} — {v.get('price',0):,} ₪".replace(",", " ")
+        status = "🟢" if v.get("active", True) else "🔴"
+        rows.append([InlineKeyboardButton(f"{status} {title}", callback_data=f"car_manage_{v['id']}")])
+    rows.append([InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")])
+    return InlineKeyboardMarkup(rows)
+
+
+def car_manage_keyboard(ctx, vehicle_id, active: bool):
+    toggle = ("⏸ Снять с публикации", f"car_deact_{vehicle_id}") if active else ("▶️ Опубликовать снова", f"car_react_{vehicle_id}")
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(toggle[0], callback_data=toggle[1])],
+        [InlineKeyboardButton("🗑 Удалить", callback_data=f"car_delete_{vehicle_id}")],
+        [InlineKeyboardButton("🔙 Мои авто", callback_data="car_my_listings")],
+    ])
 
 
 # ── Alert keyboards ───────────────────────────────────────────────────────────

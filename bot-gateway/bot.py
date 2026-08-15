@@ -16,6 +16,7 @@ from handlers import (
 from search_handler import SearchHandler
 from listing_handler import ListingHandler
 from commercial_handler import CommercialHandler
+from car_handler import CarHandler
 from service_handler import ServiceHandler
 from crm_handler import CRMHandler
 from support_handler import get_conversation_handler as get_support_handler, admin_reply_cmd
@@ -283,6 +284,7 @@ def main():
     search = SearchHandler()
     listing = ListingHandler()
     commercial = CommercialHandler()
+    cars = CarHandler()
     services = ServiceHandler()
     crm = CRMHandler()
     # ── Debug: log every incoming update type (remove after payments are confirmed working) ──
@@ -343,6 +345,13 @@ def main():
 
     app.add_handler(CommandHandler("clearsubscription", cmd_clearsubscription))
     app.add_handler(commercial.get_conversation_handler())
+    app.add_handler(cars.get_conversation_handler())
+    app.add_handler(CallbackQueryHandler(cars.open_menu,          pattern="^car_menu$"))
+    app.add_handler(CallbackQueryHandler(cars.my_listings,        pattern="^car_my_listings$"))
+    app.add_handler(CallbackQueryHandler(cars.manage_vehicle,     pattern="^car_manage_"))
+    app.add_handler(CallbackQueryHandler(cars.deactivate_vehicle, pattern="^car_deact_"))
+    app.add_handler(CallbackQueryHandler(cars.reactivate_vehicle, pattern="^car_react_"))
+    app.add_handler(CallbackQueryHandler(cars.delete_vehicle,     pattern="^car_delete_"))
     app.add_handler(services.get_conversation_handler())
     app.add_handler(crm.get_conversation_handler())
     app.add_handler(search.get_conversation_handler())
@@ -879,6 +888,25 @@ class WebHandler(BaseHTTPRequestHandler):
                     items = [u for u in items if _match(u)]
                 items.sort(key=lambda u: u.get("last_seen", ""), reverse=True)
                 return self._send_json({"total": len(items), "items": items[:100]})
+            except Exception as e:
+                return self._send_json({"error": str(e), "total": 0, "items": []}, 500)
+
+        # ── Vehicles (Cars vertical)  GET /api/admin/vehicles?q=... ────────
+        if resource == "vehicles" and not rid and method == "GET":
+            try:
+                items = db.get_all_vehicles() if hasattr(db, "get_all_vehicles") else []
+                q = (query.get("q") or [""])[0].strip().lower()
+                if q:
+                    def _match(v):
+                        return (q in (v.get("make") or "").lower() or
+                                q in (v.get("model") or "").lower() or
+                                q in (v.get("city") or "").lower())
+                    items = [v for v in items if _match(v)]
+                active_count = sum(1 for v in items if v.get("active", True))
+                return self._send_json({
+                    "total": len(items), "active": active_count,
+                    "items": items[:200],
+                })
             except Exception as e:
                 return self._send_json({"error": str(e), "total": 0, "items": []}, 500)
 

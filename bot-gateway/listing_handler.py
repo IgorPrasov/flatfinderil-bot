@@ -439,7 +439,7 @@ class ListingHandler:
                 # Catch-all: block any other button/command during add flow
                 # Exclude entry-points of other ConversationHandlers so they work normally
                 CallbackQueryHandler(self._warn_navigation,
-                    pattern="^(?!(contact_admin|contact_|show_phone_|fav_|result_next_|result_prev_|reqview_|review_|irented_|subscribe_search|noop|back_to_menu|search|search_rent|search_sublet|search_buy|add_listing|commercial_add|service_add|crm_|alerts_menu|my_subscriptions|subscription|favorites|all_listings|my_listings|help|cabinet|choose_lang|services|commercial))"),
+                    pattern="^(?!(contact_admin|contact_|show_phone_|fav_|result_next_|result_prev_|reqview_|review_|irented_|subscribe_search|noop|back_to_menu|search|search_rent|search_sublet|search_buy|add_listing|commercial_add|service_add|crm_|alerts_menu|my_subscriptions|subscription|favorites|all_listings|my_listings|help|cabinet|choose_lang|services|commercial|car_))"),
                 CommandHandler("start",  self._warn_command),
                 CommandHandler("search", self._warn_command),
                 CommandHandler("help",   self._warn_command),
