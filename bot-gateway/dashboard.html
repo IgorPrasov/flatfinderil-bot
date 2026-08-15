@@ -809,79 +809,225 @@ canvas{max-width:100%}
   <!-- DAILY DIGEST -->
   <!-- ══════════════ ACCOUNTS TAB ══════════════ -->
   <div class="tab" id="tab-accounts">
+
+    <!-- Modal overlay for action confirmation -->
+    <div id="acc-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:14px;padding:28px;max-width:480px;width:92%;box-shadow:0 8px 40px rgba(0,0,0,.18)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+          <div id="modal-title" style="font-size:16px;font-weight:700;color:#1a1a2e"></div>
+          <button onclick="closeModal()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#888;line-height:1">✕</button>
+        </div>
+        <div id="modal-body"></div>
+        <div style="display:flex;gap:8px;margin-top:18px">
+          <button id="modal-confirm" onclick="modalConfirm()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#2563EB;color:#fff;font-size:14px;font-weight:600;cursor:pointer">Подтвердить</button>
+          <button onclick="closeModal()" style="padding:10px 18px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:14px;cursor:pointer;color:#555">Отмена</button>
+        </div>
+      </div>
+    </div>
+
     <div style="display:flex;gap:16px;flex-wrap:wrap">
 
-      <!-- LEFT: User search + list -->
-      <div style="flex:1;min-width:320px">
+      <!-- LEFT: Search + Promo codes -->
+      <div style="flex:1;min-width:300px;max-width:380px">
+
+        <!-- Search -->
         <div class="card">
           <div class="card-title">🔍 Поиск пользователя</div>
           <div class="card-body">
-            <div style="display:flex;gap:6px;margin-bottom:12px">
-              <input id="acc-search" type="text" placeholder="ID, @username или имя" style="flex:1;padding:7px 10px;border:1px solid #e0e0da;border-radius:6px;font-size:13px">
+            <div style="display:flex;gap:6px;margin-bottom:10px">
+              <input id="acc-search" type="text" placeholder="ID, @username или имя"
+                style="flex:1;padding:7px 10px;border:1px solid #e0e0da;border-radius:6px;font-size:13px">
               <button onclick="accSearch()" style="padding:7px 16px;border:none;border-radius:6px;background:#2563EB;color:#fff;font-size:13px;cursor:pointer;font-weight:600">Найти</button>
             </div>
-            <div id="acc-list" style="font-size:12px;color:#666">Введите запрос для поиска</div>
+            <div id="acc-list" style="font-size:12px;color:#888;max-height:280px;overflow-y:auto">
+              Введите запрос для поиска
+            </div>
           </div>
         </div>
 
-        <!-- Promo codes management -->
+        <!-- Promo codes -->
         <div class="card" style="margin-top:12px">
           <div class="card-title">🎟 Промокоды</div>
           <div class="card-body">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
-              <input id="promo-code" type="text" placeholder="Код (напр. VIP30)" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px;text-transform:uppercase">
-              <select id="promo-type" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
-                <option value="days">Дни подписки</option>
-                <option value="pct">Скидка %</option>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+              <input id="promo-code" type="text" placeholder="Код (напр. VIP30)"
+                style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px;text-transform:uppercase">
+              <select id="promo-category" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+                <option value="trial">Продление триала</option>
+                <option value="premium_search">Премиум поиск</option>
+                <option value="subscription">Полная подписка</option>
+                <option value="discount">Скидка %</option>
               </select>
-              <input id="promo-value" type="number" placeholder="Значение (дни или %)" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
-              <input id="promo-max-uses" type="number" placeholder="Макс. использ. (0=∞)" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
-              <input id="promo-expiry" type="date" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px;grid-column:span 2">
+              <input id="promo-value" type="number" placeholder="Дней или % скидки"
+                style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+              <input id="promo-max-uses" type="number" placeholder="Макс. использ. (0=∞)"
+                style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+              <input id="promo-expiry" type="date"
+                style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+              <input id="promo-description" type="text" placeholder="Причина / описание (обяз.)"
+                style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px;border-color:#F59E0B">
             </div>
-            <button onclick="createPromo()" style="width:100%;padding:7px;border:none;border-radius:6px;background:#4CAF8A;color:#fff;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:10px">➕ Создать промокод</button>
-            <div id="promo-list" style="font-size:12px"></div>
+            <button onclick="createPromo()"
+              style="width:100%;padding:7px;border:none;border-radius:6px;background:#4CAF8A;color:#fff;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:10px">
+              ➕ Создать промокод
+            </button>
+            <div id="promo-list" style="font-size:11px;max-height:220px;overflow-y:auto"></div>
           </div>
         </div>
       </div>
 
-      <!-- RIGHT: Selected user detail -->
-      <div style="flex:1;min-width:320px">
-        <div class="card" id="acc-detail-card" style="display:none">
+      <!-- RIGHT: User card + action tabs -->
+      <div style="flex:2;min-width:340px">
+
+        <!-- User profile card -->
+        <div class="card" id="acc-detail-card" style="display:none;margin-bottom:12px">
           <div class="card-title" id="acc-detail-title">👤 Пользователь</div>
           <div class="card-body" id="acc-detail-body"></div>
         </div>
 
-        <!-- Grant subscription panel -->
-        <div class="card" id="acc-grant-card" style="margin-top:12px;display:none">
-          <div class="card-title">🎁 Управление подпиской</div>
-          <div class="card-body">
-            <input type="hidden" id="grant-user-id">
+        <!-- Action tabs -->
+        <div class="card" id="acc-grant-card" style="display:none">
+          <input type="hidden" id="grant-user-id">
 
-            <div style="margin-bottom:8px;font-size:12px;font-weight:600;color:#555">Выдать подписку:</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
-              <select id="grant-plan" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
-                <option value="week">1 неделя (19.90₪)</option>
-                <option value="two_weeks">2 недели (29.90₪)</option>
-                <option value="month" selected>1 месяц (39.90₪)</option>
-                <option value="custom">Произвольно (дни)</option>
-              </select>
-              <input id="grant-days" type="number" placeholder="Дней (для custom)" style="padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
-            </div>
-            <button onclick="grantSubscription()" style="width:100%;padding:7px;border:none;border-radius:6px;background:#2563EB;color:#fff;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:10px">✅ Выдать подписку</button>
+          <!-- Tab bar -->
+          <div style="display:flex;border-bottom:2px solid #f0f0ea;margin-bottom:16px">
+            <button class="acc-tab-btn active" onclick="switchAccTab('subscription',this)"
+              style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;color:#2563EB;border-bottom:2px solid #2563EB;margin-bottom:-2px">
+              💳 Подписка
+            </button>
+            <button class="acc-tab-btn" onclick="switchAccTab('trial',this)"
+              style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px">
+              ⏳ Продление триала
+            </button>
+            <button class="acc-tab-btn" onclick="switchAccTab('premium',this)"
+              style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px">
+              ⭐ Премиум поиск
+            </button>
+            <button class="acc-tab-btn" onclick="switchAccTab('status',this)"
+              style="padding:8px 16px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;color:#888;border-bottom:2px solid transparent;margin-bottom:-2px">
+              ⚙️ Статус
+            </button>
+          </div>
 
-            <div style="margin-bottom:8px;font-size:12px;font-weight:600;color:#555">Бонусные дни:</div>
-            <div style="display:flex;gap:6px;margin-bottom:10px">
-              <input id="grant-bonus" type="number" placeholder="Кол-во дней" style="flex:1;padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
-              <button onclick="grantBonusDays()" style="padding:6px 14px;border:none;border-radius:6px;background:#F59E0B;color:#fff;font-size:12px;font-weight:600;cursor:pointer">🎁 Начислить</button>
+          <!-- ── Tab: Subscription ── -->
+          <div id="acc-tab-subscription" class="acc-tab-content">
+            <p style="font-size:12px;color:#888;margin-bottom:12px">
+              Выдаёт оплаченную подписку. Пользователь получит уведомление в Telegram.
+            </p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div>
+                <label style="font-size:11px;color:#666;font-weight:600">Тариф</label>
+                <select id="grant-plan" style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+                  <option value="week">1 неделя (19.90 ₪)</option>
+                  <option value="two_weeks">2 недели (29.90 ₪)</option>
+                  <option value="month" selected>1 месяц (39.90 ₪)</option>
+                  <option value="custom">Произвольно (дни ↓)</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11px;color:#666;font-weight:600">Дней (для "Произвольно")</label>
+                <input id="grant-days" type="number" placeholder="Кол-во дней"
+                  style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px;box-sizing:border-box">
+              </div>
             </div>
+            <div style="margin-bottom:8px">
+              <label style="font-size:11px;color:#666;font-weight:600">Причина выдачи <span style="color:#EF4444">*</span></label>
+              <textarea id="grant-reason" rows="2" placeholder="Обязательно укажите причину (напр. 'Оплата получена по переводу', 'Компенсация за сбой', 'Партнёрское соглашение')"
+                style="width:100%;margin-top:3px;padding:7px 8px;border:2px solid #F59E0B;border-radius:6px;font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+            </div>
+            <button onclick="openGrantModal('subscription')"
+              style="width:100%;padding:9px;border:none;border-radius:8px;background:#2563EB;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+              ✅ Выдать подписку
+            </button>
+          </div>
 
-            <div style="margin-bottom:8px;font-size:12px;font-weight:600;color:#555">Статус аккаунта:</div>
-            <div style="display:flex;gap:6px">
-              <button onclick="setAccountStatus('active')" style="flex:1;padding:6px;border:none;border-radius:6px;background:#4CAF8A;color:#fff;font-size:12px;cursor:pointer">✅ Активировать</button>
-              <button onclick="setAccountStatus('blocked')" style="flex:1;padding:6px;border:none;border-radius:6px;background:#EF4444;color:#fff;font-size:12px;cursor:pointer">🚫 Заблокировать</button>
-              <button onclick="setAccountStatus('reset')" style="flex:1;padding:6px;border:none;border-radius:6px;background:#94A3B8;color:#fff;font-size:12px;cursor:pointer">↺ Сбросить подписку</button>
+          <!-- ── Tab: Trial extension ── -->
+          <div id="acc-tab-trial" class="acc-tab-content" style="display:none">
+            <p style="font-size:12px;color:#888;margin-bottom:12px">
+              Продлевает бесплатный пробный период. Бонусные дни добавляются к текущему балансу.
+            </p>
+            <div style="margin-bottom:8px">
+              <label style="font-size:11px;color:#666;font-weight:600">Количество дней</label>
+              <input id="trial-days" type="number" placeholder="Напр. 7, 14, 30"
+                style="width:100%;margin-top:3px;padding:7px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:13px;box-sizing:border-box">
             </div>
-            <div id="grant-status" style="font-size:12px;margin-top:8px;color:#4CAF8A;min-height:18px"></div>
+            <div style="margin-bottom:8px">
+              <label style="font-size:11px;color:#666;font-weight:600">Причина продления <span style="color:#EF4444">*</span></label>
+              <textarea id="trial-reason" rows="2" placeholder="Обязательно укажите причину (напр. 'Не успел найти жильё', 'Технический сбой', 'Реферал от партнёра')"
+                style="width:100%;margin-top:3px;padding:7px 8px;border:2px solid #F59E0B;border-radius:6px;font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+            </div>
+            <button onclick="openGrantModal('trial')"
+              style="width:100%;padding:9px;border:none;border-radius:8px;background:#F59E0B;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+              ⏳ Продлить триал
+            </button>
+          </div>
+
+          <!-- ── Tab: Premium search ── -->
+          <div id="acc-tab-premium" class="acc-tab-content" style="display:none">
+            <p style="font-size:12px;color:#888;margin-bottom:12px">
+              Открывает расширенный поиск и сохранение фильтров. Назначается отдельно от подписки.
+            </p>
+            <div style="margin-bottom:8px">
+              <label style="font-size:11px;color:#666;font-weight:600">Срок действия (дней)</label>
+              <div style="display:flex;gap:6px;margin-top:3px">
+                <button onclick="document.getElementById('premium-days').value=7" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px;cursor:pointer;background:#f9f9f9">7 дн</button>
+                <button onclick="document.getElementById('premium-days').value=30" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px;cursor:pointer;background:#f9f9f9">30 дн</button>
+                <button onclick="document.getElementById('premium-days').value=90" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:12px;cursor:pointer;background:#f9f9f9">90 дн</button>
+                <input id="premium-days" type="number" placeholder="Свой срок"
+                  style="flex:2;padding:6px 8px;border:1px solid #e0e0da;border-radius:6px;font-size:12px">
+              </div>
+            </div>
+            <div style="margin-bottom:8px">
+              <label style="font-size:11px;color:#666;font-weight:600">Возможности</label>
+              <div style="margin-top:4px;display:flex;flex-direction:column;gap:4px;font-size:12px;color:#555">
+                <label><input type="checkbox" id="prem-saved-searches" checked> 💾 Сохранение поисков</label>
+                <label><input type="checkbox" id="prem-unlimited" checked> ♾ Неограниченные результаты</label>
+                <label><input type="checkbox" id="prem-alerts" checked> 🔔 Алерты о новых объявлениях</label>
+              </div>
+            </div>
+            <div style="margin-bottom:8px">
+              <label style="font-size:11px;color:#666;font-weight:600">Причина / основание <span style="color:#EF4444">*</span></label>
+              <textarea id="premium-reason" rows="2" placeholder="Обязательно укажите причину (напр. 'Партнёрский аккаунт', 'Тест функционала', 'Победитель акции')"
+                style="width:100%;margin-top:3px;padding:7px 8px;border:2px solid #F59E0B;border-radius:6px;font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+            </div>
+            <button onclick="openGrantModal('premium')"
+              style="width:100%;padding:9px;border:none;border-radius:8px;background:#7F77DD;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+              ⭐ Активировать Премиум поиск
+            </button>
+          </div>
+
+          <!-- ── Tab: Status ── -->
+          <div id="acc-tab-status" class="acc-tab-content" style="display:none">
+            <p style="font-size:12px;color:#888;margin-bottom:12px">
+              Изменение статуса аккаунта. Действие необратимо без ручной правки.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button onclick="openGrantModal('activate')"
+                style="padding:10px;border:none;border-radius:8px;background:#4CAF8A;color:#fff;font-size:13px;font-weight:600;cursor:pointer;text-align:left">
+                ✅ Активировать — снять блокировку, пометить подписанным
+              </button>
+              <button onclick="openGrantModal('block')"
+                style="padding:10px;border:none;border-radius:8px;background:#EF4444;color:#fff;font-size:13px;font-weight:600;cursor:pointer;text-align:left">
+                🚫 Заблокировать — запретить доступ к боту
+              </button>
+              <button onclick="openGrantModal('reset')"
+                style="padding:10px;border:none;border-radius:8px;background:#94A3B8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;text-align:left">
+                ↺ Сбросить подписку — вернуть в бесплатный режим
+              </button>
+            </div>
+            <div style="margin-top:10px">
+              <label style="font-size:11px;color:#666;font-weight:600">Причина / комментарий <span style="color:#EF4444">*</span></label>
+              <textarea id="status-reason" rows="2" placeholder="Укажите причину изменения статуса"
+                style="width:100%;margin-top:3px;padding:7px 8px;border:2px solid #F59E0B;border-radius:6px;font-size:12px;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+            </div>
+          </div>
+
+          <div id="grant-status" style="font-size:12px;margin-top:10px;min-height:18px;font-weight:500"></div>
+
+          <!-- Audit log for selected user -->
+          <div id="acc-audit-log" style="margin-top:16px;border-top:1px solid #f0f0ea;padding-top:12px;display:none">
+            <div style="font-size:11px;font-weight:700;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">📋 История действий</div>
+            <div id="acc-audit-list" style="font-size:11px;max-height:160px;overflow-y:auto"></div>
           </div>
         </div>
       </div>
@@ -2528,6 +2674,18 @@ window.showTab = function(tab, btn) {
 // ══════════════════════════════════════════════════════════════════
 
 let _accSelected = null;
+let _pendingAction = null;  // {type, payload}
+
+// ── Tab switching ─────────────────────────────────────────────────
+function switchAccTab(name, btn) {
+  document.querySelectorAll(".acc-tab-content").forEach(el => el.style.display = "none");
+  document.querySelectorAll(".acc-tab-btn").forEach(b => {
+    b.style.color = "#888"; b.style.borderBottomColor = "transparent";
+  });
+  document.getElementById("acc-tab-" + name).style.display = "";
+  btn.style.color = "#2563EB"; btn.style.borderBottomColor = "#2563EB";
+  document.getElementById("grant-status").textContent = "";
+}
 
 // ── User search ───────────────────────────────────────────────────
 async function accSearch() {
@@ -2578,132 +2736,191 @@ function accSelectEncoded(encoded) {
 async function accSelect(u) {
   _accSelected = u;
   document.getElementById("grant-user-id").value = u.user_id || u.id;
-  const card = document.getElementById("acc-detail-card");
-  const grantCard = document.getElementById("acc-grant-card");
-  card.style.display = "";
-  grantCard.style.display = "";
+  document.getElementById("acc-detail-card").style.display = "";
+  document.getElementById("acc-grant-card").style.display = "";
+  document.getElementById("grant-status").textContent = "";
 
   const name = [u.first_name, u.last_name].filter(Boolean).join(" ") || "Без имени";
   document.getElementById("acc-detail-title").textContent = `👤 ${name}`;
 
-  // Load subscription detail
-  let subInfo = "—";
-  try {
-    const r = await fetch(`/backoffice/api/users/${u.user_id || u.id}`);
-    const d = await r.json();
-    const p = d.profile || {};
-    const expiry = p.expiry_iso || p.bonus_expiry;
-    if (expiry) {
-      const exp = new Date(expiry);
-      const now = new Date();
-      const days = Math.ceil((exp - now) / 86400000);
-      subInfo = days > 0
-        ? `<span style="color:#4CAF8A;font-weight:600">Активна до ${exp.toLocaleDateString("ru")} (${days} дн.)</span>`
-        : `<span style="color:#EF4444">Истекла ${exp.toLocaleDateString("ru")}</span>`;
-    }
-  } catch (_) {}
-
   const uid = u.user_id || u.id;
   const subBadge = u.subscribed
-    ? '<span style="background:#4CAF8A;color:#fff;border-radius:12px;padding:2px 8px;font-size:11px">Подписан</span>'
-    : '<span style="background:#94A3B8;color:#fff;border-radius:12px;padding:2px 8px;font-size:11px">Нет подписки</span>';
+    ? '<span style="background:#4CAF8A;color:#fff;border-radius:12px;padding:2px 10px;font-size:11px">✅ Подписан</span>'
+    : '<span style="background:#94A3B8;color:#fff;border-radius:12px;padding:2px 10px;font-size:11px">○ Нет подписки</span>';
 
   document.getElementById("acc-detail-body").innerHTML = `
-    <table style="width:100%;font-size:12px;border-collapse:collapse">
-      <tr><td style="padding:4px 0;color:#888;width:120px">ID</td><td><code>${uid}</code></td></tr>
-      <tr><td style="padding:4px 0;color:#888">Username</td><td>${u.username ? `@${u.username}` : "—"}</td></tr>
-      <tr><td style="padding:4px 0;color:#888">Имя</td><td>${name}</td></tr>
-      <tr><td style="padding:4px 0;color:#888">Язык</td><td>${u.lang || "—"}</td></tr>
-      <tr><td style="padding:4px 0;color:#888">Первый вход</td><td>${u.first_seen || "—"}</td></tr>
-      <tr><td style="padding:4px 0;color:#888">Последний</td><td>${u.last_seen || "—"}</td></tr>
-      <tr><td style="padding:4px 0;color:#888">Поисков</td><td>${u.searches || 0}</td></tr>
-      <tr><td style="padding:4px 0;color:#888">Статус</td><td>${subBadge}</td></tr>
-      <tr><td style="padding:4px 0;color:#888">Подписка</td><td>${subInfo}</td></tr>
-    </table>`;
-  document.getElementById("grant-status").textContent = "";
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px">
+      <span style="color:#888">ID</span><span><code style="background:#f4f4f4;padding:1px 5px;border-radius:4px">${uid}</code></span>
+      <span style="color:#888">Username</span><span>${u.username ? `<b>@${u.username}</b>` : "—"}</span>
+      <span style="color:#888">Имя</span><span><b>${name}</b></span>
+      <span style="color:#888">Язык</span><span>${u.lang || "—"}</span>
+      <span style="color:#888">Первый вход</span><span>${u.first_seen || "—"}</span>
+      <span style="color:#888">Последний</span><span>${u.last_seen || "—"}</span>
+      <span style="color:#888">Поисков</span><span>${u.searches || 0}</span>
+      <span style="color:#888">Статус</span><span>${subBadge}</span>
+    </div>`;
+
+  // Load audit log
+  loadAuditLog(uid);
 }
 
-// ── Grant subscription ────────────────────────────────────────────
-async function grantSubscription() {
+// ── Open modal for confirmation ───────────────────────────────────
+function openGrantModal(actionType) {
   const uid = document.getElementById("grant-user-id").value;
-  if (!uid) return;
-  const plan = document.getElementById("grant-plan").value;
-  const days = document.getElementById("grant-days").value;
+  if (!uid) { alert("Сначала выберите пользователя"); return; }
+
+  const reasonMap = {
+    subscription: document.getElementById("grant-reason")?.value.trim(),
+    trial:        document.getElementById("trial-reason")?.value.trim(),
+    premium:      document.getElementById("premium-reason")?.value.trim(),
+    activate:     document.getElementById("status-reason")?.value.trim(),
+    block:        document.getElementById("status-reason")?.value.trim(),
+    reset:        document.getElementById("status-reason")?.value.trim(),
+  };
+  const reason = reasonMap[actionType] || "";
+  if (!reason) {
+    const reasonField = {
+      subscription: document.getElementById("grant-reason"),
+      trial: document.getElementById("trial-reason"),
+      premium: document.getElementById("premium-reason"),
+      activate: document.getElementById("status-reason"),
+      block: document.getElementById("status-reason"),
+      reset: document.getElementById("status-reason"),
+    }[actionType];
+    if (reasonField) { reasonField.focus(); reasonField.style.borderColor = "#EF4444"; }
+    alert("⚠️ Укажите причину — это обязательное поле для аудита");
+    return;
+  }
+
+  const name = _accSelected ? ([_accSelected.first_name, _accSelected.last_name].filter(Boolean).join(" ") || uid) : uid;
+  const summaries = {
+    subscription: () => {
+      const plan = document.getElementById("grant-plan").value;
+      const planDays = { week:7, two_weeks:14, month:30, custom: parseInt(document.getElementById("grant-days").value)||7 };
+      const d = planDays[plan];
+      const planLabel = { week:"1 неделя", two_weeks:"2 недели", month:"1 месяц", custom:`${d} дн.` }[plan];
+      const expiry = new Date(Date.now() + d*86400000).toLocaleDateString("ru");
+      _pendingAction = { type:"subscription", uid, plan, days:d, expiry_iso: new Date(Date.now()+d*86400000).toISOString(), reason };
+      return `Выдать подписку <b>${planLabel}</b> до <b>${expiry}</b>`;
+    },
+    trial: () => {
+      const d = parseInt(document.getElementById("trial-days").value) || 0;
+      if (!d) { alert("Укажите количество дней"); return null; }
+      _pendingAction = { type:"trial", uid, days:d, reason };
+      return `Продлить триал на <b>+${d} дней</b>`;
+    },
+    premium: () => {
+      const d = parseInt(document.getElementById("premium-days").value) || 30;
+      const features = [];
+      if (document.getElementById("prem-saved-searches").checked) features.push("Сохранение поисков");
+      if (document.getElementById("prem-unlimited").checked) features.push("Без лимита");
+      if (document.getElementById("prem-alerts").checked) features.push("Алерты");
+      _pendingAction = { type:"premium", uid, days:d, features, reason };
+      return `Активировать Премиум поиск на <b>${d} дней</b><br><small style="color:#888">${features.join(", ")}</small>`;
+    },
+    activate: () => { _pendingAction = { type:"status", uid, action:"active", reason }; return "✅ <b>Активировать</b> аккаунт"; },
+    block:    () => { _pendingAction = { type:"status", uid, action:"blocked", reason }; return "🚫 <b>Заблокировать</b> аккаунт"; },
+    reset:    () => { _pendingAction = { type:"status", uid, action:"reset", reason }; return "↺ <b>Сбросить подписку</b>"; },
+  };
+
+  const summary = summaries[actionType]?.();
+  if (!summary) return;
+
+  document.getElementById("modal-title").textContent = `Подтвердить действие`;
+  document.getElementById("modal-body").innerHTML = `
+    <div style="background:#f8f9ff;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">
+      <div style="color:#888;font-size:11px;margin-bottom:4px">Пользователь</div>
+      <b>${name}</b> <span style="color:#888;font-size:11px">(ID: ${uid})</span>
+    </div>
+    <div style="background:#fffbf0;border:1px solid #F59E0B;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px">
+      <div style="color:#888;font-size:11px;margin-bottom:4px">Действие</div>
+      ${summary}
+    </div>
+    <div style="background:#f0f8f4;border-radius:8px;padding:12px;font-size:12px">
+      <div style="color:#888;font-size:11px;margin-bottom:4px">Причина</div>
+      <i style="color:#333">${reason}</i>
+    </div>`;
+
+  document.getElementById("acc-modal").style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("acc-modal").style.display = "none";
+  _pendingAction = null;
+}
+
+async function modalConfirm() {
+  if (!_pendingAction) return;
+  closeModal();
   const statusEl = document.getElementById("grant-status");
+  statusEl.style.color = "#888";
+  statusEl.textContent = "⏳ Применяем...";
 
-  const planDays = { week: 7, two_weeks: 14, month: 30, custom: parseInt(days) || 7 };
-  const d = planDays[plan];
-  const expiry = new Date(Date.now() + d * 86400000).toISOString();
-
-  statusEl.textContent = "⏳ Выдаём...";
+  const a = _pendingAction;
   try {
-    const r = await fetch(`/api/admin/accounts/grant`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ user_id: uid, plan, days: d, expiry_iso: expiry })
-    });
-    const res = await r.json();
-    if (res.ok) {
-      statusEl.textContent = `✅ Подписка выдана до ${new Date(expiry).toLocaleDateString("ru")}`;
-      statusEl.style.color = "#4CAF8A";
-      // Update analytics flag
-      await fetch(`/api/admin/accounts/set-status`, {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({user_id: uid, subscribed: true})
-      });
-    } else {
-      statusEl.textContent = `❌ ${res.error || "Ошибка"}`;
-      statusEl.style.color = "#EF4444";
+    let r, res;
+    if (a.type === "subscription") {
+      r = await fetch("/api/admin/accounts/grant", { method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({user_id:a.uid, plan:a.plan, days:a.days, expiry_iso:a.expiry_iso, reason:a.reason}) });
+      res = await r.json();
+      if (res.ok) { statusEl.textContent = `✅ Подписка выдана до ${new Date(a.expiry_iso).toLocaleDateString("ru")}`; statusEl.style.color="#4CAF8A"; }
+      else throw new Error(res.error);
+    } else if (a.type === "trial") {
+      r = await fetch("/api/admin/accounts/bonus", { method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({user_id:a.uid, days:a.days, reason:a.reason}) });
+      res = await r.json();
+      if (res.ok) { statusEl.textContent = `✅ +${a.days} дней триала начислено`; statusEl.style.color="#F59E0B"; }
+      else throw new Error(res.error);
+    } else if (a.type === "premium") {
+      r = await fetch("/api/admin/accounts/grant", { method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({user_id:a.uid, plan:"premium_search", days:a.days,
+          expiry_iso: new Date(Date.now()+a.days*86400000).toISOString(),
+          features:a.features, reason:a.reason}) });
+      res = await r.json();
+      if (res.ok) { statusEl.textContent = `✅ Премиум поиск активирован на ${a.days} дней`; statusEl.style.color="#7F77DD"; }
+      else throw new Error(res.error);
+    } else if (a.type === "status") {
+      r = await fetch("/api/admin/accounts/set-status", { method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({user_id:a.uid, action:a.action, reason:a.reason}) });
+      res = await r.json();
+      const msgs = {active:"✅ Активирован", blocked:"🚫 Заблокирован", reset:"↺ Подписка сброшена"};
+      if (res.ok) { statusEl.textContent = msgs[a.action]; statusEl.style.color="#4CAF8A"; }
+      else throw new Error(res.error);
     }
+    // Reload audit log
+    loadAuditLog(a.uid);
+    _pendingAction = null;
   } catch(e) {
     statusEl.textContent = `❌ ${e.message}`;
     statusEl.style.color = "#EF4444";
   }
 }
 
-// ── Grant bonus days ──────────────────────────────────────────────
-async function grantBonusDays() {
-  const uid = document.getElementById("grant-user-id").value;
-  const bonus = parseInt(document.getElementById("grant-bonus").value) || 0;
-  if (!uid || !bonus) return;
-  const statusEl = document.getElementById("grant-status");
-  statusEl.textContent = "⏳ Начисляем...";
+// ── Audit log ─────────────────────────────────────────────────────
+async function loadAuditLog(uid) {
+  const logDiv = document.getElementById("acc-audit-log");
+  const listDiv = document.getElementById("acc-audit-list");
   try {
-    const r = await fetch(`/api/admin/accounts/bonus`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ user_id: uid, days: bonus })
-    });
-    const res = await r.json();
-    statusEl.textContent = res.ok ? `✅ +${bonus} бонусных дней начислено` : `❌ ${res.error}`;
-    statusEl.style.color = res.ok ? "#F59E0B" : "#EF4444";
-  } catch(e) {
-    statusEl.textContent = `❌ ${e.message}`;
-    statusEl.style.color = "#EF4444";
-  }
+    const r = await fetch(`/api/admin/audit-log?user_id=${uid}`);
+    const d = await r.json();
+    const entries = d.items || [];
+    if (!entries.length) { logDiv.style.display = "none"; return; }
+    logDiv.style.display = "";
+    listDiv.innerHTML = entries.map(e => `
+      <div style="padding:5px 0;border-bottom:1px solid #f4f4f4;display:flex;justify-content:space-between;gap:8px">
+        <div>
+          <b style="font-size:11px">${e.action_label || e.action}</b>
+          <span style="color:#888;font-size:10px"> — ${e.reason || "без причины"}</span>
+        </div>
+        <div style="color:#bbb;font-size:10px;white-space:nowrap">${(e.ts||"").slice(0,16).replace("T"," ")}</div>
+      </div>`).join("");
+  } catch(_) { logDiv.style.display = "none"; }
 }
 
-// ── Set account status ────────────────────────────────────────────
-async function setAccountStatus(action) {
-  const uid = document.getElementById("grant-user-id").value;
-  if (!uid) return;
-  const statusEl = document.getElementById("grant-status");
-  statusEl.textContent = "⏳...";
-  try {
-    const r = await fetch(`/api/admin/accounts/set-status`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ user_id: uid, action })
-    });
-    const res = await r.json();
-    const msgs = { active:"✅ Активирован", blocked:"🚫 Заблокирован", reset:"↺ Подписка сброшена" };
-    statusEl.textContent = res.ok ? msgs[action] : `❌ ${res.error}`;
-    statusEl.style.color = res.ok ? "#4CAF8A" : "#EF4444";
-  } catch(e) {
-    statusEl.textContent = `❌ ${e.message}`;
-    statusEl.style.color = "#EF4444";
-  }
-}
+// Legacy stubs (kept for backward compat)
+function grantSubscription() { openGrantModal("subscription"); }
+function grantBonusDays() { openGrantModal("trial"); }
+function setAccountStatus(a) { openGrantModal(a === "active" ? "activate" : a === "blocked" ? "block" : "reset"); }
 
 // ── Promo codes ───────────────────────────────────────────────────
 async function loadPromos() {

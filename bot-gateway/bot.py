@@ -857,6 +857,18 @@ class WebHandler(BaseHTTPRequestHandler):
         resource = parts[2] if len(parts) > 2 else ""
         rid = parts[3] if len(parts) > 3 else ""
 
+        # ── Audit log GET ──────────────────────────────────────────────────
+        if resource == "audit-log" and method == "GET":
+            from analytics import _load_stats
+            qs_p = parse_qs(parsed.query)
+            uid_filter = (qs_p.get("user_id") or [""])[0]
+            stats = _load_stats()
+            log = stats.get("admin_audit_log", [])
+            if uid_filter:
+                log = [e for e in log if str(e.get("user_id")) == str(uid_filter)]
+            log = sorted(log, key=lambda e: e.get("ts", ""), reverse=True)[:50]
+            return self._send_json({"items": log})
+
         # ── Grant subscription ──────────────────────────────────────────────
         if resource == "accounts" and rid == "grant" and method == "POST":
             try:
@@ -864,36 +876,54 @@ class WebHandler(BaseHTTPRequestHandler):
                 plan = body.get("plan", "month")
                 expiry_iso = body.get("expiry_iso")
                 days = int(body.get("days", 30))
+                reason = body.get("reason", "")
+                features = body.get("features", [])
                 if not uid or not expiry_iso:
                     return self._send_json({"ok": False, "error": "user_id и expiry_iso обязательны"}, 400)
                 db.set_user_paid_subscription(uid, plan, expiry_iso)
-                # Mark subscribed in stats.json
-                try:
-                    from analytics import _load_stats, _save_stats
-                    s = _load_stats(); u = s.get("users", {}).get(str(uid))
-                    if u: u["subscribed"] = True
-                    _save_stats(s)
-                except Exception: pass
-                # Telegram notify
+                # Mark subscribed in stats.json + write audit entry
+                from analytics import _load_stats, _save_stats
+                s = _load_stats()
+                u = s.get("users", {}).get(str(uid))
+                if u: u["subscribed"] = True
+                s.setdefault("admin_audit_log", []).append({
+                    "user_id": str(uid), "action": "grant_subscription",
+                    "action_label": f"Подписка: {plan} ({days} дн.)",
+                    "reason": reason, "ts": datetime.now().isoformat()
+                })
+                _save_stats(s)
+                label = {"week":"1 неделя","two_weeks":"2 недели","month":"1 месяц",
+                         "premium_search":"Премиум поиск"}.get(plan, plan)
+                if plan == "premium_search" and features:
+                    label += f" ({', '.join(features)})"
                 self._send_tg_notify(uid,
-                    f"🎁 <b>Подписка активирована администратором!</b>\n\n"
-                    f"Активна до <b>{expiry_iso[:10]}</b>. Спасибо!")
-                logger.info(f"[ADMIN] Granted {plan} to user {uid} until {expiry_iso}")
+                    f"🎁 <b>Доступ активирован администратором!</b>\n\n"
+                    f"Тариф: <b>{label}</b>\nАктивен до <b>{expiry_iso[:10]}</b>.")
+                logger.info(f"[ADMIN] Granted {plan} to user {uid} | reason: {reason}")
                 return self._send_json({"ok": True, "expiry_iso": expiry_iso})
             except Exception as e:
                 return self._send_json({"ok": False, "error": str(e)}, 500)
 
-        # ── Bonus days ─────────────────────────────────────────────────────
+        # ── Bonus days (trial extension) ────────────────────────────────────
         if resource == "accounts" and rid == "bonus" and method == "POST":
             try:
                 uid = int(body.get("user_id", 0))
                 days = int(body.get("days", 0))
+                reason = body.get("reason", "")
                 if not uid or not days:
                     return self._send_json({"ok": False, "error": "user_id и days обязательны"}, 400)
                 db.add_bonus_days(uid, days)
+                from analytics import _load_stats, _save_stats
+                s = _load_stats()
+                s.setdefault("admin_audit_log", []).append({
+                    "user_id": str(uid), "action": "bonus_days",
+                    "action_label": f"Продление триала: +{days} дн.",
+                    "reason": reason, "ts": datetime.now().isoformat()
+                })
+                _save_stats(s)
                 self._send_tg_notify(uid,
-                    f"🎁 <b>Бонус от администратора!</b>\n\nНачислено <b>+{days} дней</b> подписки.")
-                logger.info(f"[ADMIN] +{days} bonus days to user {uid}")
+                    f"🎁 <b>Бонус от администратора!</b>\n\nНачислено <b>+{days} дней</b>.")
+                logger.info(f"[ADMIN] +{days} bonus days to user {uid} | reason: {reason}")
                 return self._send_json({"ok": True})
             except Exception as e:
                 return self._send_json({"ok": False, "error": str(e)}, 500)
@@ -904,12 +934,14 @@ class WebHandler(BaseHTTPRequestHandler):
                 uid = int(body.get("user_id", 0))
                 action = body.get("action", "")
                 subscribed = body.get("subscribed")
+                reason = body.get("reason", "")
                 if not uid:
                     return self._send_json({"ok": False, "error": "user_id обязателен"}, 400)
                 from analytics import _load_stats, _save_stats
                 stats = _load_stats()
                 u = stats.get("users", {}).get(str(uid))
                 msg = None
+                labels = {"blocked":"Заблокирован","active":"Активирован","reset":"Подписка сброшена"}
                 if action == "blocked":
                     if u: u["blocked"] = True
                     msg = "🚫 Ваш аккаунт заблокирован администратором."
@@ -920,9 +952,14 @@ class WebHandler(BaseHTTPRequestHandler):
                     if u: u["subscribed"] = False
                 elif subscribed is not None:
                     if u: u["subscribed"] = bool(subscribed)
+                stats.setdefault("admin_audit_log", []).append({
+                    "user_id": str(uid), "action": f"set_status_{action}",
+                    "action_label": labels.get(action, action),
+                    "reason": reason, "ts": datetime.now().isoformat()
+                })
                 _save_stats(stats)
                 if msg: self._send_tg_notify(uid, msg)
-                logger.info(f"[ADMIN] set-status action={action!r} for user {uid}")
+                logger.info(f"[ADMIN] set-status action={action!r} for user {uid} | reason: {reason}")
                 return self._send_json({"ok": True})
             except Exception as e:
                 return self._send_json({"ok": False, "error": str(e)}, 500)
@@ -2339,8 +2376,8 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 self.end_headers()
                 self.wfile.write(body)
 
-        elif path.startswith("/api/admin/") and path != "/api/admin/users":
-            # Other admin GET routes (e.g. promo-codes list)
+        elif path.startswith("/api/admin/"):
+            # Other admin GET routes (promo-codes list, audit-log, etc.)
             return self._handle_admin_api("GET", path, {})
 
         elif path == "/api/admin/users":
