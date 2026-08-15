@@ -21,14 +21,14 @@ from config import (
     CAR_MENU, CAR_SEARCH_BODY, CAR_SEARCH_CITY, CAR_SEARCH_PRICE_MIN, CAR_SEARCH_PRICE_MAX, CAR_SEARCH_YEAR,
     CAR_ADD_MAKE, CAR_ADD_MODEL, CAR_ADD_YEAR, CAR_ADD_MILEAGE, CAR_ADD_TRANSMISSION,
     CAR_ADD_FUEL, CAR_ADD_HAND, CAR_ADD_BODY, CAR_ADD_PRICE, CAR_ADD_CITY,
-    CAR_ADD_DESCRIPTION, CAR_ADD_CONTACT, CAR_ADD_CONFIRM,
+    CAR_ADD_DESCRIPTION, CAR_ADD_CONTACT, CAR_ADD_PHOTOS, CAR_ADD_CONFIRM,
     CAR_BODY_TYPES, CAR_TRANSMISSION, CAR_FUEL,
 )
 from keyboards import (
     car_menu_keyboard, car_body_keyboard, car_make_keyboard, car_city_keyboard,
     car_price_keyboard, car_year_keyboard, car_transmission_keyboard, car_fuel_keyboard,
     car_hand_keyboard, car_body_single_keyboard, car_confirm_keyboard, car_skip_keyboard,
-    car_cabinet_keyboard, car_manage_keyboard, back_to_menu_keyboard, main_menu_keyboard,
+    car_photos_keyboard, car_cabinet_keyboard, car_manage_keyboard, back_to_menu_keyboard, main_menu_keyboard,
 )
 from formatters import format_welcome
 import database as db
@@ -58,6 +58,19 @@ def _car_card_text(v: dict) -> str:
         f"{contact_line}"
         f"{desc_line}"
     )[:4000]
+
+
+async def _send_car_card(context, chat_id, v: dict):
+    """Send a vehicle card — as a photo with caption if it has photos, else plain text."""
+    text = _car_card_text(v)
+    photos = v.get("photos") or []
+    if photos:
+        try:
+            await context.bot.send_photo(chat_id=chat_id, photo=photos[0], caption=text, parse_mode="HTML")
+            return
+        except Exception:
+            pass  # fall through to plain text if the file_id is stale/invalid
+    await context.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
 
 
 class CarHandler:
@@ -223,7 +236,7 @@ class CarHandler:
             return
         await context.bot.send_message(chat_id=chat_id, text=f"✅ Найдено {len(results)} авто:")
         for v in results[:10]:
-            await context.bot.send_message(chat_id=chat_id, text=_car_card_text(v), parse_mode="HTML")
+            await _send_car_card(context, chat_id, v)
         await context.bot.send_message(
             chat_id=chat_id, text="Что дальше?", reply_markup=car_menu_keyboard(context), parse_mode="HTML"
         )
@@ -309,7 +322,7 @@ class CarHandler:
         await query.answer()
         val = query.data.replace("car_addbody_", "")
         context.user_data["car_add"]["body_type"] = val
-        await query.edit_message_text("Шаг 9/12: Цена в ₪ (например 65000)", parse_mode="HTML")
+        await query.edit_message_text("Шаг 9/13: Цена в ₪ (например 65000)", parse_mode="HTML")
         return CAR_ADD_PRICE
 
     async def handle_add_price(self, update, context):
@@ -319,7 +332,7 @@ class CarHandler:
             return CAR_ADD_PRICE
         context.user_data["car_add"]["price"] = int(txt)
         await update.message.reply_text(
-            "Шаг 10/12: Город", reply_markup=car_city_keyboard(context, "car_addcity"), parse_mode="HTML"
+            "Шаг 10/13: Город", reply_markup=car_city_keyboard(context, "car_addcity"), parse_mode="HTML"
         )
         return CAR_ADD_CITY
 
@@ -329,30 +342,58 @@ class CarHandler:
         val = query.data.replace("car_addcity_", "")
         context.user_data["car_add"]["city"] = "" if val == "all" else val
         await query.edit_message_text(
-            "Шаг 11/12: Описание (состояние, комплектация и т.д.) — или нажмите «Пропустить»",
+            "Шаг 11/13: Описание (состояние, комплектация и т.д.) — или нажмите «Пропустить»",
             reply_markup=car_skip_keyboard(context, "car_desc_skip"), parse_mode="HTML"
         )
         return CAR_ADD_DESCRIPTION
 
     async def handle_add_description(self, update, context):
         context.user_data["car_add"]["description"] = update.message.text.strip()[:1000]
-        await update.message.reply_text("Шаг 12/12: Контакт (телефон или @username)")
+        await update.message.reply_text("Шаг 12/13: Контакт (телефон или @username)")
         return CAR_ADD_CONTACT
 
     async def handle_add_description_skip(self, update, context):
         query = update.callback_query
         await query.answer()
         context.user_data["car_add"]["description"] = ""
-        await query.edit_message_text("Шаг 12/12: Контакт (телефон или @username)", parse_mode="HTML")
+        await query.edit_message_text("Шаг 12/13: Контакт (телефон или @username)", parse_mode="HTML")
         return CAR_ADD_CONTACT
 
     async def handle_add_contact(self, update, context):
         context.user_data["car_add"]["contact"] = update.message.text.strip()[:120]
-        data = context.user_data["car_add"]
-        preview = _car_card_text({**data, "id": 0, "active": True, "views": 0})
+        context.user_data["car_add"]["photos"] = []
         await update.message.reply_text(
-            "Проверьте объявление:\n\n" + preview, reply_markup=car_confirm_keyboard(context), parse_mode="HTML"
+            "Шаг 13/13: 📸 Отправьте фото авто (до 10 штук).\nКогда закончите — нажмите кнопку ниже.",
+            reply_markup=car_photos_keyboard(context, 0), parse_mode="HTML"
         )
+        return CAR_ADD_PHOTOS
+
+    async def handle_add_photo_message(self, update, context):
+        photos = context.user_data.setdefault("car_add", {}).setdefault("photos", [])
+        if len(photos) < 10 and update.message.photo:
+            file_id = update.message.photo[-1].file_id
+            photos.append(file_id)
+        await update.message.reply_text(
+            f"📸 Получено {len(photos)} фото. Отправьте ещё или нажмите «Готово».",
+            reply_markup=car_photos_keyboard(context, len(photos)), parse_mode="HTML"
+        )
+        return CAR_ADD_PHOTOS
+
+    async def handle_add_photos_done(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        data = context.user_data.get("car_add", {})
+        preview = _car_card_text({**data, "id": 0, "active": True, "views": 0})
+        photos = data.get("photos") or []
+        if photos:
+            await query.message.reply_photo(
+                photo=photos[0], caption="Проверьте объявление:\n\n" + preview,
+                reply_markup=car_confirm_keyboard(context), parse_mode="HTML"
+            )
+        else:
+            await query.message.reply_text(
+                "Проверьте объявление:\n\n" + preview, reply_markup=car_confirm_keyboard(context), parse_mode="HTML"
+            )
         return CAR_ADD_CONFIRM
 
     async def handle_publish(self, update, context):
@@ -366,11 +407,13 @@ class CarHandler:
         data["source"] = "user"
         vid = db.add_vehicle(data)
         context.user_data.pop("car_add", None)
-        await query.edit_message_text(
-            f"✅ Авто размещено! (№{vid})\n\nОно уже видно в поиске.", parse_mode="HTML"
-        )
+        chat_id = update.effective_chat.id
+        try:
+            await query.edit_message_caption(caption=f"✅ Авто размещено! (№{vid})\n\nОно уже видно в поиске.", parse_mode="HTML")
+        except Exception:
+            await query.edit_message_text(f"✅ Авто размещено! (№{vid})\n\nОно уже видно в поиске.", parse_mode="HTML")
         await context.bot.send_message(
-            chat_id=update.effective_chat.id, text="Что дальше?",
+            chat_id=chat_id, text="Что дальше?",
             reply_markup=car_menu_keyboard(context), parse_mode="HTML"
         )
         return ConversationHandler.END
@@ -463,6 +506,10 @@ class CarHandler:
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_add_description),
                 ],
                 CAR_ADD_CONTACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_add_contact)],
+                CAR_ADD_PHOTOS: [
+                    MessageHandler(filters.PHOTO, self.handle_add_photo_message),
+                    CallbackQueryHandler(self.handle_add_photos_done, pattern="^car_photos_done$"),
+                ],
                 CAR_ADD_CONFIRM: [
                     CallbackQueryHandler(self.handle_publish, pattern="^car_publish$"),
                     CallbackQueryHandler(self.cancel, pattern="^back_to_menu$"),

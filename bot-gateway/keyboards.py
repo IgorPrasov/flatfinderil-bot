@@ -717,6 +717,11 @@ def car_body_single_keyboard(ctx, prefix="car_addbody"):
     return InlineKeyboardMarkup(rows)
 
 
+def car_photos_keyboard(ctx, count: int):
+    label = f"✅ Готово ({count} фото)" if count else "⏭ Без фото"
+    return InlineKeyboardMarkup([[InlineKeyboardButton(label, callback_data="car_photos_done")]])
+
+
 def car_confirm_keyboard(ctx):
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Опубликовать", callback_data="car_publish")],
