@@ -606,10 +606,29 @@ def run_once(groups: list[dict] | None = None, headful: bool = False) -> int:
     groups_failed = 0
     first_group_error = ""
 
+    # ── Residential/mobile proxy (required — Facebook blocks datacenter IPs) ──
+    # Set on Railway: FB_PROXY_SERVER (e.g. "http://host:port" or "socks5://host:port"),
+    # optionally FB_PROXY_USERNAME / FB_PROXY_PASSWORD if the proxy requires auth.
+    proxy_server = os.environ.get("FB_PROXY_SERVER", "").strip()
+    proxy_config = None
+    if proxy_server:
+        proxy_config = {"server": proxy_server}
+        proxy_user = os.environ.get("FB_PROXY_USERNAME", "").strip()
+        proxy_pass = os.environ.get("FB_PROXY_PASSWORD", "").strip()
+        if proxy_user:
+            proxy_config["username"] = proxy_user
+        if proxy_pass:
+            proxy_config["password"] = proxy_pass
+        _diag("fb_parser_proxy_mode", f"proxy:{proxy_server}")
+        log.info(f"🌐 Используем прокси: {proxy_server}")
+    else:
+        _diag("fb_parser_proxy_mode", "direct (no proxy configured)")
+        log.warning("⚠️  FB_PROXY_SERVER не задан — запрос идёт напрямую с IP хостинга")
+
     try:
         with sync_playwright() as pw:
             try:
-                browser = pw.chromium.launch(
+                launch_kwargs = dict(
                     headless=not headful,
                     args=[
                         "--disable-blink-features=AutomationControlled",
@@ -618,6 +637,9 @@ def run_once(groups: list[dict] | None = None, headful: bool = False) -> int:
                         "--disable-features=IsolateOrigins,site-per-process",
                     ],
                 )
+                if proxy_config:
+                    launch_kwargs["proxy"] = proxy_config
+                browser = pw.chromium.launch(**launch_kwargs)
             except Exception as e:
                 _diag("fb_parser_run_status", "chromium_launch_failed")
                 _diag("fb_parser_last_error", f"launch(): {e}")
