@@ -850,12 +850,100 @@ class WebHandler(BaseHTTPRequestHandler):
             self.wfile.write(content)
         except: self.send_response(500); self.end_headers()
 
-    def _handle_admin_api(self, method: str, path: str, body: dict):
+    def _handle_admin_api(self, method: str, path: str, body: dict, query: dict = None):
         """Internal admin API — no session required (dashboard-only, not public)."""
-        # Strip /api/admin/ prefix and split into resource + optional id
-        parts = path.lstrip("/").split("/")  # ['api', 'admin', resource, id?]
+        # Strip /api/admin/ prefix and split into resource + optional id + action
+        parts = path.lstrip("/").split("/")  # ['api', 'admin', resource, id?, action?]
         resource = parts[2] if len(parts) > 2 else ""
-        rid = parts[3] if len(parts) > 3 else ""
+        rid      = parts[3] if len(parts) > 3 else ""
+        action   = parts[4] if len(parts) > 4 else ""
+        query    = query or {}
+
+        # ── Search users  GET /api/admin/users?q=... ───────────────────────
+        if resource == "users" and method == "GET":
+            try:
+                from analytics import _load_stats
+                q = (query.get("q") or [""])[0].strip().lower().lstrip("@")
+                stats = _load_stats()
+                users = stats.get("users", {})
+                items = [{"user_id": uid, **udata} for uid, udata in users.items()]
+                if q:
+                    def _match(u):
+                        return (
+                            q in str(u.get("user_id", "")).lower() or
+                            q in (u.get("username") or "").lower() or
+                            q in (u.get("first_name") or "").lower() or
+                            q in (u.get("last_name") or "").lower()
+                        )
+                    items = [u for u in items if _match(u)]
+                items.sort(key=lambda u: u.get("last_seen", ""), reverse=True)
+                return self._send_json({"total": len(items), "items": items[:100]})
+            except Exception as e:
+                return self._send_json({"error": str(e), "total": 0, "items": []}, 500)
+
+        # ── GET single listing ────────────────────────────────────────────
+        if resource == "listings" and rid and method == "GET":
+            try:
+                listing = db.get_listing(int(rid))
+                if listing:
+                    return self._send_json({"listing": listing})
+                return self._send_json({"error": "Not found"}, 404)
+            except Exception as e:
+                return self._send_json({"error": str(e)}, 500)
+
+        # ── PATCH listing (edit fields) ────────────────────────────────────
+        if resource == "listings" and rid and method == "PATCH":
+            try:
+                lid = int(rid)
+                fields = {k: v for k, v in body.items()
+                          if k in ("title","city","neighborhood","rooms","floor","price",
+                                   "deal_type","property_type","area_sqm","contact",
+                                   "description","parking","pool","active","pinned")}
+                ok = db.update_listing(lid, fields)
+                if ok:
+                    listing = db.get_listing(lid)
+                    logger.info(f"[ADMIN] Edited listing {lid}: {list(fields.keys())}")
+                    return self._send_json({"ok": True, "listing": listing})
+                return self._send_json({"ok": False, "error": "Listing not found"}, 404)
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
+
+        # ── POST boost listing  /api/admin/listings/:id/boost ─────────────
+        if resource == "listings" and action == "boost" and method == "POST":
+            try:
+                lid = int(rid)
+                today = datetime.now().strftime("%Y-%m-%d")
+                ok = db.update_listing(lid, {"date_added": today, "boosted": True})
+                listing = db.get_listing(lid)
+                logger.info(f"[ADMIN] Boosted listing {lid}")
+                return self._send_json({"ok": ok, "listing": listing})
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
+
+        # ── POST pin/unpin listing  /api/admin/listings/:id/pin ───────────
+        if resource == "listings" and action == "pin" and method == "POST":
+            try:
+                lid = int(rid)
+                pin_val = body.get("pin", True)
+                ok = db.update_listing(lid, {"pinned": bool(pin_val)})
+                listing = db.get_listing(lid)
+                logger.info(f"[ADMIN] {'Pinned' if pin_val else 'Unpinned'} listing {lid}")
+                return self._send_json({"ok": ok, "listing": listing})
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
+
+        # ── POST send-message (contact client via Telegram) ────────────────
+        if resource == "send-message" and method == "POST":
+            try:
+                uid = int(body.get("user_id", 0))
+                text = body.get("text", "").strip()
+                if not uid or not text:
+                    return self._send_json({"ok": False, "error": "user_id и text обязательны"}, 400)
+                self._send_tg_notify(uid, text)
+                logger.info(f"[ADMIN] Sent message to user {uid}: {text[:60]}")
+                return self._send_json({"ok": True})
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
 
         # ── Audit log GET ──────────────────────────────────────────────────
         if resource == "audit-log" and method == "GET":
@@ -2377,31 +2465,9 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 self.wfile.write(body)
 
         elif path.startswith("/api/admin/"):
-            # Other admin GET routes (promo-codes list, audit-log, etc.)
-            return self._handle_admin_api("GET", path, {})
-
-        elif path == "/api/admin/users":
-            # Internal dashboard: search users from stats.json (no backoffice session required)
-            try:
-                from analytics import _load_stats
-                qs_params = parse_qs(parsed.query)
-                q = (qs_params.get("q") or [""])[0].strip().lower().lstrip("@")
-                stats = _load_stats()
-                users = stats.get("users", {})
-                items = [{"user_id": uid, **udata} for uid, udata in users.items()]
-                if q:
-                    def _match(u):
-                        return (
-                            q in str(u.get("user_id", "")).lower() or
-                            q in (u.get("username") or "").lower() or
-                            q in (u.get("first_name") or "").lower() or
-                            q in (u.get("last_name") or "").lower()
-                        )
-                    items = [u for u in items if _match(u)]
-                items.sort(key=lambda u: u.get("last_seen", ""), reverse=True)
-                self._send_json({"total": len(items), "items": items[:100]})
-            except Exception as e:
-                self._send_json({"error": str(e), "total": 0, "items": []}, 500)
+            # All internal admin GET routes: users search, listings, promo-codes, audit-log
+            qs_params = parse_qs(parsed.query)
+            return self._handle_admin_api("GET", path, {}, qs_params)
 
         elif path in ("/miniapp", "/app", "/miniapp/"):
             # Telegram Mini App (opened via bot button)
@@ -2646,6 +2712,12 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
 
     def do_PATCH(self):
         path = urlparse(self.path).path
+        if path.startswith("/api/admin/"):
+            content_len = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(content_len) if content_len else b"{}"
+            try: body = json_module.loads(raw)
+            except Exception: body = {}
+            return self._handle_admin_api("PATCH", path, body)
         if path.startswith("/api/crm"):
             return self._handle_crm_api("PATCH", path)
         if path.startswith("/backoffice/api/"):
