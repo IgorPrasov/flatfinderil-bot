@@ -549,7 +549,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("mover_subscribe_"):
         pass  # already handled before handle_menu runs
 
-    # ── Subscribe to search ────────────────────────────────────────────────
+    # ── Subscribe to search (paid: 39.90₪/нед, gated by is_alert_active) ────
     elif data == "subscribe_search":
         filters = context.user_data.get("search_filters", {})
         if not filters:
@@ -558,7 +558,16 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer(msg, show_alert=True)
             return
         user_id = update.effective_user.id
-        db.add_search_subscription(user_id, filters)
+        if not db.is_alert_active(user_id):
+            lang = get_lang(context)
+            msg = {
+                "ru": "🔔 Подписка на поиск — платная услуга (39.90 ₪/нед).\n\nОформите через раздел «🔔 Уведомления» в главном меню.",
+                "en": "🔔 Search subscription is a paid feature (₪39.90/wk).\n\nSubscribe via the «🔔 Alerts» menu.",
+                "he": "🔔 מנוי חיפוש הוא שירות בתשלום (39.90 ₪/שבוע).\n\nהירשם דרך תפריט «🔔 התראות».",
+            }.get(lang, "🔔 This is a paid feature. Subscribe via the Alerts menu.")
+            await query.answer(msg, show_alert=True)
+            return
+        db.add_search_subscription(user_id, filters, reason="Оплачено 39.90₪/нед", created_by="self")
         await query.answer(t("sub_search_added", context), show_alert=True)
 
     # ── My subscriptions ───────────────────────────────────────────────────

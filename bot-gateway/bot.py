@@ -946,6 +946,58 @@ class WebHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send_json({"ok": False, "error": str(e)}, 500)
 
+        # ── Search subscriptions (paid alerts, 39.90₪/wk) ────────────────────
+        # GET /api/admin/search-subscriptions — full list with user info + status
+        if resource == "search-subscriptions" and method == "GET":
+            from analytics import _load_stats
+            stats = _load_stats()
+            users_meta = stats.get("users", {})
+            import subscription as sub
+            data = db._load()
+            all_subs = data.get("subscriptions", {})
+            out = []
+            for uid, entries in all_subs.items():
+                u = users_meta.get(uid, {})
+                name = " ".join(filter(None, [u.get("first_name"), u.get("last_name")])) or "—"
+                is_active = db.is_alert_active(int(uid)) if uid.isdigit() else False
+                expiry = db.get_alert_expiry(int(uid)) if uid.isdigit() else None
+                is_admin = int(uid) in getattr(sub, "_ADMIN_IDS", set()) if uid.isdigit() else False
+                for e in entries:
+                    out.append({
+                        "user_id": uid,
+                        "user_name": name,
+                        "username": u.get("username", ""),
+                        "sub_id": e.get("id"),
+                        "created": e.get("created"),
+                        "filters": e.get("filters", {}),
+                        "reason": e.get("reason", ""),
+                        "created_by": e.get("created_by", ""),
+                        "is_active": is_active or is_admin,
+                        "is_admin": is_admin,
+                        "expiry": expiry,
+                    })
+            out.sort(key=lambda x: x.get("created", ""), reverse=True)
+            return self._send_json({"total": len(out), "items": out})
+
+        # DELETE /api/admin/search-subscriptions/<user_id>  — remove ALL subs for a user
+        if resource == "search-subscriptions" and rid and method == "DELETE":
+            try:
+                uid = int(rid)
+                removed = db.remove_all_subscriptions_for_user(uid)
+                from analytics import _load_stats, _save_stats
+                stats = _load_stats()
+                stats.setdefault("admin_audit_log", []).append({
+                    "user_id": str(uid), "action": "remove_search_subscriptions",
+                    "action_label": f"Удалено {removed} подписок на поиск",
+                    "reason": (query.get("reason") or ["Не оплачено"])[0] if query else "Не оплачено",
+                    "ts": datetime.now().isoformat()
+                })
+                _save_stats(stats)
+                logger.info(f"[ADMIN] Removed {removed} search-subscriptions for user {uid}")
+                return self._send_json({"ok": True, "removed": removed})
+            except Exception as e:
+                return self._send_json({"ok": False, "error": str(e)}, 500)
+
         # ── FB parser diagnostics  GET /api/admin/fb-status ─────────────────
         if resource == "fb-status" and method == "GET":
             keys = [
@@ -2766,7 +2818,8 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
         parsed = urlparse(self.path)
         path = parsed.path
         if path.startswith("/api/admin/"):
-            return self._handle_admin_api("DELETE", path, {})
+            qs_params = parse_qs(parsed.query)
+            return self._handle_admin_api("DELETE", path, {}, qs_params)
         if path.startswith("/api/crm"):
             return self._handle_crm_api("DELETE", path)
         if path.startswith("/backoffice/api/"):

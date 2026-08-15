@@ -347,8 +347,9 @@ def increment_view_requests(listing_id: int):
 
 # ── Search subscriptions ──────────────────────────────────────────────────────
 
-def add_search_subscription(user_id: int, filters: Dict) -> str:
-    """Save search filters as a subscription. Returns sub_id."""
+def add_search_subscription(user_id: int, filters: Dict, reason: str = "", created_by: str = "") -> str:
+    """Save search filters as a subscription. Returns sub_id.
+    reason/created_by: audit metadata (e.g. reason='Оплачено 39.90₪', created_by='self' or admin user_id)."""
     with _DB_LOCK:
         data = _load()
         if "subscriptions" not in data:
@@ -363,6 +364,8 @@ def add_search_subscription(user_id: int, filters: Dict) -> str:
             "created": datetime.now().isoformat(),
             "last_checked": datetime.now().isoformat(),
             "last_result_ids": [],
+            "reason": reason or "Оплачено 39.90₪",
+            "created_by": created_by or "self",
         }
         data["subscriptions"][uid].append(sub)
         _save(data)
@@ -384,6 +387,18 @@ def remove_search_subscription(user_id: int, sub_index: int):
 def get_all_subscriptions() -> Dict:
     data = _load()
     return data.get("subscriptions", {})
+
+def remove_all_subscriptions_for_user(user_id: int) -> int:
+    """Delete ALL search-subscriptions for one user. Returns count removed."""
+    with _DB_LOCK:
+        data = _load()
+        uid = str(user_id)
+        subs = data.get("subscriptions", {})
+        removed = len(subs.get(uid, []))
+        if uid in subs:
+            del subs[uid]
+            _save(data)
+        return removed
 
 def update_subscription_last_checked(user_id: int, sub_index: int, last_result_ids: List):
     with _DB_LOCK:

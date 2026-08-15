@@ -1032,6 +1032,17 @@ canvas{max-width:100%}
         </div>
       </div>
     </div>
+
+    <!-- 🔔 Search subscriptions (paid, 39.90₪/wk) — full list with audit info -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🔔 Подписки на поиск (платно, 39.90₪/нед)</span>
+        <button onclick="loadSearchSubs()" style="padding:4px 10px;border:none;border-radius:6px;background:#2563EB;color:#fff;font-size:11px;cursor:pointer">↻ Обновить</button>
+      </div>
+      <div class="card-body">
+        <div id="search-subs-list" style="font-size:12px">Загрузка...</div>
+      </div>
+    </div>
   </div>
 
   <div class="tab" id="tab-digest">
@@ -2984,7 +2995,7 @@ const _origShowTab = window.showTab;
 window.showTab = function(tab, btn) {
   _origShowTab && _origShowTab(tab, btn);
   if (tab === "crm") { crmShowTab("contacts"); }
-  if (tab === "accounts") { loadPromos(); }
+  if (tab === "accounts") { loadPromos(); loadSearchSubs(); }
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -3318,6 +3329,71 @@ async function deletePromo(code) {
   if (!confirm(`Удалить промокод ${code}?`)) return;
   await fetch(`/api/admin/promo-codes/${code}`, { method: "DELETE" });
   loadPromos();
+}
+
+// ── Search subscriptions (paid alerts, 39.90₪/wk) ──────────────────────────
+async function loadSearchSubs() {
+  const el = document.getElementById("search-subs-list");
+  if (!el) return;
+  el.innerHTML = '<span style="color:#999">Загрузка...</span>';
+  try {
+    const r = await fetch("/api/admin/search-subscriptions");
+    const d = await r.json();
+    const items = d.items || [];
+    if (!items.length) {
+      el.innerHTML = '<span style="color:#aaa">Подписок на поиск нет</span>';
+      return;
+    }
+    el.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px;min-width:680px">
+      <tr style="color:#888;font-size:10px;text-transform:uppercase;border-bottom:2px solid #f0f0ea">
+        <th style="text-align:left;padding:5px">Пользователь</th>
+        <th style="text-align:left;padding:5px">Создано</th>
+        <th style="text-align:left;padding:5px">Причина</th>
+        <th style="text-align:left;padding:5px">Кем добавлено</th>
+        <th style="text-align:center;padding:5px">Статус</th>
+        <th style="text-align:center;padding:5px">До</th>
+        <th style="padding:5px"></th>
+      </tr>
+      ${items.map(s => {
+        const created = (s.created || "").slice(0, 16).replace("T", " ");
+        const expiry = s.expiry ? new Date(s.expiry).toLocaleDateString("ru") : (s.is_admin ? "∞ (админ)" : "—");
+        const statusBadge = s.is_active
+          ? `<span style="background:#4CAF8A;color:#fff;border-radius:10px;padding:2px 8px;font-size:10px">✅ Активна</span>`
+          : `<span style="background:#EF4444;color:#fff;border-radius:10px;padding:2px 8px;font-size:10px">⛔ Не оплачена</span>`;
+        return `<tr style="border-bottom:1px solid #f5f5f0">
+          <td style="padding:5px"><b>${s.user_name}</b>${s.username ? ` <span style="color:#888">@${s.username}</span>` : ""}<div style="color:#aaa;font-size:10px">ID: ${s.user_id}</div></td>
+          <td style="padding:5px;color:#888">${created}</td>
+          <td style="padding:5px;color:#555">${s.reason || "—"}</td>
+          <td style="padding:5px;color:#888">${s.created_by === "self" ? "Сам пользователь" : (s.created_by || "—")}</td>
+          <td style="padding:5px;text-align:center">${statusBadge}</td>
+          <td style="padding:5px;text-align:center;color:#888">${expiry}</td>
+          <td style="padding:5px;text-align:center">
+            <button onclick="removeSearchSub('${s.user_id}','${s.user_name.replace(/'/g,"")}')" style="border:none;background:none;color:#EF4444;cursor:pointer;font-size:12px" title="Удалить все подписки этого пользователя">✕</button>
+          </td>
+        </tr>`;
+      }).join("")}
+    </table></div>
+    <div style="font-size:10px;color:#aaa;margin-top:8px">Всего: ${items.length}</div>`;
+  } catch(e) {
+    el.innerHTML = `<span style="color:red">Ошибка: ${e.message}</span>`;
+  }
+}
+
+async function removeSearchSub(userId, userName) {
+  const reason = prompt(`Причина отмены подписки(ок) пользователя ${userName} (ID: ${userId}):`, "Бесплатный тестовый период закончен");
+  if (reason === null) return;
+  try {
+    const r = await fetch(`/api/admin/search-subscriptions/${userId}?reason=${encodeURIComponent(reason)}`, { method: "DELETE" });
+    const d = await r.json();
+    if (d.ok) {
+      cabToast(`✅ Удалено подписок: ${d.removed}`);
+      loadSearchSubs();
+    } else {
+      cabToast(`❌ ${d.error || "Ошибка"}`, false);
+    }
+  } catch(e) {
+    cabToast(`❌ ${e.message}`, false);
+  }
 }
 
 // Enter key on search

@@ -449,16 +449,18 @@ def handle_get_alerts(user_id: int) -> dict:
 
 
 def handle_create_alert(body: dict, user: Optional[dict]) -> dict:
-    """Create a new search alert from provided filters."""
+    """Create a new search alert from provided filters. Requires paid access (39.90₪/wk)."""
     import database_json as dbj
     user_id = int(body.get("user_id", 0))
     if not user_id and user:
         user_id = user.get("id", 0)
     if not user_id:
         return {"error": "Missing user_id"}
+    if not dbj.is_alert_active(user_id):
+        return {"error": "payment_required", "message": "Search subscription is a paid feature (₪39.90/wk). Subscribe via the Alerts menu in the bot."}
     filters = body.get("filters", {})
     try:
-        sub_id = dbj.add_search_subscription(user_id, filters)
+        sub_id = dbj.add_search_subscription(user_id, filters, reason="Оплачено 39.90₪/нед (Mini App)", created_by="self")
         return {"ok": True, "id": sub_id}
     except Exception as e:
         return {"error": str(e)}
