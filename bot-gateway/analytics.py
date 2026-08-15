@@ -713,7 +713,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
         # get their listings
         lids = user_listings_db.get(uid, [])
         active_count = sum(1 for lid in lids if listings_by_id.get(str(lid), {}).get("active"))
-        total_views  = sum(listings_by_id.get(str(lid), {}).get("views", 0) for lid in lids)
+        agent_views  = sum(listings_by_id.get(str(lid), {}).get("views", 0) for lid in lids)
         email_agents.append({
             "user_id":    uid,
             "name":       prof.get("owner_name") or f"Агент #{uid}",
@@ -722,7 +722,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
             "type":       "🏢 Агент",
             "listings":   len(lids),
             "active":     active_count,
-            "views":      total_views,
+            "views":      agent_views,
         })
 
     # Service providers with email (movers/packers)
@@ -738,7 +738,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
             continue
         latest = sorted(user_svcs, key=lambda x: x.get("date_added",""), reverse=True)[0]
         svc_type_label = {"moving": "🚚 Перевозчик", "packing": "📦 Упаковщик"}.get(latest.get("service_type",""), "")
-        total_views = sum(s.get("views", 0) for s in user_svcs)
+        svc_views = sum(s.get("views", 0) for s in user_svcs)
         email_services.append({
             "user_id":  uid,
             "name":     latest.get("owner_name") or f"#{uid}",
@@ -746,7 +746,7 @@ def get_analytics(date_from: str = None, date_to: str = None):
             "lang":     latest.get("lang", "ru"),
             "type":     svc_type_label,
             "services": len(user_svcs),
-            "views":    total_views,
+            "views":    svc_views,
         })
 
     email_subscribers = {
