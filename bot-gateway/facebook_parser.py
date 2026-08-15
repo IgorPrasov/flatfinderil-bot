@@ -563,64 +563,111 @@ def _ensure_chromium():
         log.error(f"Chromium install failed: {result.stderr[-500:]}")
 
 
+def _diag(key: str, value: str):
+    """Persist a diagnostic value so it can be inspected via HTTP (no log access on Railway)."""
+    try:
+        import database as _db
+        _db.set_setting(key, value)
+    except Exception:
+        pass
+
+
 def run_once(groups: list[dict] | None = None, headful: bool = False) -> int:
     target = groups or GROUPS
     log.info("=" * 65)
     log.info(f"🚀  Facebook Parser — старт  |  групп: {len(target)},  скроллов: {SCROLL_ROUNDS}")
     log.info("=" * 65)
+    _diag("fb_parser_run_started_at", datetime.now().isoformat())
+    _diag("fb_parser_run_status", "starting")
 
     _ensure_chromium()
 
     cookies = load_facebook_cookies()
+    _diag("fb_parser_cookie_count", str(len(cookies)))
     if not cookies:
         log.error("❌ Cookies не найдены. Войдите в Facebook в Chrome и повторите.")
+        _diag("fb_parser_run_status", "no_cookies")
         return 0
 
     total = 0
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(
-            headless=not headful,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-features=IsolateOrigins,site-per-process",
-            ],
-        )
-        ctx = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            ),
-            viewport={"width": 1280, "height": 900},
-            locale="ru-RU",
-            timezone_id="Asia/Jerusalem",
-            geolocation={"latitude": 31.7, "longitude": 35.2},
-            permissions=["geolocation"],
-            ignore_https_errors=True,
-        )
-        ctx.add_cookies(cookies)
-        page = ctx.new_page()
+    groups_ok = 0
+    groups_failed = 0
+    first_group_error = ""
 
-        # Установим дополнительные заголовки
-        page.set_extra_http_headers({
-            "Accept-Language": "ru-RU,ru;q=0.9",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        })
-
-        for group in target:
+    try:
+        with sync_playwright() as pw:
             try:
-                total += scrape_group(page, group)
+                browser = pw.chromium.launch(
+                    headless=not headful,
+                    args=[
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--disable-features=IsolateOrigins,site-per-process",
+                    ],
+                )
             except Exception as e:
-                log.error(f"Ошибка в группе '{group['name']}': {e}", exc_info=True)
-            time.sleep(PAUSE_GROUPS)
+                _diag("fb_parser_run_status", "chromium_launch_failed")
+                _diag("fb_parser_last_error", f"launch(): {e}")
+                log.error(f"❌ Chromium launch failed: {e}", exc_info=True)
+                return 0
 
-        browser.close()
+            _diag("fb_parser_run_status", "browser_launched")
+            ctx = browser.new_context(
+                user_agent=(
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                ),
+                viewport={"width": 1280, "height": 900},
+                locale="ru-RU",
+                timezone_id="Asia/Jerusalem",
+                geolocation={"latitude": 31.7, "longitude": 35.2},
+                permissions=["geolocation"],
+                ignore_https_errors=True,
+            )
+            ctx.add_cookies(cookies)
+            page = ctx.new_page()
+
+            # Установим дополнительные заголовки
+            page.set_extra_http_headers({
+                "Accept-Language": "ru-RU,ru;q=0.9",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            })
+
+            _diag("fb_parser_run_status", "scraping")
+            for i, group in enumerate(target):
+                try:
+                    added = scrape_group(page, group)
+                    total += added
+                    groups_ok += 1
+                except Exception as e:
+                    groups_failed += 1
+                    if not first_group_error:
+                        first_group_error = f"[{group.get('name','?')}] {e}"
+                    log.error(f"Ошибка в группе '{group['name']}': {e}", exc_info=True)
+                # Report progress every 5 groups so we don't wait for the whole run
+                if i % 5 == 0 or i == len(target) - 1:
+                    _diag("fb_parser_progress", f"{i+1}/{len(target)} groups | ok={groups_ok} failed={groups_failed} added={total}")
+                    if first_group_error:
+                        _diag("fb_parser_last_error", first_group_error)
+                time.sleep(PAUSE_GROUPS)
+
+            browser.close()
+    except Exception as e:
+        _diag("fb_parser_run_status", "crashed")
+        _diag("fb_parser_last_error", f"run_once() top-level: {e}")
+        log.error(f"❌ run_once() crashed: {e}", exc_info=True)
+        return total
 
     log.info("=" * 65)
-    log.info(f"✅  Готово.  Добавлено объявлений: {total}")
+    log.info(f"✅  Готово.  Добавлено объявлений: {total}  (групп ок: {groups_ok}, с ошибкой: {groups_failed})")
     log.info("=" * 65)
+    _diag("fb_parser_run_status", "completed")
+    _diag("fb_parser_run_finished_at", datetime.now().isoformat())
+    _diag("fb_parser_run_summary", f"added={total} groups_ok={groups_ok} groups_failed={groups_failed}")
+    if first_group_error:
+        _diag("fb_parser_last_error", first_group_error)
     return total
 
 

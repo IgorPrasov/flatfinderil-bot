@@ -946,6 +946,18 @@ class WebHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._send_json({"ok": False, "error": str(e)}, 500)
 
+        # ── FB parser diagnostics  GET /api/admin/fb-status ─────────────────
+        if resource == "fb-status" and method == "GET":
+            keys = [
+                "fb_parser_status", "fb_parser_started_at",
+                "fb_parser_run_status", "fb_parser_run_started_at",
+                "fb_parser_run_finished_at", "fb_parser_cookie_count",
+                "fb_parser_progress", "fb_parser_run_summary",
+                "fb_parser_last_error", "fb_parser_error_at",
+            ]
+            out = {k: db.get_setting(k) for k in keys}
+            return self._send_json(out)
+
         # ── Audit log GET ──────────────────────────────────────────────────
         if resource == "audit-log" and method == "GET":
             from analytics import _load_stats
@@ -1939,12 +1951,22 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 # Try to (re)start parser
                 try:
                     from facebook_parser import run_loop as _run_loop
-                    import threading as _thr
+                    import threading as _thr, traceback as _tb
                     def _fb_restart():
+                        import database as _db2
                         try:
+                            _db2.set_setting("fb_parser_status", "running")
+                            _db2.set_setting("fb_parser_started_at", datetime.now().isoformat())
                             _run_loop(interval_min=60)
                         except Exception as _e:
+                            err = f"{_e}\n{_tb.format_exc()[-2000:]}"
                             logger.error(f"FB parser restart error: {_e}")
+                            try:
+                                _db2.set_setting("fb_parser_status", "error")
+                                _db2.set_setting("fb_parser_last_error", err)
+                                _db2.set_setting("fb_parser_error_at", datetime.now().isoformat())
+                            except Exception:
+                                pass
                     _t = _thr.Thread(target=_fb_restart, daemon=True, name="fb-parser-restart")
                     _t.start()
                     logger.info("Facebook parser (re)started with new cookies")
