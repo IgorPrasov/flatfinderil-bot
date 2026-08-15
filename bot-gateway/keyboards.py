@@ -618,6 +618,7 @@ def car_menu_keyboard(ctx):
         [InlineKeyboardButton("🔍 Поиск авто", callback_data="car_search_start")],
         [InlineKeyboardButton("➕ Разместить авто", callback_data="car_add_start")],
         [InlineKeyboardButton("📋 Мои авто", callback_data="car_my_listings")],
+        [InlineKeyboardButton("🛂 Проверить авто (номер/VIN)", callback_data="car_verify_start")],
         [InlineKeyboardButton(t("btn_back_menu", ctx), callback_data="back_to_menu")],
     ])
 

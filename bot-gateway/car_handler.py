@@ -22,8 +22,10 @@ from config import (
     CAR_ADD_MAKE, CAR_ADD_MODEL, CAR_ADD_YEAR, CAR_ADD_MILEAGE, CAR_ADD_TRANSMISSION,
     CAR_ADD_FUEL, CAR_ADD_HAND, CAR_ADD_BODY, CAR_ADD_PRICE, CAR_ADD_CITY,
     CAR_ADD_DESCRIPTION, CAR_ADD_CONTACT, CAR_ADD_PHOTOS, CAR_ADD_CONFIRM,
+    CAR_VERIFY_INPUT,
     CAR_BODY_TYPES, CAR_TRANSMISSION, CAR_FUEL,
 )
+import car_verify
 from keyboards import (
     car_menu_keyboard, car_body_keyboard, car_make_keyboard, car_city_keyboard,
     car_price_keyboard, car_year_keyboard, car_transmission_keyboard, car_fuel_keyboard,
@@ -145,6 +147,35 @@ class CarHandler:
         if v and v.get("user_id") == update.effective_user.id:
             db.delete_vehicle(vid)
         await self.my_listings(update, context)
+
+    # ── Verify by plate number / VIN ────────────────────────────────────────
+
+    async def start_verify(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_text(
+            "🛂 <b>Проверка авто по гос. номеру или VIN</b>\n\n"
+            "Отправьте номер машины (например 12345678) или VIN/номер шасси "
+            "(например JMZDEA455-00443499).\n\n"
+            "Данные — из реестра Министерства транспорта Израиля.",
+            parse_mode="HTML"
+        )
+        return CAR_VERIFY_INPUT
+
+    async def handle_verify_input(self, update, context):
+        query_text = update.message.text.strip()
+        wait_msg = await update.message.reply_text("⏳ Проверяю...")
+        info = car_verify.lookup_vehicle(query_text)
+        text = car_verify.format_vehicle_info(info)
+        try:
+            await wait_msg.edit_text(text, parse_mode="HTML")
+        except Exception:
+            await update.message.reply_text(text, parse_mode="HTML")
+        await update.message.reply_text(
+            "Проверить ещё одно авто или вернуться в меню?",
+            reply_markup=car_menu_keyboard(context), parse_mode="HTML"
+        )
+        return ConversationHandler.END
 
     # ── Search flow ───────────────────────────────────────────────────────
 
@@ -451,8 +482,10 @@ class CarHandler:
             entry_points=[
                 CallbackQueryHandler(self.start_search, pattern="^car_search_start$"),
                 CallbackQueryHandler(self.start_add, pattern="^car_add_start$"),
+                CallbackQueryHandler(self.start_verify, pattern="^car_verify_start$"),
             ],
             states={
+                CAR_VERIFY_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_verify_input)],
                 CAR_SEARCH_BODY: [
                     CallbackQueryHandler(self.handle_search_body, pattern="^car_body_"),
                     CallbackQueryHandler(self.handle_back, pattern="^car_back$"),
