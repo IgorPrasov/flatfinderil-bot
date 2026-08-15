@@ -920,13 +920,19 @@ class WebHandler(BaseHTTPRequestHandler):
                     f"https://api.telegram.org/bot{BOT_TOKEN}/getFile",
                     params={"file_id": rid}, timeout=10,
                 )
-                data = r.json()
-                file_path = (data.get("result") or {}).get("file_path")
+                file_path = (r.json().get("result") or {}).get("file_path")
                 if not file_path:
                     return self._send_json({"error": "file not found"}, 404)
-                self.send_response(302)
-                self.send_header("Location", f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}")
+                # Proxy the bytes rather than redirecting — a redirect would
+                # put the bot token, embedded in the Telegram file URL, in
+                # plain sight in the client's network tab.
+                img = _req.get(f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}", timeout=15)
+                self.send_response(200)
+                self.send_header("Content-Type", img.headers.get("Content-Type", "image/jpeg"))
+                self.send_header("Cache-Control", "private, max-age=3600")
+                self.send_header("Content-Length", str(len(img.content)))
                 self.end_headers()
+                self.wfile.write(img.content)
                 return
             except Exception as e:
                 return self._send_json({"error": str(e)}, 500)
