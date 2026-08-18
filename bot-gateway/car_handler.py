@@ -84,6 +84,35 @@ class CarHandler:
         text = "🚗 <b>CarsFinderIL</b>\n\nПоиск и продажа авто в Израиле.\nЧто хотите сделать?"
         await query.edit_message_text(text, reply_markup=car_menu_keyboard(context), parse_mode="HTML")
 
+    async def show_news(self, update, context):
+        query = update.callback_query
+        await query.answer()
+        try:
+            from news_fetcher import get_news
+            data = get_news(topic="transport", limit=8)
+            items = data.get("items", [])
+        except Exception as e:
+            items = []
+            logger.warning(f"[CAR_NEWS] fetch failed: {e}")
+        if not items:
+            text = "📰 Пока нет свежих новостей о транспорте. Загляните позже."
+        else:
+            lines = ["📰 <b>Новости о транспорте</b>\n"]
+            labels = {"price": "💰", "rules": "📋", "auction": "🔨", "market": "🚗"}
+            for it in items:
+                icon = labels.get(it.get("category"), "📰")
+                title = (it.get("title") or "").strip()
+                url = it.get("url") or ""
+                if url:
+                    lines.append(f'{icon} <a href="{url}">{title}</a> — {it.get("source","")}')
+                else:
+                    lines.append(f'{icon} {title} — {it.get("source","")}')
+            text = "\n\n".join(lines)
+        await query.edit_message_text(
+            text[:4000], reply_markup=car_menu_keyboard(context),
+            parse_mode="HTML", disable_web_page_preview=True
+        )
+
     async def my_listings(self, update, context):
         query = update.callback_query
         await query.answer()

@@ -403,6 +403,19 @@ canvas{max-width:100%}
         </table>
       </div>
     </div>
+    <div class="grid11">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📰 Новости о транспорте</span>
+          <button onclick="loadTransportNews()" style="padding:3px 10px;border:none;border-radius:6px;background:#2563EB;color:#fff;font-size:11px;cursor:pointer">↻</button>
+        </div>
+        <div class="card-body" id="transport-news-all" style="font-size:12px;max-height:420px;overflow-y:auto">Загрузка...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">💰 Цены и аукционы</div>
+        <div class="card-body" id="transport-news-price" style="font-size:12px;max-height:420px;overflow-y:auto">Загрузка...</div>
+      </div>
+    </div>
   </div>
 
   <!-- CABINETS -->
@@ -2447,6 +2460,28 @@ function loadDeveloperNews(){
     .catch(e => { if (elYS) elYS.innerHTML = `<span style="color:red">Ошибка: ${e}</span>`; });
 }
 
+function loadTransportNews(){
+  const elAll   = document.getElementById("transport-news-all");
+  const elPrice = document.getElementById("transport-news-price");
+  if (elAll)   elAll.innerHTML   = "Загрузка...";
+  if (elPrice) elPrice.innerHTML = "Загрузка...";
+
+  fetch("/api/news?topic=transport&limit=25")
+    .then(r => r.json())
+    .then(data => { if (elAll) elAll.innerHTML = _renderNewsList(data.items); })
+    .catch(e => { if (elAll) elAll.innerHTML = `<span style="color:red">Ошибка: ${e}</span>`; });
+
+  // "Price" + "auction" categories combined — both are money-related for a buyer
+  Promise.all([
+    fetch("/api/news?topic=transport&category=price&limit=15").then(r=>r.json()),
+    fetch("/api/news?topic=transport&category=auction&limit=15").then(r=>r.json()),
+  ]).then(([priceData, auctionData]) => {
+    const combined = [...(priceData.items||[]), ...(auctionData.items||[])]
+      .sort((a,b) => (b.date||"").localeCompare(a.date||""));
+    if (elPrice) elPrice.innerHTML = _renderNewsList(combined.slice(0,25));
+  }).catch(e => { if (elPrice) elPrice.innerHTML = `<span style="color:red">Ошибка: ${e}</span>`; });
+}
+
 // ══════════════════════════════════════════════════════════════════
 //  ENGAGEMENT: personal cards per user
 // ══════════════════════════════════════════════════════════════════
@@ -2695,7 +2730,7 @@ function showTab(name, btn){
   if(name==="digest")  { loadDigest(); loadDeveloperNews(); }
   if(name==="engage")  loadEngagementUsers();
   if(name==="parsers") render(); // re-render with current data
-  if(name==="cars")    loadCars();
+  if(name==="cars")    { loadCars(); loadTransportNews(); }
 }
 
 // ── CARS (CarsFinderIL vertical) ─────────────────────────────────────────────

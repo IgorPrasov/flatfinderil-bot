@@ -107,6 +107,80 @@ RSS_SOURCES = [
         "category_hint": None,
         "force_relevant": False,
     },
+
+    # ── Transport / Cars vertical (CarsFinderIL) ────────────────────────────────
+    # Google News — Hebrew, general car market news
+    {
+        "name": "Google News רכב",
+        "url": "https://news.google.com/rss/search?q=%D7%A8%D7%9B%D7%91+%D7%99%D7%A9%D7%A8%D7%90%D7%9C+-%D7%A8%D7%9B%D7%91%D7%AA&hl=he&gl=IL&ceid=IL:iw",
+        "lang": "he",
+        "category_hint": "market",
+        "force_relevant": True,
+        "topic_hint": "transport",
+    },
+    # Google News — Hebrew, car prices
+    {
+        "name": "Google News מחירי רכב",
+        "url": "https://news.google.com/rss/search?q=%D7%9E%D7%97%D7%99%D7%A8%D7%99+%D7%A8%D7%9B%D7%91+%D7%91%D7%99%D7%A9%D7%A8%D7%90%D7%9C&hl=he&gl=IL&ceid=IL:iw",
+        "lang": "he",
+        "category_hint": "price",
+        "force_relevant": True,
+        "topic_hint": "transport",
+    },
+    # Google News — Hebrew, new traffic regulations / driving rules
+    {
+        "name": "Google News תקנות תעבורה",
+        "url": "https://news.google.com/rss/search?q=%D7%AA%D7%A7%D7%A0%D7%95%D7%AA+%D7%AA%D7%A2%D7%91%D7%95%D7%A8%D7%94+%D7%97%D7%93%D7%A9%D7%95%D7%AA&hl=he&gl=IL&ceid=IL:iw",
+        "lang": "he",
+        "category_hint": "rules",
+        "force_relevant": True,
+        "topic_hint": "transport",
+    },
+    # Google News — Hebrew, vehicle auctions (government/fleet/leasing company auctions)
+    {
+        "name": "Google News מכרז רכבים",
+        "url": "https://news.google.com/rss/search?q=%D7%9E%D7%9B%D7%A8%D7%96+%D7%A8%D7%9B%D7%91%D7%99%D7%9D&hl=he&gl=IL&ceid=IL:iw",
+        "lang": "he",
+        "category_hint": "auction",
+        "force_relevant": True,
+        "topic_hint": "transport",
+    },
+    # Google News — Hebrew, vehicle licensing/registration rules
+    {
+        "name": "Google News רישוי רכב",
+        "url": "https://news.google.com/rss/search?q=%D7%A8%D7%99%D7%A9%D7%95%D7%99+%D7%A8%D7%9B%D7%91+%D7%97%D7%95%D7%A7&hl=he&gl=IL&ceid=IL:iw",
+        "lang": "he",
+        "category_hint": "rules",
+        "force_relevant": True,
+        "topic_hint": "transport",
+    },
+    # Google News — English, car prices / market Israel
+    {
+        "name": "Google News Car Prices Israel",
+        "url": "https://news.google.com/rss/search?q=car+prices+israel&hl=en-IL&gl=IL&ceid=IL:en",
+        "lang": "en",
+        "category_hint": "price",
+        "force_relevant": True,
+        "topic_hint": "transport",
+    },
+    # Google News — English, driving rules / traffic law Israel
+    {
+        "name": "Google News Driving Rules Israel",
+        "url": "https://news.google.com/rss/search?q=israel+driving+rules+traffic+law&hl=en-IL&gl=IL&ceid=IL:en",
+        "lang": "en",
+        "category_hint": "rules",
+        "force_relevant": True,
+        "topic_hint": "transport",
+    },
+    # Google News — English, vehicle auctions Israel
+    {
+        "name": "Google News Car Auction Israel",
+        "url": "https://news.google.com/rss/search?q=vehicle+auction+israel&hl=en-IL&gl=IL&ceid=IL:en",
+        "lang": "en",
+        "category_hint": "auction",
+        "force_relevant": True,
+        "topic_hint": "transport",
+    },
 ]
 
 # ── Relevance keywords (whole-phrase matching, not substring) ──────────────────
@@ -279,6 +353,7 @@ def _fetch_source(source: dict) -> list:
 
             cat = source.get("category_hint") or _classify(combined)
             region = source.get("region_hint") or ("judea_samaria" if _is_judea_samaria(combined) else None)
+            topic = source.get("topic_hint", "housing")
 
             items.append({
                 "category": cat,
@@ -289,6 +364,7 @@ def _fetch_source(source: dict) -> list:
                 "url":      link,
                 "lang":     source["lang"],
                 "region":   region,
+                "topic":    topic,
             })
 
         logger.info(f"[NEWS] {source['name']}: {len(items)} items from {source['url'][:60]}")
@@ -315,10 +391,31 @@ def fetch_all_news() -> dict:
             seen.add(key)
             deduped.append(item)
 
-    deduped = deduped[:60]
+    # Cap PER TOPIC, not globally — otherwise a fast-moving topic (e.g. cars,
+    # with frequent auto-blog updates) crowds the other topic out of the
+    # shared list entirely once everything is merged and truncated together.
+    per_topic_cap = 60
+    capped, topic_counts = [], {}
+    for item in deduped:
+        t = item.get("topic", "housing")
+        topic_counts[t] = topic_counts.get(t, 0)
+        if topic_counts[t] < per_topic_cap:
+            capped.append(item)
+            topic_counts[t] += 1
+    capped.sort(key=lambda x: x.get("date", ""), reverse=True)
+    deduped = capped
 
-    # Build ticker from top items that have titles
-    ticker = [item["title"] for item in deduped[:12] if item["title"]]
+    # Build ticker from top items that have titles — sampled across topics so
+    # one topic's fresher feed doesn't monopolize it either.
+    ticker, ticker_topic_counts = [], {}
+    for item in deduped:
+        if len(ticker) >= 12 or not item["title"]:
+            continue
+        t = item.get("topic", "housing")
+        if ticker_topic_counts.get(t, 0) >= 8:  # leave room for other topics
+            continue
+        ticker.append(item["title"])
+        ticker_topic_counts[t] = ticker_topic_counts.get(t, 0) + 1
 
     result = {
         "updated": datetime.now().isoformat(),
@@ -337,7 +434,7 @@ def fetch_all_news() -> dict:
     return result
 
 
-def get_news(category: str = None, lang: str = None, region: str = None, limit: int = 20) -> dict:
+def get_news(category: str = None, lang: str = None, region: str = None, topic: str = None, limit: int = 20) -> dict:
     """Return cached news, refreshing if stale > REFRESH_INTERVAL min."""
     cached = None
     try:
@@ -360,6 +457,9 @@ def get_news(category: str = None, lang: str = None, region: str = None, limit: 
         items = [i for i in items if i.get("lang") == lang]
     if region:
         items = [i for i in items if i.get("region") == region]
+    if topic:
+        # Cached items fetched before this field existed default to "housing"
+        items = [i for i in items if i.get("topic", "housing") == topic]
 
     return {
         "updated": cached.get("updated"),

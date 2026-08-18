@@ -347,6 +347,7 @@ def main():
     app.add_handler(commercial.get_conversation_handler())
     app.add_handler(cars.get_conversation_handler())
     app.add_handler(CallbackQueryHandler(cars.open_menu,          pattern="^car_menu$"))
+    app.add_handler(CallbackQueryHandler(cars.show_news,          pattern="^car_news$"))
     app.add_handler(CallbackQueryHandler(cars.my_listings,        pattern="^car_my_listings$"))
     app.add_handler(CallbackQueryHandler(cars.manage_vehicle,     pattern="^car_manage_"))
     app.add_handler(CallbackQueryHandler(cars.deactivate_vehicle, pattern="^car_deact_"))
@@ -2698,8 +2699,9 @@ button:hover{{background:#1a9de0}}.err{{color:#E24B4A;font-size:12px;margin-top:
                 category = (qs.get("category") or qs.get("cat") or [None])[0]
                 lang     = (qs.get("lang")     or [None])[0]
                 region   = (qs.get("region")   or [None])[0]
+                topic    = (qs.get("topic")    or [None])[0]
                 limit    = int((qs.get("limit") or qs.get("n") or ["20"])[0])
-                data = get_news(category=category, lang=lang, region=region, limit=limit)
+                data = get_news(category=category, lang=lang, region=region, topic=topic, limit=limit)
             except Exception as e:
                 data = {"error": str(e), "items": [], "ticker": []}
             self._send_json(data)
